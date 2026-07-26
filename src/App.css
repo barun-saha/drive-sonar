@@ -1,0 +1,51 @@
+/* Accent colors (shared across themes) */
+:root {
+  --accent-primary: #58a6ff;
+  --color-dir: #56dec3;     /* Radiant Teal */
+  --color-file: #ff79c6;    /* Vivid Magenta */
+  --color-success: #39d353;
+}
+
+/* Dark Theme Variables */
+[data-mantine-color-scheme="dark"] {
+  --bg-main: #0d1117;
+  --bg-panel: #161b22;
+  --border-color: #30363d;
+  --text-main: #f0f6fc;
+  --text-muted: #8b949e;
+}
+
+/* Light Theme Variables */
+[data-mantine-color-scheme="light"] {
+  --bg-main: #f8f9fa;
+  --bg-panel: #ffffff;
+  --border-color: #e9ecef;
+  --text-main: #212529;
+  --text-muted: #6c757d;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.file-row-hover:hover .row-action-buttons {
+  opacity: 1 !important;
+}
+
+.spin-animation {
+  animation: spin 1s linear infinite;
+  display: inline-block; /* Ensures the element rotates cleanly around its center */
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

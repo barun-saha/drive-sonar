@@ -1,0 +1,34 @@
+[package]
+name = "drive-atlas"
+version = "0.1.0"
+description = "A fast, lightweight disk space explorer made using Rust!"
+authors = ["Barun Saha"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "drive_atlas_lib"
+crate-type = ["cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+jwalk = "0.8"
+trash = "5.2"
+tauri-plugin-dialog = "2"
+
+[profile.release]
+panic = "abort"     # Reduces binary size by removing panic unwinding
+codegen-units = 1   # Allows compiler to optimize across the entire crate
+lto = true          # Enables Link-Time Optimization for a smaller, faster binary
+opt-level = "z"     # Optimizes for binary size (use "3" if you prefer maximum speed)
+strip = true        # Automatically strips symbols/debug info (saves ~1.5MB)
