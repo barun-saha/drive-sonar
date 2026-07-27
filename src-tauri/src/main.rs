@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    drive_atlas_lib::run()
+    drive_sonar_lib::run()
 }
