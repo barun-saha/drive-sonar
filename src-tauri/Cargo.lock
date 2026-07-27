@@ -834,7 +834,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "drive-atlas"
+name = "drive-sonar"
 version = "0.1.0"
 dependencies = [
  "jwalk",

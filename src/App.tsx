@@ -183,16 +183,16 @@ export default function App() {
             <Modal.Title>
               <Group gap="xs">
                 <Info size={20} color="var(--mantine-color-cyan-4)" />
-                <Text fw={600} size="lg" c="dimmed">About Drive Atlas</Text>
+                <Text fw={600} size="lg" c="dimmed">About Drive Sonar</Text>
               </Group>
             </Modal.Title>
             <Modal.CloseButton />
           </Modal.Header>
           <Modal.Body pt="md">
             <Stack gap="xs">
-              <Text fw={500}>Drive Atlas {appVersion ? `v${appVersion}` : ''}</Text>
+              <Text fw={500}>Drive Sonar {appVersion ? `v${appVersion}` : ''}</Text>
               <Text size="lg">
-                A fast, lightweight disk space explorer powered by Rust and Tauri.
+                A fast, lightweight disk space explorer powered by Rust and Tauri. Apache-2.0 licensed.
               </Text>
               <br />
               <Text size="lg">
@@ -210,7 +210,7 @@ export default function App() {
           {/* Header with Hamburger Menu */}
           <Group justify="space-between" align="center" gap="xs">
             <Title order={2} style={{ color: 'var(--text-main)', letterSpacing: '-0.5px' }}>
-              ⚡ Drive Atlas — explore and map your disk space usage
+              ⚡ Drive Sonar — map your disk usage
             </Title>
 
             <Menu shadow="md" width={200} position="bottom-end">
@@ -251,7 +251,7 @@ export default function App() {
                   leftSection={<Info size={14} />}
                   onClick={openAbout}
                 >
-                  About Drive Atlas
+                  About Drive Sonar
                 </Menu.Item>
               </Menu.Dropdown>
             </Menu>

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Drive Atlas",
+  "productName": "Drive Sonar",
   "version": "0.1.0",
-  "identifier": "com.barunsaha.drive-atlas",
+  "identifier": "com.barunsaha.drive-sonar",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Drive Atlas",
+        "title": "Drive Sonar",
         "width": 800,
         "height": 600
       }
