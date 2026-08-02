@@ -220,7 +220,7 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
                   </div>
 
                   <div style={{ flex: 1, padding: '0 16px', minWidth: '80px' }}>
-                    <Progress.Root size="sm" style={{ borderRadius: '4px' }}>
+                    <Progress.Root size="md" style={{ borderRadius: '4px' }}>
                       <Tooltip label={`${itemPercentage.toFixed(2)}%`}>
                         <div style={{ width: '100%', height: '100%' }}>
                           <Progress.Section value={itemPercentage} color={barColor} />
