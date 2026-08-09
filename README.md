@@ -27,6 +27,8 @@ Drive Sonar is inspired by the simplicity of `ncdu`. In addition, Drive Sonar pr
 
 ## 🚀 Getting Started
 
+Requires Windows 10 version 1709 (October 2017 Update) or later.
+
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) (v18+)
