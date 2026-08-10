@@ -194,14 +194,24 @@ mod windows_scanner {
             }
 
             const STATUS_BUFFER_OVERFLOW: i32 = 0x80000005u32 as i32;
+            const MAX_QUERY_BUFFER_SIZE: usize = 16 * 1024 * 1024;
             if status.0 == STATUS_BUFFER_OVERFLOW {
+                if buffer.len() >= MAX_QUERY_BUFFER_SIZE {
+                    return Err(io::Error::new(
+                        io::ErrorKind::OutOfMemory,
+                        "NtQueryDirectoryFileEx buffer exceeded maximum limit (16MB)",
+                    ));
+                }
                 let new_len = buffer.len() * 2;
                 buffer.resize(new_len, 0);
                 continue;
             }
 
             if status != STATUS_SUCCESS {
-                return Err(io::Error::from_raw_os_error(status.0));
+                return Err(io::Error::other(format!(
+                    "NtQueryDirectoryFileEx failed with NTSTATUS 0x{:08X}",
+                    status.0 as u32
+                )));
             }
 
             let bytes_returned = iosb.Information as usize;
@@ -309,9 +319,17 @@ fn scan_dir_parallel(
     cancel_flag: &AtomicBool,
     skipped_count: &AtomicUsize,
     sink: &Mutex<Vec<FlatFileEntry>>,
+    depth: usize,
 ) -> Result<u64, String> {
     if cancel_flag.load(Ordering::Relaxed) {
         return Err("Scan was cancelled".to_string());
+    }
+
+    const MAX_SCAN_DEPTH: usize = 256;
+    if depth > MAX_SCAN_DEPTH {
+        skipped_count.fetch_add(1, Ordering::Relaxed);
+        eprintln!("Skipped path exceeding max depth ({}): {:?}", MAX_SCAN_DEPTH, dir_path);
+        return Ok(0);
     }
 
     let this_path_str = dir_path.to_string_lossy().into_owned();
@@ -385,6 +403,7 @@ fn scan_dir_parallel(
                 cancel_flag,
                 skipped_count,
                 sink,
+                depth + 1,
             )
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -455,6 +474,7 @@ fn fast_scan_windows(
         cancel_flag,
         &skipped_count,
         &sink,
+        0,
     )?;
 
     let skipped = skipped_count.load(Ordering::Relaxed);
@@ -515,10 +535,16 @@ async fn scan_directory(app: tauri::AppHandle, target_path: String, state: State
 
         match scan_res {
             Ok(Ok(entries)) => return Ok(entries),
+            Ok(Err(e)) if scan_cancel_flag.load(Ordering::Relaxed) || e == "Scan was cancelled" => {
+                return Err("Scan was cancelled".to_string());
+            }
             Ok(Err(e)) => {
                 let msg = format!("Fast scan failed ({}), gracefully falling back to standard scanner...", e);
                 eprintln!("{}", msg);
                 let _ = app.emit("scan-warning", msg);
+            }
+            Err(_e) if scan_cancel_flag.load(Ordering::Relaxed) => {
+                return Err("Scan was cancelled".to_string());
             }
             Err(e) => {
                 let msg = format!("Fast scan task panicked ({}), gracefully falling back to standard scanner...", e);
