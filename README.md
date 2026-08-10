@@ -27,6 +27,8 @@ Drive Sonar is inspired by the simplicity of `ncdu`. In addition, Drive Sonar pr
 
 ## 🚀 Getting Started
 
+On Windows, Drive Sonar requires Windows 10 version 1709 (October 2017 Update) or later. macOS and Linux have no additional version requirement.
+
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) (v18+)
