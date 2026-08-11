@@ -9,16 +9,18 @@ interface ExtensionChartProps {
 }
 
 export function ExtensionChart({ allResults, currentViewPath }: ExtensionChartProps) {
-  const data = useMemo(() => {
+  const data: Record<string, any>[] = useMemo(() => {
     const extMap: Record<string, number> = {};
     const normCurrentView = currentViewPath.replace(/\\/g, '/').toLowerCase();
     const currentPrefix = normCurrentView.endsWith('/') ? normCurrentView : `${normCurrentView}/`;
+    const minLength = normCurrentView.length;
 
     for (let i = 0; i < allResults.length; i++) {
       const entry = allResults[i];
       if (entry.is_dir) continue;
+      if (entry.path.length < minLength) continue;
 
-      const normPath = entry.path.replace(/\\/g, '/').toLowerCase();
+      const normPath = entry.normPath ||  entry.path.replace(/\\/g, '/').toLowerCase();
       if (!normPath.startsWith(currentPrefix) && normPath !== normCurrentView) continue;
 
       const dotIdx = entry.path.lastIndexOf('.');
