@@ -45,7 +45,7 @@ export function ExtensionChart({ allResults, currentViewPath }: ExtensionChartPr
   return (
     <Box p="xs" style={{ height: '100%' }}>
       <Text size="xs" c="dimmed" mb="sm" fw={600}>
-        TOP 15 FILE EXTENSIONS BY STORAGE (MB)
+        TOP 15 FILE EXTENSIONS BY STORAGE
       </Text>
       <BarChart
         h={380}

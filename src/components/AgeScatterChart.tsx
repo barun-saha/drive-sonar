@@ -44,7 +44,7 @@ export function AgeScatterChart({ allResults, currentViewPath }: AgeScatterChart
   return (
     <Box p="xs" style={{ height: '100%' }}>
       <Text size="xs" c="dimmed" mb="sm" fw={600}>
-        TOP 30 LARGEST FILES: SIZE (MB) vs AGE (MONTHS OLD)
+        TOP 30 LARGEST FILES: SIZE vs AGE
       </Text>
       <ScatterChart
         h={380}
