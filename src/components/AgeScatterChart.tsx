@@ -59,20 +59,20 @@ export function AgeScatterChart({ allResults, currentViewPath }: AgeScatterChart
 
             return (
               <Box
-                p="xs"
+                p="sm"
                 style={{
                   background: 'var(--bg-panel, #1e1e1e)',
                   border: '1px solid var(--border-color, #333)',
                   borderRadius: 6,
                 }}
               >
-                <Text size="xs" fw={700} c="white">
+                <Text size="sm" fw={700}>
                   {data.fileName}
                 </Text>
-                <Text size="xs" c="dimmed">
+                <Text size="sm" fw={500} c="dimmed">
                   Size: {data.sizeMB} MB
                 </Text>
-                <Text size="xs" c="dimmed">
+                <Text size="sm" fw={500} c="dimmed">
                   Modified: {data.ageMonths} months ago
                 </Text>
               </Box>

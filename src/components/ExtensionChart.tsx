@@ -54,6 +54,30 @@ export function ExtensionChart({ allResults, currentViewPath }: ExtensionChartPr
         xAxisLabel="Size (MB)"
         yAxisLabel="Extension"
         gridAxis="y"
+        tooltipProps={{
+          content: ({ payload }) => {
+            if (!payload || !payload.length) return null;
+            const item = payload[0].payload;
+
+            return (
+              <Box
+                p="sm"
+                style={{
+                  background: 'var(--bg-panel, #1e1e1e)',
+                  border: '1px solid var(--border-color, #333)',
+                  borderRadius: 6,
+                }}
+              >
+                <Text size="sm" fw={700}>
+                  {item.extension}
+                </Text>
+                <Text size="sm" fw={500} c="dimmed">
+                  Size: {item.sizeMB} MB
+                </Text>
+              </Box>
+            );
+          }
+        }}
       />
     </Box>
   );
