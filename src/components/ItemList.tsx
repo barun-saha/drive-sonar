@@ -22,7 +22,7 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
   const [hoveredPath, setHoveredPath] = useState<string | null>(null);
 
   const ROW_HEIGHT = 38;
-  const VIEWPORT_HEIGHT = 420;
+  const VIEWPORT_HEIGHT = 440; // Virtual scroll buffer calculation
   const BUFFER_ITEMS = 5;
 
   useEffect(() => {
@@ -70,7 +70,6 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
           color: 'green'
         });
 
-        // Triggers the state update refresh loop on the backend data pool
         onRefresh();
       } catch (error) {
         notifications.show({
@@ -106,9 +105,10 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
         padding: '16px',
         borderRadius: '8px',
         border: '1px solid var(--border-color)',
-        height: '540px',
+        height: 500, // Matching explicit height
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        boxSizing: 'border-box'
       }}
     >
       <Group justify="space-between" align="center" mb="md">
@@ -122,7 +122,8 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
         id="virtual-scroll-viewport"
         onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
         style={{
-          height: `${VIEWPORT_HEIGHT}px`,
+          flex: 1,
+          minHeight: 0, // Fills exact remaining space in the 500px card
           overflowY: 'auto',
           position: 'relative',
           backgroundColor: 'var(--bg-main)',

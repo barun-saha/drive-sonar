@@ -25,7 +25,6 @@ export default function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [diskInfo, setDiskInfo] = useState<DiskInfo | null>(null);
   const [scanPath, setScanPath] = useState<string>('');        // path that was scanned
-  const [scanTotalSize, setScanTotalSize] = useState<number>(0); // aggregated size at scan root
 
   // State for the modals
   const [helpOpened, { open: openHelp, close: closeHelp }] = useDisclosure(false);
@@ -137,7 +136,6 @@ export default function App() {
       setResults(normalizedData);
       setCurrentViewPath(targetPath);
       setScanTime(endTime - startTime);
-      setScanTotalSize(rootEntry ? rootEntry.size : 0);
     } catch (error) {
       notifications.show({
         title: 'Scan Failed',
@@ -308,12 +306,11 @@ export default function App() {
             totalItems={results.length}
             diskInfo={diskInfo}
             scanPath={scanPath}
-            scanTotalSize={scanTotalSize}
             currentViewPath={currentViewPath}
             dirCountMap={dirCountMap}
           />
 
-          <Grid gap='md'>
+          <Grid gap='md' align="flex-start">
             <Grid.Col span={{ base: 12, md: 7 }}>
               <ItemList
                 items={visibleItems}
