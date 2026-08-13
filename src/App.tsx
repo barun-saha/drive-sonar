@@ -15,7 +15,7 @@ import { VisualizationPanel } from './components/VisualizationPanel';
 
 import '@mantine/notifications/styles.css';
 
-import { FlatFileEntry } from './types';
+import { FlatFileEntry, DiskInfo } from './types';
 
 export default function App() {
   const [targetPath, setTargetPath] = useState('');
@@ -23,6 +23,9 @@ export default function App() {
   const [results, setResults] = useState<FlatFileEntry[]>([]);
   const [scanTime, setScanTime] = useState<number | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [diskInfo, setDiskInfo] = useState<DiskInfo | null>(null);
+  const [scanPath, setScanPath] = useState<string>('');        // path that was scanned
+  const [scanTotalSize, setScanTotalSize] = useState<number>(0); // aggregated size at scan root
 
   // State for the modals
   const [helpOpened, { open: openHelp, close: closeHelp }] = useDisclosure(false);
@@ -104,18 +107,37 @@ export default function App() {
 
     try {
       setIsScanning(true);
+      setScanTime(null);
+
+      // Fetch and display disk capacity info first (fast syscall)
+      try {
+        const di = await invoke<DiskInfo>('get_disk_info', { path: targetPath });
+        setDiskInfo(di);
+        setScanPath(targetPath);
+      } catch (e) {
+        console.warn('get_disk_info failed:', e);
+      }
+
+      // Proceed to directory scanning
       const startTime = performance.now();
       const processedData = await invoke<FlatFileEntry[]>('scan_directory', {
         targetPath: targetPath,
       });
       const endTime = performance.now();
+
       const normalizedData = processedData.map((entry) => ({
         ...entry,
         normPath: entry.path.replace(/\\/g, '/').toLowerCase(),
       }));
+
+      // Find the scan-root entry (its size == aggregated total for the scanned path)
+      const normTarget = targetPath.replace(/\\/g, '/').toLowerCase();
+      const rootEntry = normalizedData.find((e) => e.normPath === normTarget);
+
       setResults(normalizedData);
       setCurrentViewPath(targetPath);
       setScanTime(endTime - startTime);
+      setScanTotalSize(rootEntry ? rootEntry.size : 0);
     } catch (error) {
       notifications.show({
         title: 'Scan Failed',
@@ -140,6 +162,20 @@ export default function App() {
       return normItemPath !== normCurrentView && normItemParent === normCurrentView;
     });
   }, [results, currentViewPath]);
+
+  // Single O(N) pass to build a map of { dirs, files } counts keyed by
+  // normalised parent_path. Recomputed only when results change (new scan).
+  // Navigation is then an O(1) Map lookup — no re-iteration needed.
+  const dirCountMap = useMemo(() => {
+    const map = new Map<string, { dirs: number; files: number }>();
+    for (const entry of results) {
+      const key = entry.parent_path.replace(/\\/g, '/').toLowerCase();
+      if (!map.has(key)) map.set(key, { dirs: 0, files: 0 });
+      const c = map.get(key)!;
+      if (entry.is_dir) c.dirs++; else c.files++;
+    }
+    return map;
+  }, [results]);
 
   return (
     <>
@@ -270,6 +306,11 @@ export default function App() {
             isScanning={isScanning}
             scanTime={scanTime}
             totalItems={results.length}
+            diskInfo={diskInfo}
+            scanPath={scanPath}
+            scanTotalSize={scanTotalSize}
+            currentViewPath={currentViewPath}
+            dirCountMap={dirCountMap}
           />
 
           <Grid gap='md'>

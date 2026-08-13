@@ -6,6 +6,7 @@ import { notifications } from '@mantine/notifications';
 import { Folder, File, FolderOpen, Trash2 } from 'lucide-react';
 
 import { FlatFileEntry } from '../types';
+import { formatBytes } from '../utils/format';
 import { PathNav } from '../components/PathNav';
 
 interface ItemListProps {
@@ -29,14 +30,6 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
     const scrollContainer = document.getElementById('virtual-scroll-viewport');
     if (scrollContainer) scrollContainer.scrollTop = 0;
   }, [currentViewPath]);
-
-  function formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }
 
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => b.size - a.size);
