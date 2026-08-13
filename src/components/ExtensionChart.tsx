@@ -23,8 +23,13 @@ export function ExtensionChart({ allResults, currentViewPath }: ExtensionChartPr
       const normPath = entry.normPath ||  entry.path.replace(/\\/g, '/').toLowerCase();
       if (!normPath.startsWith(currentPrefix) && normPath !== normCurrentView) continue;
 
+      // File names without extension but inside hidden directories
+      const slashIdx = Math.max(entry.path.lastIndexOf('/'), entry.path.lastIndexOf('\\'));
       const dotIdx = entry.path.lastIndexOf('.');
-      const ext = dotIdx > 0 ? entry.path.slice(dotIdx).toLowerCase() : 'no ext';
+      // A dot is only a valid file extension if it occurs AFTER the last slash
+      const ext = (dotIdx > slashIdx && dotIdx > 0)
+        ? entry.path.slice(dotIdx).toLowerCase()
+        : '<no ext>';
       extMap[ext] = (extMap[ext] || 0) + entry.size;
     }
 
