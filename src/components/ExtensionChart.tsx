@@ -9,20 +9,24 @@ interface ExtensionChartProps {
 }
 
 export function ExtensionChart({ allResults, currentViewPath }: ExtensionChartProps) {
-  const data = useMemo(() => {
+  const data: Record<string, any>[] = useMemo(() => {
     const extMap: Record<string, number> = {};
     const normCurrentView = currentViewPath.replace(/\\/g, '/').toLowerCase();
     const currentPrefix = normCurrentView.endsWith('/') ? normCurrentView : `${normCurrentView}/`;
+    const minLength = normCurrentView.length;
 
     for (let i = 0; i < allResults.length; i++) {
       const entry = allResults[i];
       if (entry.is_dir) continue;
+      if (entry.path.length < minLength) continue;
 
-      const normPath = entry.path.replace(/\\/g, '/').toLowerCase();
+      const normPath = entry.normPath ||  entry.path.replace(/\\/g, '/').toLowerCase();
       if (!normPath.startsWith(currentPrefix) && normPath !== normCurrentView) continue;
 
-      const dotIdx = entry.path.lastIndexOf('.');
-      const ext = dotIdx > 0 ? entry.path.slice(dotIdx).toLowerCase() : 'no ext';
+      const dotIdx = entry.name.lastIndexOf('.');
+      const ext = (dotIdx > 0 && dotIdx < entry.name.length - 1)
+        ? entry.name.slice(dotIdx).toLowerCase()
+        : '<no ext>';
       extMap[ext] = (extMap[ext] || 0) + entry.size;
     }
 
@@ -38,7 +42,7 @@ export function ExtensionChart({ allResults, currentViewPath }: ExtensionChartPr
   return (
     <Box p="xs" style={{ height: '100%' }}>
       <Text size="xs" c="dimmed" mb="sm" fw={600}>
-        TOP 15 FILE EXTENSIONS BY STORAGE (MB)
+        TOP 15 FILE EXTENSIONS BY STORAGE
       </Text>
       <BarChart
         h={380}
@@ -52,6 +56,30 @@ export function ExtensionChart({ allResults, currentViewPath }: ExtensionChartPr
         xAxisLabel="Size (MB)"
         yAxisLabel="Extension"
         gridAxis="y"
+        tooltipProps={{
+          content: ({ payload }) => {
+            if (!payload || !payload.length) return null;
+            const item = payload[0].payload;
+
+            return (
+              <Box
+                p="sm"
+                style={{
+                  background: 'var(--bg-panel, #1e1e1e)',
+                  border: '1px solid var(--border-color, #333)',
+                  borderRadius: 6,
+                }}
+              >
+                <Text size="sm" fw={700}>
+                  {item.extension}
+                </Text>
+                <Text size="sm" fw={500} c="dimmed">
+                  Size: {item.sizeMB} MB
+                </Text>
+              </Box>
+            );
+          }
+        }}
       />
     </Box>
   );

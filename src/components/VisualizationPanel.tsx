@@ -28,7 +28,7 @@ export function VisualizationPanel({
         flexDirection: 'column',
       }}
     >
-      <Tabs keepMounted={false} defaultValue="treemap">
+      <Tabs keepMounted={true} defaultValue="treemap">
         <Tabs.List>
           <Tabs.Tab value="treemap">Space Map</Tabs.Tab>
           <Tabs.Tab value="extensions">File Types</Tabs.Tab>

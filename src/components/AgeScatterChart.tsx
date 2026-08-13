@@ -13,35 +13,42 @@ export function AgeScatterChart({ allResults, currentViewPath }: AgeScatterChart
     const nowSecs = Math.floor(Date.now() / 1000);
     const normCurrentView = currentViewPath.replace(/\\/g, '/').toLowerCase();
     const currentPrefix = normCurrentView.endsWith('/') ? normCurrentView : `${normCurrentView}/`;
+    const minLength = normCurrentView.length;
+    const scopedFiles: FlatFileEntry[] = [];
 
-    const scopedFiles = allResults.filter((item) => {
-      if (item.is_dir) return false;
-      const normPath = item.path.replace(/\\/g, '/').toLowerCase();
-      return normPath.startsWith(currentPrefix) || normPath === normCurrentView;
-    });
+    // Traditional loop to prevent closure creation across 1M+ array items
+    for (let i = 0; i < allResults.length; i++) {
+      const item = allResults[i];
+      if (item.is_dir) continue;
+      if (item.path.length < minLength) continue;
 
+      const normPath = item.normPath || item.path.replace(/\\/g, '/').toLowerCase();
+      if (normPath.startsWith(currentPrefix) || normPath === normCurrentView) {
+        scopedFiles.push(item);
+      }
+    }
+
+    // Safely sort scoped subset and take top 30
     const topN = scopedFiles.sort((a, b) => b.size - a.size).slice(0, 30);
-    const SECONDS_PER_MONTH = 86400 * 30.4375; // Average days per month
+    const SECONDS_PER_MONTH = 86400 * 30.4375;
 
-    const points = topN.map((file) => ({
+    return topN.map((file) => ({
       ageMonths: file.modified_secs
         ? Math.max(0, Number(((nowSecs - file.modified_secs) / SECONDS_PER_MONTH).toFixed(1)))
         : 0,
       sizeMB: Number((file.size / (1024 * 1024)).toFixed(2)),
-      fileName: file.name as any,
+      fileName: file.name,
     }));
-
-    return points as Record<string, number>[];
   }, [allResults, currentViewPath]);
 
   return (
     <Box p="xs" style={{ height: '100%' }}>
       <Text size="xs" c="dimmed" mb="sm" fw={600}>
-        TOP 30 LARGEST FILES: SIZE (MB) vs AGE (MONTHS OLD)
+        TOP 30 LARGEST FILES: SIZE vs AGE
       </Text>
       <ScatterChart
         h={380}
-        data={[{ color: 'var(--accent-primary, #3b82f6)', name: 'Files', data: points }]}
+        data={[{ color: 'var(--accent-primary, #3b82f6)', name: 'Files', data: points as any }]}
         dataKey={{ x: 'ageMonths', y: 'sizeMB' }}
         xAxisLabel="Age (Months Since Modified)"
         yAxisLabel="Size (MB)"
@@ -52,20 +59,20 @@ export function AgeScatterChart({ allResults, currentViewPath }: AgeScatterChart
 
             return (
               <Box
-                p="xs"
+                p="sm"
                 style={{
                   background: 'var(--bg-panel, #1e1e1e)',
                   border: '1px solid var(--border-color, #333)',
                   borderRadius: 6,
                 }}
               >
-                <Text size="xs" fw={700} c="white">
+                <Text size="sm" fw={700}>
                   {data.fileName}
                 </Text>
-                <Text size="xs" c="dimmed">
+                <Text size="sm" fw={500} c="dimmed">
                   Size: {data.sizeMB} MB
                 </Text>
-                <Text size="xs" c="dimmed">
+                <Text size="sm" fw={500} c="dimmed">
                   Modified: {data.ageMonths} months ago
                 </Text>
               </Box>

@@ -40,7 +40,7 @@ export function SizeChart({ items }: SizeChartProps) {
   return (
     <Box p="xs" style={{ height: '100%' }}>
       <Text size="xs" fw={700} c="dimmed" mb="sm" style={{ textTransform: 'uppercase' }}>
-        Space Distribution Map (Values in MB)
+        Space Distribution Map
       </Text>
 
       <div style={{ flex: 1, minHeight: 0, width: '100%' }}>
@@ -54,10 +54,17 @@ export function SizeChart({ items }: SizeChartProps) {
                 if (active && payload && payload.length) {
                   const data = payload[0].payload;
                   return (
-                    <div style={{ background: '#1a1f26', padding: '8px 12px', borderRadius: '4px', border: '1px solid #2e3746' }}>
-                      <Text size="xs" fw={700} style={{ color: 'var(--text-main)' }}>{data.name}</Text>
-                      <Text size="xs" c="dimmed">{formatBytes(data.realSize)}</Text>
-                    </div>
+                  <Box
+                    p="sm"
+                    style={{
+                      background: 'var(--bg-panel, #1e1e1e)',
+                      border: '1px solid var(--border-color, #333)',
+                      borderRadius: 6,
+                    }}
+                    >
+                      <Text size="sm" fw={700}>{data.name}</Text>
+                      <Text size="sm" fw={500} c="dimmed">Size: {formatBytes(data.realSize)}</Text>
+                    </Box>
                   );
                 }
                 return null;

@@ -109,7 +109,11 @@ export default function App() {
         targetPath: targetPath,
       });
       const endTime = performance.now();
-      setResults(processedData);
+      const normalizedData = processedData.map((entry) => ({
+        ...entry,
+        normPath: entry.path.replace(/\\/g, '/').toLowerCase(),
+      }));
+      setResults(normalizedData);
       setCurrentViewPath(targetPath);
       setScanTime(endTime - startTime);
     } catch (error) {

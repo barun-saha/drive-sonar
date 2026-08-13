@@ -5,4 +5,5 @@ export interface FlatFileEntry {
   size: number;
   is_dir: boolean;
   modified_secs: number;
+  normPath?: string; // Pre-normalized path for rapid matching
 }
