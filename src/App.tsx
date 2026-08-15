@@ -264,7 +264,7 @@ export default function App() {
           {/* Header with Hamburger Menu */}
           <Group justify="space-between" align="center" gap="xs">
             <Title order={2} style={{ color: 'var(--text-main)', letterSpacing: '-0.5px' }}>
-              ⚡ Drive Sonar — map your disk usage
+              ⚡ Drive Sonar — insights on your disk usage
             </Title>
 
             <Menu shadow="md" width={200} position="bottom-end">
