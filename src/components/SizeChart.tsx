@@ -33,7 +33,7 @@ export function SizeChart({ items }: SizeChartProps) {
   return (
     <Box p="xs" style={{ height: '100%' }}>
       <Text size="xs" fw={700} c="dimmed" mb="sm" style={{ textTransform: 'uppercase' }}>
-        Space Distribution Map
+        Top 12 Space Distribution Map
       </Text>
 
       <div style={{ flex: 1, minHeight: 0, width: '100%' }}>
