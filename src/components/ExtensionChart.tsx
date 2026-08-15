@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { Box, Text } from "@mantine/core";
 import { BarChart } from "@mantine/charts";
 import { FlatFileEntry } from "../types";
+import { ChartHeader } from "./ChartHeader";
+import { useLogScale } from "../hooks/useLogScale";
 
 interface ExtensionChartProps {
   allResults: FlatFileEntry[];
@@ -39,21 +41,31 @@ export function ExtensionChart({ allResults, currentViewPath }: ExtensionChartPr
       .slice(0, 15);
   }, [allResults, currentViewPath]);
 
+  const maxMB = useMemo(() => {
+    if (!data.length) return 1;
+    return Math.max(...data.map((p) => p.sizeMB));
+  }, [data]);
+
+  // Determine logarithmic ticks and axis boundaries dynamically
+  const { useLogScale: isLog, setUseLogScale, axisProps, getAxisLabel } = useLogScale(maxMB);
+
   return (
     <Box p="xs" style={{ height: '100%' }}>
-      <Text size="xs" c="dimmed" mb="sm" fw={600}>
-        TOP 15 FILE EXTENSIONS BY STORAGE
-      </Text>
+      <ChartHeader
+        title='TOP 15 FILE EXTENSIONS BY STORAGE'
+        checked={isLog}
+        onChange={setUseLogScale}
+      />
+
       <BarChart
         h={380}
         data={data}
         dataKey="extension"
         orientation="vertical"
         series={[{ name: 'sizeMB', color: 'var(--accent-primary, #3b82f6)' }]}
-        // Add a bit (1%) of visual breathing room
-        xAxisProps={{ domain: [0, (dataMax) => Math.ceil(dataMax * 1.01)] }}
+        xAxisProps={axisProps}
         yAxisProps={{ width: 80 }}
-        xAxisLabel="Size (MB)"
+        xAxisLabel={getAxisLabel('Size (MB)')}
         yAxisLabel="Extension"
         gridAxis="y"
         tooltipProps={{

@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { Box, Text } from '@mantine/core';
 import { ScatterChart } from '@mantine/charts';
 import { FlatFileEntry } from '../types';
+import { ChartHeader } from './ChartHeader';
+import { useLogScale } from '../hooks/useLogScale';
 
 interface AgeScatterChartProps {
   allResults: FlatFileEntry[];
@@ -41,17 +43,29 @@ export function AgeScatterChart({ allResults, currentViewPath }: AgeScatterChart
     }));
   }, [allResults, currentViewPath]);
 
+  const maxMB = useMemo(() => {
+    if (!points.length) return 1;
+    return Math.max(...points.map((p) => p.sizeMB));
+  }, [points]);
+
+  // Determine logarithmic ticks and axis boundaries dynamically
+  const { useLogScale: isLog, setUseLogScale, axisProps, getAxisLabel } = useLogScale(maxMB);
+
   return (
     <Box p="xs" style={{ height: '100%' }}>
-      <Text size="xs" c="dimmed" mb="sm" fw={600}>
-        TOP 30 LARGEST FILES: SIZE vs AGE
-      </Text>
+      <ChartHeader
+        title='TOP 30 LARGEST FILES: SIZE vs AGE'
+        checked={isLog}
+        onChange={setUseLogScale}
+      />
+
       <ScatterChart
         h={380}
         data={[{ color: 'var(--accent-primary, #3b82f6)', name: 'Files', data: points as any }]}
         dataKey={{ x: 'ageMonths', y: 'sizeMB' }}
         xAxisLabel="Age (Months Since Modified)"
-        yAxisLabel="Size (MB)"
+        yAxisLabel={getAxisLabel('Size (MB)')}
+        yAxisProps={axisProps}
         tooltipProps={{
           content: ({ payload }) => {
             if (!payload || !payload.length) return null;
