@@ -743,7 +743,7 @@ fn get_disk_info(path: String) -> Result<DiskInfo, String> {
 
         return Ok(DiskInfo {
             total_bytes: total,
-            free_bytes: free_total,
+            free_bytes: free_caller,
         });
     }
 

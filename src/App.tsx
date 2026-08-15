@@ -17,6 +17,16 @@ import '@mantine/notifications/styles.css';
 
 import { FlatFileEntry, DiskInfo } from './types';
 
+// Platform-aware path normalization for identity comparison and map keys.
+// On Windows, paths are case-insensitive, so we lowercase for comparison.
+// On other platforms (Linux/macOS), paths are case-sensitive, so we preserve case.
+function normalizePathKey(path: string): string {
+  const normalized = path.replace(/\\/g, '/');
+  // Detect Windows by checking if the path looks like a Windows path (e.g., "C:/...")
+  const isWindows = /^[A-Za-z]:/.test(normalized);
+  return isWindows ? normalized.toLowerCase() : normalized;
+}
+
 export default function App() {
   const [targetPath, setTargetPath] = useState('');
   const [currentViewPath, setCurrentViewPath] = useState('');
@@ -107,6 +117,8 @@ export default function App() {
     try {
       setIsScanning(true);
       setScanTime(null);
+      setDiskInfo(null);
+      setScanPath('');
 
       // Fetch and display disk capacity info first (fast syscall)
       try {
@@ -126,12 +138,8 @@ export default function App() {
 
       const normalizedData = processedData.map((entry) => ({
         ...entry,
-        normPath: entry.path.replace(/\\/g, '/').toLowerCase(),
+        normPath: normalizePathKey(entry.path),
       }));
-
-      // Find the scan-root entry (its size == aggregated total for the scanned path)
-      const normTarget = targetPath.replace(/\\/g, '/').toLowerCase();
-      const rootEntry = normalizedData.find((e) => e.normPath === normTarget);
 
       setResults(normalizedData);
       setCurrentViewPath(targetPath);
@@ -153,10 +161,10 @@ export default function App() {
   }
 
   const visibleItems = useMemo(() => {
-    const normCurrentView = currentViewPath.replace(/\\/g, '/').toLowerCase();
+    const normCurrentView = normalizePathKey(currentViewPath);
     return results.filter(item => {
-      const normItemParent = item.parent_path.replace(/\\/g, '/').toLowerCase();
-      const normItemPath = item.path.replace(/\\/g, '/').toLowerCase();
+      const normItemParent = normalizePathKey(item.parent_path);
+      const normItemPath = normalizePathKey(item.path);
       return normItemPath !== normCurrentView && normItemParent === normCurrentView;
     });
   }, [results, currentViewPath]);
@@ -166,8 +174,16 @@ export default function App() {
   // Navigation is then an O(1) Map lookup — no re-iteration needed.
   const dirCountMap = useMemo(() => {
     const map = new Map<string, { dirs: number; files: number }>();
+    // Initialize all directories with zero counts first
     for (const entry of results) {
-      const key = entry.parent_path.replace(/\\/g, '/').toLowerCase();
+      if (entry.is_dir) {
+        const key = normalizePathKey(entry.path);
+        if (!map.has(key)) map.set(key, { dirs: 0, files: 0 });
+      }
+    }
+    // Then count children for each parent
+    for (const entry of results) {
+      const key = normalizePathKey(entry.parent_path);
       if (!map.has(key)) map.set(key, { dirs: 0, files: 0 });
       const c = map.get(key)!;
       if (entry.is_dir) c.dirs++; else c.files++;
