@@ -1,30 +1,35 @@
 import { useState, useMemo } from 'react';
 
-export function useLogScale(maxValue: number) {
+export function useLogScale(minValue: number, maxValue: number) {
   const [useLogScale, setUseLogScale] = useState(false);
 
-  // Compute dynamic ticks and domain whenever maxValue or toggle changes
+  // Compute dynamic ticks and domain whenever minValue, maxValue or toggle changes
   const { ticks, domain } = useMemo(() => {
-    if (!useLogScale || maxValue < 0) {
+    if (!useLogScale || maxValue <= 0 || minValue <= 0) {
       return {
         ticks: undefined,
         domain: ['auto', 'auto'] as const
       };
     }
 
-    // Find upper power of 10 (e.g., max 350 MB -> log10 is ~2.54 -> ceil is 3 -> 10^3 = 1000)
-    const maxPower = Math.max(1, Math.ceil(Math.log10(maxValue)));
+    // Find lower and upper powers of 10
+    // E.g., min 0.5 MB -> log10 is ~-0.3 -> floor is -1 -> 10^-1 = 0.1
+    // E.g., max 350 MB -> log10 is ~2.54 -> ceil is 3 -> 10^3 = 1000
+    const minPower = Math.floor(Math.log10(minValue));
+    const maxPower = Math.ceil(Math.log10(maxValue));
+
     const calculatedTicks = Array.from(
-      { length: maxPower + 1 },
-      (_, i) => Math.pow(10, i)
+      { length: maxPower - minPower + 1 },
+      (_, i) => Math.pow(10, minPower + i)
     );
+    const lowerTick = calculatedTicks[0];
     const upperTick = calculatedTicks[calculatedTicks.length - 1];
 
     return {
       ticks: calculatedTicks,
-      domain: [1, upperTick] as [number, number],
+      domain: [lowerTick, upperTick] as [number, number],
     };
-  }, [maxValue, useLogScale]
+  }, [minValue, maxValue, useLogScale]
   );
 
   // Helper to format axis labels dynamically
