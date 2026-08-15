@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Group, TextInput, Button, Text, ActionIcon, Stack, Divider } from '@mantine/core';
-import { Search, FolderOpen, Loader2, CircleX, Folder, File } from 'lucide-react';
+import { Search, FolderOpen, Loader2, CircleX, Folder, File, HardDrive, SearchCheck, Pin } from 'lucide-react';
 
 import { DiskInfo } from '../types';
 import { formatBytes } from '../utils/format';
@@ -103,13 +103,14 @@ export function Toolbar({
         {showDiskInfo && (
           <Group gap="xs" align="center" wrap="wrap" pt={2}>
             {/* Drive Label */}
+            <HardDrive size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
             <Text size="sm" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
               {driveLabel}:
             </Text>
 
             {/* Used Capacity */}
             <Text size="sm" c="dimmed">
-              <Text span fw={600} c="var(--mantine-color-text)">
+              <Text span fw={600}>
                 {formatBytes(diskInfo!.total_bytes - diskInfo!.free_bytes)}
               </Text>{' '}
               used
@@ -119,7 +120,7 @@ export function Toolbar({
 
             {/* Free Capacity */}
             <Text size="sm" c="dimmed">
-              <Text span fw={600} c="var(--mantine-color-text)">
+              <Text span fw={600}>
                 {formatBytes(diskInfo!.free_bytes)}
               </Text>{' '}
               free
@@ -129,7 +130,7 @@ export function Toolbar({
 
             {/* Total Capacity */}
             <Text size="sm" c="dimmed">
-              <Text span fw={600} c="var(--mantine-color-text)">
+              <Text span fw={600}>
                 {formatBytes(diskInfo!.total_bytes)}
               </Text>{' '}
               total
@@ -140,13 +141,14 @@ export function Toolbar({
               <>
                 <Divider orientation="vertical" h={14} my="auto" mx={4} style={{ borderColor: 'var(--border-color)' }} />
 
+                <SearchCheck size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
                 <Text size="sm" c="dimmed">
                   Found{' '}
-                  <Text span fw={600} c="var(--accent-primary, #3b82f6)">
+                  <Text span fw={600}>
                     {totalItems.toLocaleString()}
                   </Text>{' '}
                   items in{' '}
-                  <Text span fw={600} c="var(--color-success, #22c55e)">
+                  <Text span fw={600}>
                     {(scanTime / 1000).toFixed(3)}s
                   </Text>
                 </Text>
@@ -158,6 +160,7 @@ export function Toolbar({
         {/* ── Line 2: Folder / File counts for current path ── */}
         {showDirCounts && (
           <Group gap="xs" align="center" wrap="wrap">
+            <Pin size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
             <Text size="sm" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
               Here:
             </Text>
@@ -165,8 +168,11 @@ export function Toolbar({
             {/* Folder Stat */}
             <Group gap={4} align="center">
               <Folder size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
-              <Text size="sm">
-                {currentCounts!.dirs.toLocaleString()} {currentCounts!.dirs === 1 ? 'folder' : 'folders'}
+              <Text size="sm" fw={600} c="dimmed">
+                {currentCounts!.dirs.toLocaleString()}
+              </Text>
+              <Text c="dimmed" size="sm">
+                {currentCounts!.dirs === 1 ? 'folder' : 'folders'}
               </Text>
             </Group>
 
@@ -175,8 +181,11 @@ export function Toolbar({
             {/* File Stat */}
             <Group gap={4} align="center">
               <File size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
-              <Text size="sm">
-                {currentCounts!.files.toLocaleString()} {currentCounts!.files === 1 ? 'file' : 'files'}
+              <Text size="sm" fw={600} c="dimmed">
+                {currentCounts!.files.toLocaleString()}
+              </Text>
+              <Text c="dimmed" size="sm">
+                {currentCounts!.files === 1 ? 'file' : 'files'}
               </Text>
             </Group>
           </Group>

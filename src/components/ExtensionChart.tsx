@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { Box, Text } from "@mantine/core";
 import { BarChart } from "@mantine/charts";
 import { FlatFileEntry } from "../types";
+import { ChartHeader } from "./ChartHeader";
+import { useLogScale } from "../hooks/useLogScale";
 
 interface ExtensionChartProps {
   allResults: FlatFileEntry[];
@@ -39,21 +41,46 @@ export function ExtensionChart({ allResults, currentViewPath }: ExtensionChartPr
       .slice(0, 15);
   }, [allResults, currentViewPath]);
 
+  const { minMB, maxMB } = useMemo(() => {
+    if (!data.length) return { minMB: 1, maxMB: 1 };
+
+    // Find smallest positive value and max value
+    const positiveSizes = data.map((p) => p.sizeMB).filter((size) => size > 0);
+
+    if (!positiveSizes.length) return { minMB: 1, maxMB: 1 };
+
+    return {
+      minMB: Math.min(...positiveSizes),
+      maxMB: Math.max(...positiveSizes),
+    };
+  }, [data]);
+
+  // Determine logarithmic ticks and axis boundaries dynamically
+  const { useLogScale: isLog, setUseLogScale, axisProps, getAxisLabel } = useLogScale(minMB, maxMB);
+
+  // Filter out zero-sized entries when log scale is enabled (log(0) is undefined)
+  const displayData = useMemo(() => {
+    if (!isLog) return data;
+    return data.filter((item) => item.sizeMB > 0);
+  }, [data, isLog]);
+
   return (
     <Box p="xs" style={{ height: '100%' }}>
-      <Text size="xs" c="dimmed" mb="sm" fw={600}>
-        TOP 15 FILE EXTENSIONS BY STORAGE
-      </Text>
+      <ChartHeader
+        title='TOP 15 FILE EXTENSIONS BY STORAGE'
+        checked={isLog}
+        onChange={setUseLogScale}
+      />
+
       <BarChart
         h={380}
-        data={data}
+        data={displayData}
         dataKey="extension"
         orientation="vertical"
         series={[{ name: 'sizeMB', color: 'var(--accent-primary, #3b82f6)' }]}
-        // Add a bit (1%) of visual breathing room
-        xAxisProps={{ domain: [0, (dataMax) => Math.ceil(dataMax * 1.01)] }}
+        xAxisProps={axisProps}
         yAxisProps={{ width: 80 }}
-        xAxisLabel="Size (MB)"
+        xAxisLabel={getAxisLabel('Size (MB)')}
         yAxisLabel="Extension"
         gridAxis="y"
         tooltipProps={{
