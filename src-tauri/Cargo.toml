@@ -43,3 +43,6 @@ windows = { version = "0.62", features = [
     "Win32_Security",
     "Win32_System_IO",
 ] }
+
+[target.'cfg(not(windows))'.dependencies]
+sysinfo = { version = "0.39", default-features = false, features = ["disk"] }

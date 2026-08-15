@@ -9,6 +9,11 @@ use tauri::{Emitter, State};
 use tauri_plugin_opener::OpenerExt;
 
 #[cfg(windows)]
+use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
+#[cfg(windows)]
+use windows::core::PCWSTR;
+
+#[cfg(windows)]
 use std::sync::atomic::AtomicUsize;
 #[cfg(windows)]
 use rayon::prelude::*;
@@ -21,6 +26,12 @@ pub struct FlatFileEntry {
     size: u64,
     is_dir: bool,
     modified_secs: u64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DiskInfo {
+    pub total_bytes: u64,
+    pub free_bytes: u64,
 }
 
 pub struct AppState {
@@ -689,6 +700,78 @@ fn cancel_scan(state: State<'_, AppState>) {
     flag.store(true, Ordering::Relaxed);
 }
 
+/// Returns the total and free space of the volume that contains `path`.
+/// The path must exist; we validate this before making any OS call to avoid
+/// probing arbitrary or crafted drive letters.
+#[tauri::command]
+fn get_disk_info(path: String) -> Result<DiskInfo, String> {
+    let p = Path::new(&path);
+    if !p.exists() {
+        return Err(format!("Path does not exist: {}", path));
+    }
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+
+        // Encode the path as a null-terminated UTF-16 string for the Win32 call.
+        let wide: Vec<u16> = p
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0u16))
+            .collect();
+
+        let mut free_caller: u64 = 0;
+        let mut total: u64 = 0;
+        let mut free_total: u64 = 0;
+
+        let ok = unsafe {
+            GetDiskFreeSpaceExW(
+                PCWSTR(wide.as_ptr()),
+                Some(&mut free_caller),
+                Some(&mut total),
+                Some(&mut free_total),
+            )
+        };
+
+        if ok.is_err() {
+            return Err(format!(
+                "GetDiskFreeSpaceExW failed for path '{}'",
+                path
+            ));
+        }
+
+        return Ok(DiskInfo {
+            total_bytes: total,
+            free_bytes: free_caller,
+        });
+    }
+
+    #[cfg(not(windows))]
+    {
+        use sysinfo::{Disks};
+        let disks = Disks::new_with_refreshed_list();
+        // Find the disk whose mount point is the longest prefix of the target path
+        // (most-specific mount wins, e.g. /home over /).
+        let canonical = p
+            .canonicalize()
+            .map_err(|e| format!("Could not resolve path '{}': {}", path, e))?;
+
+        let best = disks
+            .iter()
+            .filter(|d| canonical.starts_with(d.mount_point()))
+            .max_by_key(|d| d.mount_point().as_os_str().len());
+
+        match best {
+            Some(disk) => Ok(DiskInfo {
+                total_bytes: disk.total_space(),
+                free_bytes: disk.available_space(),
+            }),
+            None => Err(format!("No mounted disk found for path '{}'", path)),
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -697,7 +780,7 @@ pub fn run() {
         })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![scan_directory, open_in_explorer, move_to_trash, cancel_scan])
+        .invoke_handler(tauri::generate_handler![scan_directory, open_in_explorer, move_to_trash, cancel_scan, get_disk_info])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

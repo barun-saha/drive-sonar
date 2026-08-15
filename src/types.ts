@@ -7,3 +7,8 @@ export interface FlatFileEntry {
   modified_secs: number;
   normPath?: string; // Pre-normalized path for rapid matching
 }
+
+export interface DiskInfo {
+  total_bytes: number;
+  free_bytes: number;
+}

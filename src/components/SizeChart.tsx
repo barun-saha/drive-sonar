@@ -3,20 +3,13 @@ import { Treemap } from '@mantine/charts';
 import { Text, Group, Box } from '@mantine/core';
 
 import { FlatFileEntry } from '../types';
+import { formatBytes } from '../utils/format';
 
 interface SizeChartProps {
   items: FlatFileEntry[];
 }
 
 export function SizeChart({ items }: SizeChartProps) {
-  function formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }
-
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => b.size - a.size);
   }, [items]);

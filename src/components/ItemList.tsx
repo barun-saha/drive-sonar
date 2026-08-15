@@ -6,6 +6,7 @@ import { notifications } from '@mantine/notifications';
 import { Folder, File, FolderOpen, Trash2 } from 'lucide-react';
 
 import { FlatFileEntry } from '../types';
+import { formatBytes } from '../utils/format';
 import { PathNav } from '../components/PathNav';
 
 interface ItemListProps {
@@ -21,7 +22,7 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
   const [hoveredPath, setHoveredPath] = useState<string | null>(null);
 
   const ROW_HEIGHT = 38;
-  const VIEWPORT_HEIGHT = 420;
+  const VIEWPORT_HEIGHT = 440; // Virtual scroll buffer calculation
   const BUFFER_ITEMS = 5;
 
   useEffect(() => {
@@ -29,14 +30,6 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
     const scrollContainer = document.getElementById('virtual-scroll-viewport');
     if (scrollContainer) scrollContainer.scrollTop = 0;
   }, [currentViewPath]);
-
-  function formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }
 
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => b.size - a.size);
@@ -77,7 +70,6 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
           color: 'green'
         });
 
-        // Triggers the state update refresh loop on the backend data pool
         onRefresh();
       } catch (error) {
         notifications.show({
@@ -113,9 +105,10 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
         padding: '16px',
         borderRadius: '8px',
         border: '1px solid var(--border-color)',
-        height: '540px',
+        height: 500, // Matching explicit height
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        boxSizing: 'border-box'
       }}
     >
       <Group justify="space-between" align="center" mb="md">
@@ -129,7 +122,8 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
         id="virtual-scroll-viewport"
         onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
         style={{
-          height: `${VIEWPORT_HEIGHT}px`,
+          flex: 1,
+          minHeight: 0, // Fills exact remaining space in the 500px card
           overflowY: 'auto',
           position: 'relative',
           backgroundColor: 'var(--bg-main)',

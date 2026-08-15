@@ -21,11 +21,11 @@ export function VisualizationPanel({
       radius="md"
       withBorder
       style={{
-        height: '100%',
-        minHeight: 480,
+        height: 500, // Matches ItemList height exactly
         backgroundColor: 'var(--bg-panel)',
         display: 'flex',
         flexDirection: 'column',
+        boxSizing: 'border-box'
       }}
     >
       <Tabs keepMounted={true} defaultValue="treemap">

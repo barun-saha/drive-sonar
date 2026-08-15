@@ -15,7 +15,17 @@ import { VisualizationPanel } from './components/VisualizationPanel';
 
 import '@mantine/notifications/styles.css';
 
-import { FlatFileEntry } from './types';
+import { FlatFileEntry, DiskInfo } from './types';
+
+// Platform-aware path normalization for identity comparison and map keys.
+// On Windows, paths are case-insensitive, so we lowercase for comparison.
+// On other platforms (Linux/macOS), paths are case-sensitive, so we preserve case.
+function normalizePathKey(path: string): string {
+  const normalized = path.replace(/\\/g, '/');
+  // Detect Windows by checking if the path looks like a Windows path (e.g., "C:/...")
+  const isWindows = /^[A-Za-z]:/.test(normalized);
+  return isWindows ? normalized.toLowerCase() : normalized;
+}
 
 export default function App() {
   const [targetPath, setTargetPath] = useState('');
@@ -23,6 +33,8 @@ export default function App() {
   const [results, setResults] = useState<FlatFileEntry[]>([]);
   const [scanTime, setScanTime] = useState<number | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [diskInfo, setDiskInfo] = useState<DiskInfo | null>(null);
+  const [scanPath, setScanPath] = useState<string>('');        // path that was scanned
 
   // State for the modals
   const [helpOpened, { open: openHelp, close: closeHelp }] = useDisclosure(false);
@@ -104,15 +116,31 @@ export default function App() {
 
     try {
       setIsScanning(true);
+      setScanTime(null);
+      setDiskInfo(null);
+      setScanPath('');
+
+      // Fetch and display disk capacity info first (fast syscall)
+      try {
+        const di = await invoke<DiskInfo>('get_disk_info', { path: targetPath });
+        setDiskInfo(di);
+        setScanPath(targetPath);
+      } catch (e) {
+        console.warn('get_disk_info failed:', e);
+      }
+
+      // Proceed to directory scanning
       const startTime = performance.now();
       const processedData = await invoke<FlatFileEntry[]>('scan_directory', {
         targetPath: targetPath,
       });
       const endTime = performance.now();
+
       const normalizedData = processedData.map((entry) => ({
         ...entry,
-        normPath: entry.path.replace(/\\/g, '/').toLowerCase(),
+        normPath: normalizePathKey(entry.path),
       }));
+
       setResults(normalizedData);
       setCurrentViewPath(targetPath);
       setScanTime(endTime - startTime);
@@ -133,13 +161,35 @@ export default function App() {
   }
 
   const visibleItems = useMemo(() => {
-    const normCurrentView = currentViewPath.replace(/\\/g, '/').toLowerCase();
+    const normCurrentView = normalizePathKey(currentViewPath);
     return results.filter(item => {
-      const normItemParent = item.parent_path.replace(/\\/g, '/').toLowerCase();
-      const normItemPath = item.path.replace(/\\/g, '/').toLowerCase();
+      const normItemParent = normalizePathKey(item.parent_path);
+      const normItemPath = normalizePathKey(item.path);
       return normItemPath !== normCurrentView && normItemParent === normCurrentView;
     });
   }, [results, currentViewPath]);
+
+  // Single O(N) pass to build a map of { dirs, files } counts keyed by
+  // normalised parent_path. Recomputed only when results change (new scan).
+  // Navigation is then an O(1) Map lookup — no re-iteration needed.
+  const dirCountMap = useMemo(() => {
+    const map = new Map<string, { dirs: number; files: number }>();
+    // Initialize all directories with zero counts first
+    for (const entry of results) {
+      if (entry.is_dir) {
+        const key = normalizePathKey(entry.path);
+        if (!map.has(key)) map.set(key, { dirs: 0, files: 0 });
+      }
+    }
+    // Then count children for each parent
+    for (const entry of results) {
+      const key = normalizePathKey(entry.parent_path);
+      if (!map.has(key)) map.set(key, { dirs: 0, files: 0 });
+      const c = map.get(key)!;
+      if (entry.is_dir) c.dirs++; else c.files++;
+    }
+    return map;
+  }, [results]);
 
   return (
     <>
@@ -270,9 +320,13 @@ export default function App() {
             isScanning={isScanning}
             scanTime={scanTime}
             totalItems={results.length}
+            diskInfo={diskInfo}
+            scanPath={scanPath}
+            currentViewPath={currentViewPath}
+            dirCountMap={dirCountMap}
           />
 
-          <Grid gap='md'>
+          <Grid gap='md' align="flex-start">
             <Grid.Col span={{ base: 12, md: 7 }}>
               <ItemList
                 items={visibleItems}

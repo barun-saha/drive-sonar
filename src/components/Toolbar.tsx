@@ -1,5 +1,9 @@
-import { Group, TextInput, Button, Text, ActionIcon, Stack } from '@mantine/core';
-import { Search, FolderOpen, Loader2, CircleX } from 'lucide-react';
+import { useMemo } from 'react';
+import { Group, TextInput, Button, Text, ActionIcon, Stack, Divider } from '@mantine/core';
+import { Search, FolderOpen, Loader2, CircleX, Folder, File } from 'lucide-react';
+
+import { DiskInfo } from '../types';
+import { formatBytes } from '../utils/format';
 
 interface ToolbarProps {
   targetPath: string;
@@ -10,12 +14,37 @@ interface ToolbarProps {
   isScanning: boolean;
   scanTime: number | null;
   totalItems: number;
+  diskInfo: DiskInfo | null;
+  scanPath: string;
+  currentViewPath: string;
+  dirCountMap: Map<string, { dirs: number; files: number }>;
 }
 
-export function Toolbar({ targetPath, setTargetPath, onBrowse, onScan, onCancel, isScanning, scanTime, totalItems }: ToolbarProps) {
+export function Toolbar({
+  targetPath, setTargetPath, onBrowse, onScan, onCancel, isScanning,
+  scanTime, totalItems, diskInfo, scanPath, currentViewPath, dirCountMap
+}: ToolbarProps) {
+
+  const driveLabel = useMemo(() => {
+    if (!scanPath) return 'Disk';
+    const match = scanPath.match(/^([a-zA-Z]:)/);
+    return match ? `Drive (${match[1].toUpperCase()})` : 'Disk';
+  }, [scanPath]);
+
+  // O(1) lookup for current-dir counts
+  const normCurrent = currentViewPath.replace(/\\/g, '/').toLowerCase();
+  const currentCounts = dirCountMap.get(normCurrent);
+
+  // Disk info is available as soon as the parallel call resolves
+  const showDiskInfo = diskInfo !== null && scanPath !== '';
+  // Scan-specific stats only available after scan completes
+  const showScanStats = scanTime !== null;
+  // Dynamic dir counts shown once scan is done
+  const showDirCounts = showScanStats && currentCounts !== undefined;
+
   return (
     <div style={{ background: 'var(--bg-panel)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-      {/* Self-contained animation styles injected right into the component */}
+      {/* Self-contained animation styles */}
       <style>{`
         @keyframes ui-bridge-spin {
           0% { transform: rotate(0deg); }
@@ -28,7 +57,7 @@ export function Toolbar({ targetPath, setTargetPath, onBrowse, onScan, onCancel,
         }
       `}</style>
 
-      <Stack gap="md">
+      <Stack gap="xs">
         <Group justify="space-between" align="center">
           <Group style={{ flex: 1 }}>
             <TextInput
@@ -70,11 +99,87 @@ export function Toolbar({ targetPath, setTargetPath, onBrowse, onScan, onCancel,
           </Group>
         </Group>
 
-        {scanTime !== null && (
-        <Text size="sm" c="dimmed">
-          Found <strong style={{ color: 'var(--accent-primary)' }}>{totalItems.toLocaleString()}</strong> items in{' '}
-          <strong style={{ color: 'var(--color-success)' }}>{(scanTime / 1000).toFixed(3)}s</strong>
-        </Text>
+        {/* ── Line 1: Disk Capacity + Scan Performance (grouped on left) ── */}
+        {showDiskInfo && (
+          <Group gap="xs" align="center" wrap="wrap" pt={2}>
+            {/* Drive Label */}
+            <Text size="sm" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+              {driveLabel}:
+            </Text>
+
+            {/* Used Capacity */}
+            <Text size="sm" c="dimmed">
+              <Text span fw={600} c="var(--mantine-color-text)">
+                {formatBytes(diskInfo!.total_bytes - diskInfo!.free_bytes)}
+              </Text>{' '}
+              used
+            </Text>
+
+            <Text size="sm" c="dimmed">•</Text>
+
+            {/* Free Capacity */}
+            <Text size="sm" c="dimmed">
+              <Text span fw={600} c="var(--mantine-color-text)">
+                {formatBytes(diskInfo!.free_bytes)}
+              </Text>{' '}
+              free
+            </Text>
+
+            <Text size="sm" c="dimmed">•</Text>
+
+            {/* Total Capacity */}
+            <Text size="sm" c="dimmed">
+              <Text span fw={600} c="var(--mantine-color-text)">
+                {formatBytes(diskInfo!.total_bytes)}
+              </Text>{' '}
+              total
+            </Text>
+
+            {/* Vertical divider + Scan Summary */}
+            {showScanStats && (
+              <>
+                <Divider orientation="vertical" h={14} my="auto" mx={4} style={{ borderColor: 'var(--border-color)' }} />
+
+                <Text size="sm" c="dimmed">
+                  Found{' '}
+                  <Text span fw={600} c="var(--accent-primary, #3b82f6)">
+                    {totalItems.toLocaleString()}
+                  </Text>{' '}
+                  items in{' '}
+                  <Text span fw={600} c="var(--color-success, #22c55e)">
+                    {(scanTime / 1000).toFixed(3)}s
+                  </Text>
+                </Text>
+              </>
+            )}
+          </Group>
+        )}
+
+        {/* ── Line 2: Folder / File counts for current path ── */}
+        {showDirCounts && (
+          <Group gap="xs" align="center" wrap="wrap">
+            <Text size="sm" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+              Here:
+            </Text>
+
+            {/* Folder Stat */}
+            <Group gap={4} align="center">
+              <Folder size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
+              <Text size="sm">
+                {currentCounts!.dirs.toLocaleString()} {currentCounts!.dirs === 1 ? 'folder' : 'folders'}
+              </Text>
+            </Group>
+
+            <Text size="sm" c="dimmed">•</Text>
+
+            {/* File Stat */}
+            <Group gap={4} align="center">
+              <File size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
+              <Text size="sm">
+                {currentCounts!.files.toLocaleString()} {currentCounts!.files === 1 ? 'file' : 'files'}
+              </Text>
+            </Group>
+          </Group>
         )}
       </Stack>
     </div>
