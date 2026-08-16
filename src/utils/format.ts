@@ -11,7 +11,10 @@ export function formatBytes(bytes: number, useShortUnits: boolean = false): stri
     : ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];
 
   // Base-2 log divided by 10 determines exponent index (1024 = 2^10)
-  const i = Math.min(Math.floor(Math.log2(bytes) / 10), sizes.length - 1);
+  const i = Math.max(
+    0,
+    Math.min(Math.floor(Math.log2(bytes) / 10), sizes.length - 1)
+  );
 
   const formattedValue = i === 0
     ? bytes.toString()
