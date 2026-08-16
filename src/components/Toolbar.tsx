@@ -109,6 +109,16 @@ export function Toolbar({
               {driveLabel}:
             </Text>
 
+            {/* Total Capacity */}
+            <Text size="sm" c="dimmed">
+              <Text span fw={600}>
+                {formatBytes(diskInfo!.total_bytes)}
+              </Text>{' '}
+              total
+            </Text>
+
+            <Text size="sm" c="dimmed">•</Text>
+
             {/* Used Capacity */}
             <Text size="sm" c="dimmed">
               <Text span fw={600}>
@@ -125,16 +135,6 @@ export function Toolbar({
                 {formatBytes(diskInfo!.free_bytes)}
               </Text>{' '}
               free
-            </Text>
-
-            <Text size="sm" c="dimmed">•</Text>
-
-            {/* Total Capacity */}
-            <Text size="sm" c="dimmed">
-              <Text span fw={600}>
-                {formatBytes(diskInfo!.total_bytes)}
-              </Text>{' '}
-              total
             </Text>
 
             {/* Vertical divider + Scan Summary */}
@@ -163,7 +163,7 @@ export function Toolbar({
           <Group gap="xs" align="center" wrap="wrap">
             <Pin size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
             <Text size="sm" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
-              Here:
+              Current view:
             </Text>
 
             {/* Folder Stat */}
@@ -190,17 +190,14 @@ export function Toolbar({
               </Text>
             </Group>
 
-            <Group gap={4} align="center">
-              <Text c="dimmed">
-                (total
-              </Text>
-              <Text size="sm" fw={600} c="dimmed">
-                 {formatBytes(currentViewSize)}
-              </Text>
-              <Text c="dimmed">
-                )
-              </Text>
-            </Group>
+            {/* Current View Total Size */}
+            <Text size="sm" c="dimmed">
+              (
+              <Text span fw={600}>
+                {formatBytes(currentViewSize)}
+              </Text>{' '}
+              total)
+            </Text>
           </Group>
         )}
       </Stack>
