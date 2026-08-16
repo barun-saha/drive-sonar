@@ -43,13 +43,28 @@ export function AgeScatterChart({ allResults, currentViewPath }: AgeScatterChart
     }));
   }, [allResults, currentViewPath]);
 
-  const maxMB = useMemo(() => {
-    if (!points.length) return 1;
-    return Math.max(...points.map((p) => p.sizeMB));
+  const { minMB, maxMB } = useMemo(() => {
+    if (!points.length) return { minMB: 1, maxMB: 1 };
+
+    // Find smallest positive value and max value
+    const positiveSizes = points.map((p) => p.sizeMB).filter((size) => size > 0);
+
+    if (!positiveSizes.length) return { minMB: 1, maxMB: 1 };
+
+    return {
+      minMB: Math.min(...positiveSizes),
+      maxMB: Math.max(...positiveSizes),
+    };
   }, [points]);
 
   // Determine logarithmic ticks and axis boundaries dynamically
-  const { useLogScale: isLog, setUseLogScale, axisProps, getAxisLabel } = useLogScale(maxMB);
+  const { useLogScale: isLog, setUseLogScale, axisProps, getAxisLabel } = useLogScale(minMB, maxMB);
+
+  // Filter out zero-sized entries when log scale is enabled (log(0) is undefined)
+  const displayPoints = useMemo(() => {
+    if (!isLog) return points;
+    return points.filter((p) => p.sizeMB > 0);
+  }, [points, isLog]);
 
   return (
     <Box p="xs" style={{ height: '100%' }}>
@@ -61,7 +76,7 @@ export function AgeScatterChart({ allResults, currentViewPath }: AgeScatterChart
 
       <ScatterChart
         h={380}
-        data={[{ color: 'var(--accent-primary, #3b82f6)', name: 'Files', data: points as any }]}
+        data={[{ color: 'var(--accent-primary, #3b82f6)', name: 'Files', data: displayPoints as any }]}
         dataKey={{ x: 'ageMonths', y: 'sizeMB' }}
         xAxisLabel="Age (Months Since Modified)"
         yAxisLabel={getAxisLabel('Size (MB)')}

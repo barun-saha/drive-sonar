@@ -41,13 +41,28 @@ export function ExtensionChart({ allResults, currentViewPath }: ExtensionChartPr
       .slice(0, 15);
   }, [allResults, currentViewPath]);
 
-  const maxMB = useMemo(() => {
-    if (!data.length) return 1;
-    return Math.max(...data.map((p) => p.sizeMB));
+  const { minMB, maxMB } = useMemo(() => {
+    if (!data.length) return { minMB: 1, maxMB: 1 };
+
+    // Find smallest positive value and max value
+    const positiveSizes = data.map((p) => p.sizeMB).filter((size) => size > 0);
+
+    if (!positiveSizes.length) return { minMB: 1, maxMB: 1 };
+
+    return {
+      minMB: Math.min(...positiveSizes),
+      maxMB: Math.max(...positiveSizes),
+    };
   }, [data]);
 
   // Determine logarithmic ticks and axis boundaries dynamically
-  const { useLogScale: isLog, setUseLogScale, axisProps, getAxisLabel } = useLogScale(maxMB);
+  const { useLogScale: isLog, setUseLogScale, axisProps, getAxisLabel } = useLogScale(minMB, maxMB);
+
+  // Filter out zero-sized entries when log scale is enabled (log(0) is undefined)
+  const displayData = useMemo(() => {
+    if (!isLog) return data;
+    return data.filter((item) => item.sizeMB > 0);
+  }, [data, isLog]);
 
   return (
     <Box p="xs" style={{ height: '100%' }}>
@@ -59,7 +74,7 @@ export function ExtensionChart({ allResults, currentViewPath }: ExtensionChartPr
 
       <BarChart
         h={380}
-        data={data}
+        data={displayData}
         dataKey="extension"
         orientation="vertical"
         series={[{ name: 'sizeMB', color: 'var(--accent-primary, #3b82f6)' }]}
