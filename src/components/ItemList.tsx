@@ -80,22 +80,22 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
       }
     };
 
-    if (item.is_dir) {
-      modals.openConfirmModal({
-        title: 'Confirm Directory Deletion',
-        centered: true,
-        children: (
-          <Text size="sm">
-            Are you absolutely sure you want to move the directory <strong>{item.name}</strong> and all its contents to the Trash?
-          </Text>
-        ),
-        labels: { confirm: 'Move to Trash', cancel: 'Cancel' },
-        confirmProps: { color: 'red' },
-        onConfirm: executeDelete
-      });
-    } else {
-      executeDelete();
-    }
+    modals.openConfirmModal({
+      title: 'Confirm File/Directory Deletion',
+      centered: true,
+      children: item.is_dir ? (
+        <Text size="sm">
+          Are you absolutely sure you want to move the directory <strong>{item.name}</strong> and all its contents to the Trash?
+        </Text>
+      ) : (
+        <Text size="sm">
+          Are you absolutely sure you want to move the file <strong>{item.name}</strong> to the Trash?
+        </Text>
+      ),
+      labels: { confirm: 'Move to Trash', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: executeDelete
+    });
   };
 
   return (
