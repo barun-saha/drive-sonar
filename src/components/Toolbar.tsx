@@ -18,11 +18,12 @@ interface ToolbarProps {
   scanPath: string;
   currentViewPath: string;
   dirCountMap: Map<string, { dirs: number; files: number }>;
+  currentViewSize: number;
 }
 
 export function Toolbar({
   targetPath, setTargetPath, onBrowse, onScan, onCancel, isScanning,
-  scanTime, totalItems, diskInfo, scanPath, currentViewPath, dirCountMap
+  scanTime, totalItems, diskInfo, scanPath, currentViewPath, dirCountMap, currentViewSize
 }: ToolbarProps) {
 
   const driveLabel = useMemo(() => {
@@ -186,6 +187,18 @@ export function Toolbar({
               </Text>
               <Text c="dimmed" size="sm">
                 {currentCounts!.files === 1 ? 'file' : 'files'}
+              </Text>
+            </Group>
+
+            <Group gap={4} align="center">
+              <Text c="dimmed">
+                (total
+              </Text>
+              <Text size="sm" fw={600} c="dimmed">
+                 {formatBytes(currentViewSize)}
+              </Text>
+              <Text c="dimmed">
+                )
               </Text>
             </Group>
           </Group>

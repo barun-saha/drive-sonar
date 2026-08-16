@@ -191,6 +191,13 @@ export default function App() {
     return map;
   }, [results]);
 
+  // Total disk size occupied at the current view path
+    const currentViewSize = useMemo(() => {
+      // Because the Rust backend pre-aggregated directory sizes, we only
+      // need to sum the sizes of the immediate children (visibleItems)
+      return visibleItems.reduce((totalBytes, item) => totalBytes + item.size, 0);
+    }, [visibleItems]);
+
   return (
     <>
       <Modal.Root opened={helpOpened} onClose={closeHelp} centered radius="md">
@@ -324,6 +331,7 @@ export default function App() {
             scanPath={scanPath}
             currentViewPath={currentViewPath}
             dirCountMap={dirCountMap}
+            currentViewSize={currentViewSize}
           />
 
           <Grid gap='md' align="flex-start">
