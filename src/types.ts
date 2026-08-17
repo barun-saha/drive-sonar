@@ -1,11 +1,32 @@
-export interface FlatFileEntry {
-  path: string;
-  parent_path: string;
+export interface UiDiskNode {
+  id: number;
+  name: string;
+  is_dir: boolean;
+  size: number;
+  modified_secs: number;
+  percentage_of_parent: number;
+}
+
+export interface ExtensionStat {
+  extension: string;
+  total_bytes: number;
+  file_count: number;
+}
+
+export interface TopFileNode {
+  id: number;
   name: string;
   size: number;
-  is_dir: boolean;
   modified_secs: number;
-  normPath?: string; // Pre-normalized path for rapid matching
+}
+
+export interface DirectoryPayload {
+  current_id: number;
+  current_path: string;
+  parent_id: number | null;
+  items: UiDiskNode[];
+  extension_stats: ExtensionStat[];
+  top_files: TopFileNode[];
 }
 
 export interface DiskInfo {

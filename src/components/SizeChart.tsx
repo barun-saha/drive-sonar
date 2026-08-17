@@ -1,15 +1,16 @@
 import { useMemo } from 'react';
 import { Treemap } from '@mantine/charts';
-import { Text, Group, Box } from '@mantine/core';
+import { Text, Group, Box, Badge } from '@mantine/core';
 
-import { FlatFileEntry } from '../types';
+import { UiDiskNode } from '../types';
 import { formatBytes } from '../utils/format';
 
 interface SizeChartProps {
-  items: FlatFileEntry[];
+  items: UiDiskNode[];
+  onNavigate?: (nodeId: number) => void;
 }
 
-export function SizeChart({ items }: SizeChartProps) {
+export function SizeChart({ items, onNavigate }: SizeChartProps) {
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => b.size - a.size);
   }, [items]);
@@ -18,11 +19,14 @@ export function SizeChart({ items }: SizeChartProps) {
 
   const chartData = useMemo(() => {
     return sortedItems
+      .filter((item) => item.size > 0)
       .slice(0, 12)
       .map((item, index) => {
         const mbValue = item.size / (1024 * 1024);
         return {
+          id: item.id,
           name: item.name,
+          isDir: item.is_dir,
           value: mbValue > 0.05 ? Number(mbValue.toFixed(2)) : 0.05,
           realSize: item.size,
           color: colorPalette[index % colorPalette.length],
@@ -31,7 +35,7 @@ export function SizeChart({ items }: SizeChartProps) {
   }, [sortedItems]);
 
   return (
-    <Box p="xs" style={{ height: '100%' }}>
+    <Box p="xs" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Text size="xs" fw={700} c="dimmed" mb="sm" style={{ textTransform: 'uppercase' }}>
         Top 12 Space Distribution Map
       </Text>
@@ -42,21 +46,39 @@ export function SizeChart({ items }: SizeChartProps) {
             data={chartData}
             dataKey="value"
             height={380}
+            onClick={(item: any) => {
+              const isDir = item?.isDir ?? item?.payload?.isDir;
+              const id = item?.id ?? item?.payload?.id;
+
+              if (isDir && onNavigate && typeof id === 'number') {
+                onNavigate(id);
+              }
+            }}
             tooltipProps={{
               content: ({ active, payload }) => {
                 if (active && payload && payload.length) {
                   const data = payload[0].payload;
                   return (
-                  <Box
-                    p="sm"
-                    style={{
-                      background: 'var(--bg-panel, #1e1e1e)',
-                      border: '1px solid var(--border-color, #333)',
-                      borderRadius: 6,
-                    }}
+                    <Box
+                      p="sm"
+                      style={{
+                        background: 'var(--bg-panel, #1e1e1e)',
+                        border: '1px solid var(--border-color, #333)',
+                        borderRadius: 6,
+                      }}
                     >
-                      <Text size="sm" fw={700}>{data.name}</Text>
-                      <Text size="sm" fw={500} c="dimmed">Size: {formatBytes(data.realSize)}</Text>
+                      <Group gap={6} mb={4}>
+                        <Text size="sm" fw={700}>{data.name}</Text>
+                        {data.isDir && <Badge size="xs" variant="light" color="blue">Folder</Badge>}
+                      </Group>
+                      <Text size="sm" fw={500} c="dimmed">
+                        Size: {formatBytes(data.realSize)}
+                      </Text>
+                      {data.isDir && onNavigate && (
+                        <Text size="xs" c="blue" mt={4}>
+                          Click block to open folder
+                        </Text>
+                      )}
                     </Box>
                   );
                 }
@@ -66,7 +88,7 @@ export function SizeChart({ items }: SizeChartProps) {
           />
         ) : (
           <Group justify="center" align="center" style={{ height: '100%' }}>
-            <Text size="sm" c="dimmed">No files to map in this scope.</Text>
+            <Text size="sm" c="dimmed">No non-empty items to map in this scope.</Text>
           </Group>
         )}
       </div>

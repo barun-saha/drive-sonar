@@ -17,13 +17,14 @@ interface ToolbarProps {
   diskInfo: DiskInfo | null;
   scanPath: string;
   currentViewPath: string;
-  dirCountMap: Map<string, { dirs: number; files: number }>;
+  dirCount: number;
+  fileCount: number;
   currentViewSize: number;
 }
 
 export function Toolbar({
   targetPath, setTargetPath, onBrowse, onScan, onCancel, isScanning,
-  scanTime, totalItems, diskInfo, scanPath, currentViewPath, dirCountMap, currentViewSize
+  scanTime, totalItems, diskInfo, scanPath, currentViewPath, dirCount, fileCount, currentViewSize
 }: ToolbarProps) {
 
   const driveLabel = useMemo(() => {
@@ -32,16 +33,12 @@ export function Toolbar({
     return match ? `Drive (${match[1].toUpperCase()})` : 'Disk';
   }, [scanPath]);
 
-  // O(1) lookup for current-dir counts
-  const normCurrent = currentViewPath.replace(/\\/g, '/').toLowerCase();
-  const currentCounts = dirCountMap.get(normCurrent);
-
   // Disk info is available as soon as the parallel call resolves
   const showDiskInfo = diskInfo !== null && scanPath !== '';
   // Scan-specific stats only available after scan completes
   const showScanStats = scanTime !== null;
   // Dynamic dir counts shown once scan is done
-  const showDirCounts = showScanStats && currentCounts !== undefined;
+  const showDirCounts = showScanStats;
 
   return (
     <div style={{ background: 'var(--bg-panel)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
@@ -100,7 +97,7 @@ export function Toolbar({
           </Group>
         </Group>
 
-        {/* ── Line 1: Disk Capacity + Scan Performance (grouped on left) ── */}
+        {/* ── Line 1: Disk Capacity + Scan Performance ── */}
         {showDiskInfo && (
           <Group gap="xs" align="center" wrap="wrap" pt={2}>
             {/* Drive Label */}
@@ -170,10 +167,10 @@ export function Toolbar({
             <Group gap={4} align="center">
               <Folder size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
               <Text size="sm" fw={600} c="dimmed">
-                {currentCounts!.dirs.toLocaleString()}
+                {dirCount.toLocaleString()}
               </Text>
               <Text c="dimmed" size="sm">
-                {currentCounts!.dirs === 1 ? 'folder' : 'folders'}
+                {dirCount === 1 ? 'folder' : 'folders'}
               </Text>
             </Group>
 
@@ -183,10 +180,10 @@ export function Toolbar({
             <Group gap={4} align="center">
               <File size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
               <Text size="sm" fw={600} c="dimmed">
-                {currentCounts!.files.toLocaleString()}
+                {fileCount.toLocaleString()}
               </Text>
               <Text c="dimmed" size="sm">
-                {currentCounts!.files === 1 ? 'file' : 'files'}
+                {fileCount === 1 ? 'file' : 'files'}
               </Text>
             </Group>
 
