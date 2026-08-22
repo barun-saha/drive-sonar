@@ -255,10 +255,9 @@ export default function App() {
             onCancel={cancelScan}
             isScanning={isScanning}
             scanTime={scanTime}
-            totalItems={payload?.items.length ?? 0}
+            totalItems={payload?.total_scanned_items ?? 0}
             diskInfo={diskInfo}
             scanPath={scanPath}
-            currentViewPath={payload?.current_path ?? targetPath}
             dirCount={dirCount}
             fileCount={fileCount}
             currentViewSize={currentViewSize}
@@ -273,7 +272,7 @@ export default function App() {
               />
             </Grid.Col>
             <Grid.Col span={{ base: 12, md: 5 }}>
-              <VisualizationPanel payload={payload} />
+              <VisualizationPanel payload={payload} onNavigate={handleNavigate} />
             </Grid.Col>
           </Grid>
         </Stack>

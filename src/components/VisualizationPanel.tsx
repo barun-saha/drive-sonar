@@ -6,7 +6,7 @@ import { DirectoryPayload } from '../types';
 
 interface VisualizationPanelProps {
   payload: DirectoryPayload | null;
-  onNavigate?: (nodeId: number) => void;
+  onNavigate: (nodeId: number) => void;
 }
 
 export function VisualizationPanel({ payload, onNavigate }: VisualizationPanelProps) {

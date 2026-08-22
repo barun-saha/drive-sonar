@@ -16,7 +16,6 @@ interface ToolbarProps {
   totalItems: number;
   diskInfo: DiskInfo | null;
   scanPath: string;
-  currentViewPath: string;
   dirCount: number;
   fileCount: number;
   currentViewSize: number;
@@ -24,7 +23,7 @@ interface ToolbarProps {
 
 export function Toolbar({
   targetPath, setTargetPath, onBrowse, onScan, onCancel, isScanning,
-  scanTime, totalItems, diskInfo, scanPath, currentViewPath, dirCount, fileCount, currentViewSize
+  scanTime, totalItems, diskInfo, scanPath, dirCount, fileCount, currentViewSize
 }: ToolbarProps) {
 
   const driveLabel = useMemo(() => {

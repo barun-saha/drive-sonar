@@ -28,6 +28,7 @@ pub struct DiskNode {
     pub parent_id: u32,
     pub first_child: u32,
     pub next_sibling: u32,
+    pub is_tombstoned: bool,
 }
 
 #[derive(Default)]
@@ -58,6 +59,7 @@ pub struct DirectoryPayload {
     pub items: Vec<UiDiskNode>,
     pub extension_stats: Vec<ExtensionStat>,
     pub top_files: Vec<TopFileNode>,
+    pub total_scanned_items: usize,
 }
 
 #[derive(Serialize)]
@@ -77,7 +79,7 @@ pub struct DiskInfo {
 }
 
 pub struct AppState {
-    pub arena: RwLock<ArenaTree>,
+    pub arena: Arc<RwLock<ArenaTree>>,
     pub cancel_flag: Mutex<Arc<AtomicBool>>,
 }
 
@@ -364,6 +366,7 @@ fn scan_dir_parallel(
             parent_id,
             first_child: u32::MAX,
             next_sibling: u32::MAX,
+            is_tombstoned: false,
         });
     }
 
@@ -466,22 +469,24 @@ fn aggregate_subtree_stats(
         while curr_child != u32::MAX {
             let node = &arena[curr_child as usize];
 
-            if node.is_dir {
-                if node.first_child != u32::MAX {
-                    stack.push(node.first_child);
-                }
-            } else {
-                let ext = extract_extension(&node.name);
-                let entry = ext_map.entry(ext).or_insert((0, 0));
-                entry.0 += node.size;
-                entry.1 += 1;
+            if !node.is_tombstoned {
+                if node.is_dir {
+                    if node.first_child != u32::MAX {
+                        stack.push(node.first_child);
+                    }
+                } else {
+                    let ext = extract_extension(&node.name);
+                    let entry = ext_map.entry(ext).or_insert((0, 0));
+                    entry.0 += node.size;
+                    entry.1 += 1;
 
-                if min_heap.len() < 30 {
-                    min_heap.push(TopCandidate { size: node.size, id: curr_child });
-                } else if let Some(smallest) = min_heap.peek() {
-                    if node.size > smallest.size {
-                        min_heap.pop();
+                    if min_heap.len() < 30 {
                         min_heap.push(TopCandidate { size: node.size, id: curr_child });
+                    } else if let Some(smallest) = min_heap.peek() {
+                        if node.size > smallest.size {
+                            min_heap.pop();
+                            min_heap.push(TopCandidate { size: node.size, id: curr_child });
+                        }
                     }
                 }
             }
@@ -524,6 +529,10 @@ fn build_directory_payload(arena: &[DiskNode], node_id: u32) -> Result<Directory
     }
 
     let node = &arena[node_id as usize];
+    if node.is_tombstoned {
+        return Err("Node has been removed".into());
+    }
+
     let current_path = get_node_path(node_id, arena);
     let parent_size = node.size.max(1) as f32;
 
@@ -532,20 +541,23 @@ fn build_directory_payload(arena: &[DiskNode], node_id: u32) -> Result<Directory
 
     while child_id != u32::MAX {
         let child = &arena[child_id as usize];
-        items.push(UiDiskNode {
-            id: child_id,
-            name: child.name.to_string(),
-            is_dir: child.is_dir,
-            size: child.size,
-            modified_secs: child.modified_secs,
-            percentage_of_parent: (child.size as f32 / parent_size) * 100.0,
-        });
+        if !child.is_tombstoned {
+            items.push(UiDiskNode {
+                id: child_id,
+                name: child.name.to_string(),
+                is_dir: child.is_dir,
+                size: child.size,
+                modified_secs: child.modified_secs,
+                percentage_of_parent: (child.size as f32 / parent_size) * 100.0,
+            });
+        }
         child_id = child.next_sibling;
     }
 
     items.sort_unstable_by(|a, b| b.size.cmp(&a.size));
 
     let (extension_stats, top_files) = aggregate_subtree_stats(arena, node_id);
+    let total_scanned_items = arena.len().saturating_sub(1);
 
     Ok(DirectoryPayload {
         current_id: node_id,
@@ -554,16 +566,22 @@ fn build_directory_payload(arena: &[DiskNode], node_id: u32) -> Result<Directory
         items,
         extension_stats,
         top_files,
+        total_scanned_items,
     })
 }
 
 fn remove_node_from_tree(node_id: u32, arena: &mut [DiskNode]) {
+    if node_id as usize >= arena.len() {
+        return;
+    }
+
     let node_to_remove = &arena[node_id as usize];
     let parent_id = node_to_remove.parent_id;
     let next_sibling = node_to_remove.next_sibling;
     let removed_size = node_to_remove.size;
 
-    if parent_id != u32::MAX {
+    // 1. Unlink from parent's sibling chain
+    if parent_id != u32::MAX && (parent_id as usize) < arena.len() {
         let mut prev_id = u32::MAX;
         let mut curr_id = arena[parent_id as usize].first_child;
 
@@ -580,10 +598,24 @@ fn remove_node_from_tree(node_id: u32, arena: &mut [DiskNode]) {
             curr_id = arena[curr_id as usize].next_sibling;
         }
 
+        // 2. Adjust ancestor sizes
         let mut p = parent_id;
-        while p != u32::MAX {
+        while p != u32::MAX && (p as usize) < arena.len() {
             arena[p as usize].size = arena[p as usize].size.saturating_sub(removed_size);
             p = arena[p as usize].parent_id;
+        }
+    }
+
+    // 3. Tombstone node and all its descendants
+    let mut stack = vec![node_id];
+    while let Some(curr) = stack.pop() {
+        if (curr as usize) < arena.len() {
+            arena[curr as usize].is_tombstoned = true;
+            let mut child = arena[curr as usize].first_child;
+            while child != u32::MAX {
+                stack.push(child);
+                child = arena[child as usize].next_sibling;
+            }
         }
     }
 }
@@ -620,6 +652,7 @@ async fn scan_directory(app: tauri::AppHandle, target_path: String, state: State
         parent_id: u32::MAX,
         first_child: u32::MAX,
         next_sibling: u32::MAX,
+        is_tombstoned: false,
     });
 
     let shared_arena = Mutex::new(temp_arena);
@@ -654,18 +687,25 @@ async fn scan_directory(app: tauri::AppHandle, target_path: String, state: State
 }
 
 #[tauri::command]
-fn open_directory(node_id: u32, state: State<'_, AppState>) -> Result<DirectoryPayload, String> {
-    let arena = state.arena.read().map_err(|_| "Failed to lock state")?;
-    build_directory_payload(&arena.nodes, node_id)
+async fn open_directory(node_id: u32, state: State<'_, AppState>) -> Result<DirectoryPayload, String> {
+    let arena_arc = state.arena.clone();
+    tokio::task::spawn_blocking(move || {
+        let arena = arena_arc.read().map_err(|_| "Failed to lock state")?;
+        build_directory_payload(&arena.nodes, node_id)
+    })
+    .await
+    .map_err(|e| format!("Task failed: {}", e))?
 }
 
 #[tauri::command]
 fn open_in_explorer(app: tauri::AppHandle, node_id: u32, state: State<'_, AppState>) -> Result<(), String> {
-    let arena = state.arena.read().map_err(|_| "Failed to lock state")?;
-    if node_id as usize >= arena.nodes.len() { return Err("Invalid ID".into()); }
-
-    let path_str = get_node_path(node_id, &arena.nodes);
-    let is_dir = arena.nodes[node_id as usize].is_dir;
+    let (path_str, is_dir) = {
+        let arena = state.arena.read().map_err(|_| "Failed to lock state")?;
+        if node_id as usize >= arena.nodes.len() { return Err("Invalid ID".into()); }
+        let node = &arena.nodes[node_id as usize];
+        if node.is_tombstoned { return Err("Node has been removed".into()); }
+        (get_node_path(node_id, &arena.nodes), node.is_dir)
+    };
 
     if is_dir {
         app.opener().open_path(&path_str, None::<&str>).map_err(|e| e.to_string())?;
@@ -676,18 +716,27 @@ fn open_in_explorer(app: tauri::AppHandle, node_id: u32, state: State<'_, AppSta
 }
 
 #[tauri::command]
-fn move_to_trash(node_id: u32, state: State<'_, AppState>) -> Result<(), String> {
-    let mut arena = state.arena.write().map_err(|_| "Failed to lock state")?;
-    if node_id as usize >= arena.nodes.len() { return Err("Invalid ID".into()); }
+async fn move_to_trash(node_id: u32, state: State<'_, AppState>) -> Result<(), String> {
+    let path_str = {
+        let arena = state.arena.read().map_err(|_| "Failed to lock state")?;
+        if node_id as usize >= arena.nodes.len() { return Err("Invalid ID".into()); }
+        let node = &arena.nodes[node_id as usize];
+        if node.is_tombstoned { return Err("Node has been removed".into()); }
+        get_node_path(node_id, &arena.nodes)
+    };
 
-    let path_str = get_node_path(node_id, &arena.nodes);
     let path = Path::new(&path_str);
-
     if is_protected_path(path) {
         return Err(format!("Refusing to delete protected path: {}", path.display()));
     }
 
-    trash::delete(path).map_err(|e| e.to_string())?;
+    let delete_path = path_str.clone();
+    tokio::task::spawn_blocking(move || trash::delete(Path::new(&delete_path)))
+        .await
+        .map_err(|e| format!("Task failed: {}", e))?
+        .map_err(|e| e.to_string())?;
+
+    let mut arena = state.arena.write().map_err(|_| "Failed to lock state")?;
     remove_node_from_tree(node_id, &mut arena.nodes);
 
     Ok(())
@@ -740,7 +789,7 @@ fn get_disk_info(path: String) -> Result<DiskInfo, String> {
 pub fn run() {
     tauri::Builder::default()
         .manage(AppState {
-            arena: RwLock::new(ArenaTree::default()),
+            arena: Arc::new(RwLock::new(ArenaTree::default())),
             cancel_flag: Mutex::new(Arc::new(AtomicBool::new(false))),
         })
         .plugin(tauri_plugin_opener::init())

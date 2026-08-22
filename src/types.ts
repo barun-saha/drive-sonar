@@ -27,6 +27,7 @@ export interface DirectoryPayload {
   items: UiDiskNode[];
   extension_stats: ExtensionStat[];
   top_files: TopFileNode[];
+  total_scanned_items: number;
 }
 
 export interface DiskInfo {
