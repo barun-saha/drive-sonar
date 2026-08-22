@@ -142,12 +142,12 @@ export default function App() {
   }
 
   async function cancelScan() {
+    // Keep the scan active until scan_directory settles
+    // Let handleScan clear isScanning when its own invocation resolves or rejects
     try {
       await invoke('cancel_scan');
     } catch (error) {
       console.warn('cancel_scan invocation failed:', error);
-    } finally {
-      setIsScanning(false);
     }
   }
 
