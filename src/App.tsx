@@ -15,28 +15,16 @@ import { VisualizationPanel } from './components/VisualizationPanel';
 
 import '@mantine/notifications/styles.css';
 
-import { FlatFileEntry, DiskInfo } from './types';
-
-// Platform-aware path normalization for identity comparison and map keys.
-// On Windows, paths are case-insensitive, so we lowercase for comparison.
-// On other platforms (Linux/macOS), paths are case-sensitive, so we preserve case.
-function normalizePathKey(path: string): string {
-  const normalized = path.replace(/\\/g, '/');
-  // Detect Windows by checking if the path looks like a Windows path (e.g., "C:/...")
-  const isWindows = /^[A-Za-z]:/.test(normalized);
-  return isWindows ? normalized.toLowerCase() : normalized;
-}
+import { DirectoryPayload, DiskInfo } from './types';
 
 export default function App() {
   const [targetPath, setTargetPath] = useState('');
-  const [currentViewPath, setCurrentViewPath] = useState('');
-  const [results, setResults] = useState<FlatFileEntry[]>([]);
+  const [payload, setPayload] = useState<DirectoryPayload | null>(null);
   const [scanTime, setScanTime] = useState<number | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [diskInfo, setDiskInfo] = useState<DiskInfo | null>(null);
-  const [scanPath, setScanPath] = useState<string>('');        // path that was scanned
+  const [scanPath, setScanPath] = useState<string>('');
 
-  // State for the modals
   const [helpOpened, { open: openHelp, close: closeHelp }] = useDisclosure(false);
   const [aboutOpened, { open: openAbout, close: closeAbout }] = useDisclosure(false);
 
@@ -47,14 +35,13 @@ export default function App() {
     setColorScheme(computedColorScheme === 'dark' ? 'light' : 'dark');
   };
 
-  // Listen to warning events emitted by the backend during scans
   useEffect(() => {
     const unlisten = listen<string>('scan-warning', (event) => {
       notifications.show({
         title: 'Scan Warning',
         message: event.payload,
         color: 'yellow',
-        autoClose: 6000
+        autoClose: 6000,
       });
     });
     return () => {
@@ -62,13 +49,11 @@ export default function App() {
     };
   }, []);
 
-  // Automatically resolve the user's OS Home directory on startup
   useEffect(() => {
     async function initDefaultPath() {
       try {
         const userHome = await homeDir();
         setTargetPath(userHome);
-        setCurrentViewPath(userHome);
       } catch (error) {
         console.error('Failed to resolve default home path:', error);
       }
@@ -76,7 +61,6 @@ export default function App() {
     initDefaultPath();
   }, []);
 
-  // Dynamically get app version from the config file
   const [appVersion, setAppVersion] = useState('');
   useEffect(() => {
     async function fetchAppVersion() {
@@ -90,7 +74,6 @@ export default function App() {
     fetchAppVersion();
   }, []);
 
-  // Opens native operating system directory selection window
   async function handleBrowse() {
     try {
       const selected = await openDialog({
@@ -106,7 +89,7 @@ export default function App() {
       notifications.show({
         title: 'Error',
         message: `Could not open directory picker: ${error}`,
-        color: 'red'
+        color: 'red',
       });
     }
   }
@@ -120,7 +103,6 @@ export default function App() {
       setDiskInfo(null);
       setScanPath('');
 
-      // Fetch and display disk capacity info first (fast syscall)
       try {
         const di = await invoke<DiskInfo>('get_disk_info', { path: targetPath });
         setDiskInfo(di);
@@ -129,74 +111,60 @@ export default function App() {
         console.warn('get_disk_info failed:', e);
       }
 
-      // Proceed to directory scanning
       const startTime = performance.now();
-      const processedData = await invoke<FlatFileEntry[]>('scan_directory', {
-        targetPath: targetPath,
-      });
+      const res = await invoke<DirectoryPayload>('scan_directory', { targetPath });
       const endTime = performance.now();
 
-      const normalizedData = processedData.map((entry) => ({
-        ...entry,
-        normPath: normalizePathKey(entry.path),
-      }));
-
-      setResults(normalizedData);
-      setCurrentViewPath(targetPath);
+      setPayload(res);
       setScanTime(endTime - startTime);
     } catch (error) {
       notifications.show({
         title: 'Scan Failed',
         message: String(error),
-        color: 'red'
+        color: 'red',
       });
     } finally {
       setIsScanning(false);
     }
   }
 
-  async function cancelScan() {
-    await invoke('cancel_scan');
-    setIsScanning(false);
+  async function handleNavigate(nodeId: number) {
+    try {
+      const res = await invoke<DirectoryPayload>('open_directory', { nodeId });
+      setPayload(res);
+    } catch (error) {
+      notifications.show({
+        title: 'Navigation Failed',
+        message: String(error),
+        color: 'red',
+      });
+    }
   }
 
-  const visibleItems = useMemo(() => {
-    const normCurrentView = normalizePathKey(currentViewPath);
-    return results.filter(item => {
-      const normItemParent = normalizePathKey(item.parent_path);
-      const normItemPath = normalizePathKey(item.path);
-      return normItemPath !== normCurrentView && normItemParent === normCurrentView;
-    });
-  }, [results, currentViewPath]);
-
-  // Single O(N) pass to build a map of { dirs, files } counts keyed by
-  // normalised parent_path. Recomputed only when results change (new scan).
-  // Navigation is then an O(1) Map lookup — no re-iteration needed.
-  const dirCountMap = useMemo(() => {
-    const map = new Map<string, { dirs: number; files: number }>();
-    // Initialize all directories with zero counts first
-    for (const entry of results) {
-      if (entry.is_dir) {
-        const key = normalizePathKey(entry.path);
-        if (!map.has(key)) map.set(key, { dirs: 0, files: 0 });
-      }
+  async function cancelScan() {
+    // Keep the scan active until scan_directory settles
+    // Let handleScan clear isScanning when its own invocation resolves or rejects
+    try {
+      await invoke('cancel_scan');
+    } catch (error) {
+      console.warn('cancel_scan invocation failed:', error);
     }
-    // Then count children for each parent
-    for (const entry of results) {
-      const key = normalizePathKey(entry.parent_path);
-      if (!map.has(key)) map.set(key, { dirs: 0, files: 0 });
-      const c = map.get(key)!;
-      if (entry.is_dir) c.dirs++; else c.files++;
-    }
-    return map;
-  }, [results]);
+  }
 
-  // Total disk size occupied at the current view path
-    const currentViewSize = useMemo(() => {
-      // Because the Rust backend pre-aggregated directory sizes, we only
-      // need to sum the sizes of the immediate children (visibleItems)
-      return visibleItems.reduce((totalBytes, item) => totalBytes + item.size, 0);
-    }, [visibleItems]);
+  const { dirCount, fileCount, currentViewSize } = useMemo(() => {
+    if (!payload) return { dirCount: 0, fileCount: 0, currentViewSize: 0 };
+    let dirs = 0;
+    let files = 0;
+    let totalSize = 0;
+
+    for (const item of payload.items) {
+      if (item.is_dir) dirs++;
+      else files++;
+      totalSize += item.size;
+    }
+
+    return { dirCount: dirs, fileCount: files, currentViewSize: totalSize };
+  }, [payload]);
 
   return (
     <>
@@ -215,23 +183,10 @@ export default function App() {
           <Modal.Body pt="md">
             <Text size="lg">
               To find the disk usage of a given directory, select the directory and click on the "Run Scan" button.
-              Depending on the size of its contents, a directory scan can take milliseconds to minutes.
             </Text>
             <br />
             <Text size="lg">
               To cancel an ongoing scan, click on the "Cancel Scan" button.
-              No results are displayed when a scan is canceled.
-            </Text>
-            <br />
-            <Text size="lg">
-              The visualization panel on the right-hand side presents three views:
-              <ul>
-                <li>A tree map of the current location's disk space usage</li>
-                <li>A distribution of space usage by the top-15 file extensions</li>
-                <li>A scatter plot of file size and age</li>
-              </ul>
-              Collectively, the visualizations offer more insights into deciding which files,
-              if any, are potential candidates for removal.
             </Text>
           </Modal.Body>
         </Modal.Content>
@@ -256,19 +211,15 @@ export default function App() {
                 A fast, lightweight disk space explorer powered by Rust and Tauri. Apache-2.0 licensed.
               </Text>
               <br />
-              <Text size="lg">
-                © Copyright 2026 Barun Saha.
-              </Text>
+              <Text size="lg">© Copyright 2026 Barun Saha.</Text>
             </Stack>
           </Modal.Body>
         </Modal.Content>
       </Modal.Root>
 
-      <Container size='xl' py='xl'>
-        <Notifications position='top-right' zIndex={1000} autoClose={6000} />
-        <Stack gap='lg'>
-
-          {/* Header with Hamburger Menu */}
+      <Container size="xl" py="xl">
+        <Notifications position="top-right" zIndex={1000} autoClose={6000} />
+        <Stack gap="lg">
           <Group justify="space-between" align="center" gap="xs">
             <Title order={2} style={{ color: 'var(--text-main)', letterSpacing: '-0.5px' }}>
               ⚡ Drive Sonar — insights on your disk usage
@@ -283,35 +234,18 @@ export default function App() {
 
               <Menu.Dropdown>
                 <Menu.Label>Application</Menu.Label>
-
                 <Menu.Item
-                  leftSection={
-                    computedColorScheme === 'dark' ? (
-                      <Sun size={14} />
-                    ) : (
-                      <Moon size={14} />
-                    )
-                  }
+                  leftSection={computedColorScheme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
                   onClick={toggleColorScheme}
                 >
                   {computedColorScheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                 </Menu.Item>
-
                 <Menu.Divider />
-
-                <Menu.Item
-                  leftSection={<HelpCircle size={14} />}
-                  onClick={openHelp}
-                >
+                <Menu.Item leftSection={<HelpCircle size={14} />} onClick={openHelp}>
                   Help
                 </Menu.Item>
-
                 <Menu.Divider />
-
-                <Menu.Item
-                  leftSection={<Info size={14} />}
-                  onClick={openAbout}
-                >
+                <Menu.Item leftSection={<Info size={14} />} onClick={openAbout}>
                   About Drive Sonar
                 </Menu.Item>
               </Menu.Dropdown>
@@ -326,30 +260,24 @@ export default function App() {
             onCancel={cancelScan}
             isScanning={isScanning}
             scanTime={scanTime}
-            totalItems={results.length}
+            totalItems={payload?.total_scanned_items ?? 0}
             diskInfo={diskInfo}
             scanPath={scanPath}
-            currentViewPath={currentViewPath}
-            dirCountMap={dirCountMap}
+            dirCount={dirCount}
+            fileCount={fileCount}
             currentViewSize={currentViewSize}
           />
 
-          <Grid gap='md' align="flex-start">
+          <Grid gap="md" align="flex-start">
             <Grid.Col span={{ base: 12, md: 7 }}>
               <ItemList
-                items={visibleItems}
-                targetPath={targetPath}
-                currentViewPath={currentViewPath}
-                setCurrentViewPath={setCurrentViewPath}
+                payload={payload}
+                onNavigate={handleNavigate}
                 onRefresh={handleScan}
               />
             </Grid.Col>
             <Grid.Col span={{ base: 12, md: 5 }}>
-              <VisualizationPanel
-                visibleItems={visibleItems}
-                allResults={results}
-                currentViewPath={currentViewPath}
-              />
+              <VisualizationPanel payload={payload} onNavigate={handleNavigate} />
             </Grid.Col>
           </Grid>
         </Stack>

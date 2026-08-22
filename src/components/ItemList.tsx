@@ -1,55 +1,52 @@
 import { invoke } from '@tauri-apps/api/core';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Box, Stack, Group, Text, Progress, Tooltip, ActionIcon } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { Folder, File, FolderOpen, Trash2 } from 'lucide-react';
 
-import { FlatFileEntry } from '../types';
+import { DirectoryPayload, UiDiskNode } from '../types';
 import { formatBytes } from '../utils/format';
 import { PathNav } from '../components/PathNav';
 
 interface ItemListProps {
-  items: FlatFileEntry[];
-  targetPath: string;
-  currentViewPath: string;
-  setCurrentViewPath: (path: string) => void;
+  payload: DirectoryPayload | null;
+  onNavigate: (nodeId: number) => void;
   onRefresh: () => void;
 }
 
-export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPath, onRefresh }: ItemListProps) {
+export function ItemList({ payload, onNavigate, onRefresh }: ItemListProps) {
   const [scrollTop, setScrollTop] = useState(0);
-  const [hoveredPath, setHoveredPath] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
 
   const ROW_HEIGHT = 38;
-  const VIEWPORT_HEIGHT = 440; // Virtual scroll buffer calculation
+  const VIEWPORT_HEIGHT = 440;
   const BUFFER_ITEMS = 5;
+
+  const items = payload?.items ?? [];
 
   useEffect(() => {
     setScrollTop(0);
-    const scrollContainer = document.getElementById('virtual-scroll-viewport');
-    if (scrollContainer) scrollContainer.scrollTop = 0;
-  }, [currentViewPath]);
+    if (viewportRef.current) {
+      viewportRef.current.scrollTop = 0;
+    }
+  }, [payload?.current_id]);
 
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => b.size - a.size);
   }, [items]);
 
-  const maxVisibleSize = sortedItems.length > 0 && sortedItems[0].size > 0 ? sortedItems[0].size : 1;
   const totalHeight = sortedItems.length * ROW_HEIGHT;
   const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ITEMS);
   const endIndex = Math.min(sortedItems.length, Math.floor((scrollTop + VIEWPORT_HEIGHT) / ROW_HEIGHT) + BUFFER_ITEMS);
 
   const displayItems = sortedItems.slice(startIndex, endIndex);
   const offsetY = startIndex * ROW_HEIGHT;
-  const normCurrentView = currentViewPath.replace(/\\/g, '/').toLowerCase();
-  const normTarget = targetPath.replace(/\\/g, '/').toLowerCase();
-  const normTargetPrefix = normTarget.endsWith('/') ? normTarget : `${normTarget}/`;
-  const isOutsideScan = normCurrentView !== normTarget && !normCurrentView.startsWith(normTargetPrefix);
 
-  const handleOpenInExplorer = async (item: FlatFileEntry) => {
+  const handleOpenInExplorer = async (item: UiDiskNode) => {
     try {
-      await invoke('open_in_explorer', { pathStr: item.path, isDir: item.is_dir });
+      await invoke('open_in_explorer', { nodeId: item.id });
     } catch (error) {
       notifications.show({
         title: 'Execution Failed',
@@ -59,10 +56,10 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
     }
   };
 
-  const handleDelete = (item: FlatFileEntry) => {
+  const handleDelete = (item: UiDiskNode) => {
     const executeDelete = async () => {
       try {
-        await invoke('move_to_trash', { pathStr: item.path });
+        await invoke('move_to_trash', { nodeId: item.id });
 
         notifications.show({
           title: 'Success',
@@ -70,7 +67,11 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
           color: 'green'
         });
 
-        onRefresh();
+        if (payload?.current_id !== undefined) {
+          onNavigate(payload.current_id);
+        } else {
+          onRefresh();
+        }
       } catch (error) {
         notifications.show({
           title: 'Deletion Failed',
@@ -105,7 +106,7 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
         padding: '16px',
         borderRadius: '8px',
         border: '1px solid var(--border-color)',
-        height: 500, // Matching explicit height
+        height: 500,
         display: 'flex',
         flexDirection: 'column',
         boxSizing: 'border-box'
@@ -113,17 +114,18 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
     >
       <Group justify="space-between" align="center" mb="md">
         <PathNav
-          currentPath={currentViewPath}
-          onNavigate={setCurrentViewPath}
+          currentPath={payload?.current_path ?? ''}
+          parentId={payload?.parent_id ?? null}
+          onNavigate={onNavigate}
         />
       </Group>
 
       <div
-        id="virtual-scroll-viewport"
+        ref={viewportRef}
         onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
         style={{
           flex: 1,
-          minHeight: 0, // Fills exact remaining space in the 500px card
+          minHeight: 0,
           overflowY: 'auto',
           position: 'relative',
           backgroundColor: 'var(--bg-main)',
@@ -140,8 +142,8 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
         >
           <Stack gap={0}>
             {displayItems.map((item) => {
-              const itemPercentage = (item.size / maxVisibleSize) * 100;
-              const isHovered = hoveredPath === item.path;
+              const itemPercentage = item.percentage_of_parent;
+              const isHovered = hoveredId === item.id;
 
               let barColor = 'green.5';
               if (itemPercentage > 75) barColor = 'red.6';
@@ -149,13 +151,13 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
 
               return (
                 <Group
-                  key={item.path}
+                  key={item.id}
                   justify="space-between"
                   wrap="nowrap"
-                  onMouseEnter={() => setHoveredPath(item.path)}
-                  onMouseLeave={() => setHoveredPath(null)}
+                  onMouseEnter={() => setHoveredId(item.id)}
+                  onMouseLeave={() => setHoveredId(null)}
                   onClick={() => {
-                    if (item.is_dir) setCurrentViewPath(item.path);
+                    if (item.is_dir) onNavigate(item.id);
                   }}
                   style={{
                     height: `${ROW_HEIGHT}px`,
@@ -240,21 +242,9 @@ export function ItemList({ items, targetPath, currentViewPath, setCurrentViewPat
 
             {sortedItems.length === 0 && (
               <Box py="xl" style={{ textAlign: 'center' }}>
-                {isOutsideScan ? (
-                  <Stack align="center" gap="xs">
-                    <Text size="sm" fw={600} style={{ color: 'var(--text-main)' }}>
-                      Location Outside Scanned Scope
-                    </Text>
-                    <Text size="sm" c="dimmed" style={{ maxWidth: 380 }}>
-                      This folder was not included in your scan of <br /><code>{targetPath}</code>
-                      <br />Select the location and run a scan to view the contents.
-                    </Text>
-                  </Stack>
-                ) : (
-                  <Text size="sm" c="dimmed">
-                    This directory is empty.
-                  </Text>
-                )}
+                <Text size="sm" c="dimmed">
+                  This directory is empty.
+                </Text>
               </Box>
             )}
           </Stack>

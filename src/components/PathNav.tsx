@@ -4,8 +4,9 @@ import { ChevronRight } from 'lucide-react';
 
 interface PathNavProps {
   currentPath: string;
+  parentId: number | null;
+  onNavigate: (nodeId: number) => void;
   isWindows?: boolean; // Optional
-  onNavigate: (newPath: string) => void;
 }
 
 interface PathSegment {
@@ -13,7 +14,7 @@ interface PathSegment {
   path: string;
 }
 
-export function PathNav({ currentPath, isWindows, onNavigate }: PathNavProps) {
+export function PathNav({ currentPath, parentId, onNavigate, isWindows }: PathNavProps) {
   const isWin = isWindows ?? (/^[a-zA-Z]:/.test(currentPath) || currentPath.includes('\\'));
   // Reconstruct path segments with their accumulated full paths
   const segments = useMemo(() => {
@@ -50,6 +51,7 @@ export function PathNav({ currentPath, isWindows, onNavigate }: PathNavProps) {
     >
       {segments.map((seg, index) => {
         const isLast = index === segments.length - 1;
+        const isParent = index === segments.length - 2;
 
         if (isLast) {
           return (
@@ -59,17 +61,25 @@ export function PathNav({ currentPath, isWindows, onNavigate }: PathNavProps) {
           );
         }
 
+        if (isParent && parentId !== null) {
+          return (
+            <Anchor
+              key={seg.path}
+              component="button"
+              type="button"
+              size="sm"
+              underline="hover"
+              onClick={() => onNavigate(parentId)}
+            >
+              {seg.label}
+            </Anchor>
+          );
+        }
+
         return (
-          <Anchor
-            key={seg.path}
-            component="button"
-            type="button"
-            size="sm"
-            underline="hover"
-            onClick={() => onNavigate(seg.path)}
-          >
+          <Text key={seg.path} size="sm" c="dimmed">
             {seg.label}
-          </Anchor>
+          </Text>
         );
       })}
     </Breadcrumbs>
