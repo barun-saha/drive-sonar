@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Treemap } from '@mantine/charts';
 import { Text, Group, Box, Badge } from '@mantine/core';
+import type { TreemapNode } from 'recharts';
 
 import { UiDiskNode } from '../types';
 import { formatBytes } from '../utils/format';
@@ -46,12 +47,14 @@ export function SizeChart({ items, onNavigate }: SizeChartProps) {
             data={chartData}
             dataKey="value"
             height={380}
-            onClick={(item: any) => {
-              const isDir = item?.isDir ?? item?.payload?.isDir;
-              const id = item?.id ?? item?.payload?.id;
+            treemapProps={{
+              onClick: (node: TreemapNode) => {
+                const isDir = Boolean(node?.isDir ?? (node as any)?.payload?.isDir);
+                const id = node?.id ?? (node as any)?.payload?.id;
 
-              if (isDir && onNavigate && typeof id === 'number') {
-                onNavigate(id);
+                if (isDir && onNavigate && typeof id === 'number') {
+                  onNavigate(id);
+                }
               }
             }}
             tooltipProps={{
