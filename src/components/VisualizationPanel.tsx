@@ -12,7 +12,6 @@ interface VisualizationPanelProps {
 export function VisualizationPanel({ payload, onNavigate }: VisualizationPanelProps) {
   const items = payload?.items ?? [];
   const extensionStats = payload?.extension_stats ?? [];
-  const currentViewPath = payload?.current_path ?? '';
   const currentId = payload?.current_id ?? 0;
 
   return (
@@ -47,11 +46,11 @@ export function VisualizationPanel({ payload, onNavigate }: VisualizationPanelPr
         </Tabs.Panel>
 
         <Tabs.Panel value="extensions" style={{ flex: 1, minHeight: 0, paddingTop: '12px' }}>
-          <ExtensionChart stats={extensionStats} currentViewPath={currentViewPath} />
+          <ExtensionChart stats={extensionStats} />
         </Tabs.Panel>
 
         <Tabs.Panel value="age" style={{ flex: 1, minHeight: 0, paddingTop: '12px' }}>
-          <AgeScatterChart files={payload?.top_files || []} currentViewPath={currentViewPath} />
+          <AgeScatterChart files={payload?.top_files || []} />
         </Tabs.Panel>
       </Tabs>
     </Paper>

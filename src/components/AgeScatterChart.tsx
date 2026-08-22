@@ -8,7 +8,6 @@ import { formatBytes } from '../utils/format';
 
 interface AgeScatterChartProps {
   files?: TopFileNode[];
-  currentViewPath?: string;
 }
 
 export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {

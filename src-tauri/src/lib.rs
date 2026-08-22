@@ -100,7 +100,8 @@ struct TopCandidate {
 
 impl Ord for TopCandidate {
     fn cmp(&self, other: &Self) -> Ordering {
-        other.size.cmp(&self.size) // Reverse ordering for min-heap behavior
+        // Reverse size ordering for min-heap behavior, then deterministic id tiebreak
+        other.size.cmp(&self.size).then_with(|| self.id.cmp(&other.id))
     }
 }
 
@@ -182,7 +183,7 @@ mod windows_scanner {
     };
     use windows::Win32::System::IO::IO_STATUS_BLOCK;
 
-    const INITIAL_QUERY_BUFFER_SIZE: usize = 256 * 1024;
+    const INITIAL_QUERY_BUFFER_SIZE: usize = 64 * 1024;
 
     #[repr(C)]
     #[derive(Copy, Clone)]
@@ -240,13 +241,16 @@ mod windows_scanner {
             if status == STATUS_NO_MORE_FILES { break; }
 
             const STATUS_BUFFER_OVERFLOW: i32 = 0x80000005u32 as i32;
-            if status.0 == STATUS_BUFFER_OVERFLOW {
+            const STATUS_BUFFER_TOO_SMALL: i32 = 0xC0000023u32 as i32;
+            if status.0 == STATUS_BUFFER_OVERFLOW || status.0 == STATUS_BUFFER_TOO_SMALL {
                 if buffer.len() >= 16 * 1024 * 1024 { return Err(io::Error::new(io::ErrorKind::OutOfMemory, "Buffer overflow")); }
                 buffer.resize(buffer.len() * 2, 0);
                 continue;
             }
 
-            if status != STATUS_SUCCESS { return Err(io::Error::other("NTSTATUS failure")); }
+            if status != STATUS_SUCCESS {
+                return Err(io::Error::other(format!("NTSTATUS failure: 0x{:08X}", status.0 as u32)));
+            }
             let bytes_returned = iosb.Information as usize;
             if bytes_returned == 0 { break; }
 
@@ -334,6 +338,7 @@ fn scan_dir_parallel(
     parent_id: u32,
     cancel_flag: &AtomicBool,
     skipped_count: &AtomicUsize,
+    depth_exceeded_count: &AtomicUsize,
     shared_arena: &Mutex<Vec<DiskNode>>,
     depth: usize,
 ) -> Result<(), String> {
@@ -342,7 +347,7 @@ fn scan_dir_parallel(
     }
 
     if depth > 256 {
-        skipped_count.fetch_add(1, AtomicOrdering::Relaxed);
+        depth_exceeded_count.fetch_add(1, AtomicOrdering::Relaxed);
         return Ok(());
     }
 
@@ -372,6 +377,9 @@ fn scan_dir_parallel(
 
     let start_idx = {
         let mut arena = shared_arena.lock().unwrap();
+        if arena.len() + local_nodes.len() >= u32::MAX as usize {
+            return Err("Arena exceeded maximum node capacity (4 billion nodes)".to_string());
+        }
         let start = arena.len() as u32;
 
         for i in 0..local_nodes.len().saturating_sub(1) {
@@ -393,7 +401,7 @@ fn scan_dir_parallel(
     }
 
     subdir_tasks.into_par_iter().try_for_each(|(child_path, child_id)| {
-        scan_dir_parallel(&child_path, child_id, cancel_flag, skipped_count, shared_arena, depth + 1)
+        scan_dir_parallel(&child_path, child_id, cancel_flag, skipped_count, depth_exceeded_count, shared_arena, depth + 1)
     })
 }
 
@@ -658,11 +666,13 @@ async fn scan_directory(app: tauri::AppHandle, target_path: String, state: State
     let shared_arena = Mutex::new(temp_arena);
     let skipped_count = Arc::new(AtomicUsize::new(0));
     let skipped_count_task = Arc::clone(&skipped_count);
+    let depth_exceeded_count = Arc::new(AtomicUsize::new(0));
+    let depth_exceeded_count_task = Arc::clone(&depth_exceeded_count);
 
     init_rayon_thread_pool();
 
     let scan_res = tokio::task::spawn_blocking(move || {
-        scan_dir_parallel(&canonical, 0, &scan_cancel_flag, &skipped_count_task, &shared_arena, 0)?;
+        scan_dir_parallel(&canonical, 0, &scan_cancel_flag, &skipped_count_task, &depth_exceeded_count_task, &shared_arena, 0)?;
 
         let mut final_arena = shared_arena.into_inner().unwrap();
         aggregate_node(0, &mut final_arena);
@@ -674,6 +684,10 @@ async fn scan_directory(app: tauri::AppHandle, target_path: String, state: State
             let skipped = skipped_count.load(AtomicOrdering::Relaxed);
             if skipped > 0 {
                 let _ = app.emit("scan-warning", format!("{} location(s) were inaccessible and skipped.", skipped));
+            }
+            let depth_exceeded = depth_exceeded_count.load(AtomicOrdering::Relaxed);
+            if depth_exceeded > 0 {
+                let _ = app.emit("scan-warning", format!("{} path(s) exceeded maximum scan depth limit (256).", depth_exceeded));
             }
 
             let mut state_arena = state.arena.write().map_err(|_| "Failed to lock state")?;

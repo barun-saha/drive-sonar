@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Box, Stack, Group, Text, Progress, Tooltip, ActionIcon } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
@@ -18,6 +18,7 @@ interface ItemListProps {
 export function ItemList({ payload, onNavigate, onRefresh }: ItemListProps) {
   const [scrollTop, setScrollTop] = useState(0);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
 
   const ROW_HEIGHT = 38;
   const VIEWPORT_HEIGHT = 440;
@@ -27,15 +28,15 @@ export function ItemList({ payload, onNavigate, onRefresh }: ItemListProps) {
 
   useEffect(() => {
     setScrollTop(0);
-    const scrollContainer = document.getElementById('virtual-scroll-viewport');
-    if (scrollContainer) scrollContainer.scrollTop = 0;
+    if (viewportRef.current) {
+      viewportRef.current.scrollTop = 0;
+    }
   }, [payload?.current_id]);
 
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => b.size - a.size);
   }, [items]);
 
-  const maxVisibleSize = sortedItems.length > 0 && sortedItems[0].size > 0 ? sortedItems[0].size : 1;
   const totalHeight = sortedItems.length * ROW_HEIGHT;
   const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ITEMS);
   const endIndex = Math.min(sortedItems.length, Math.floor((scrollTop + VIEWPORT_HEIGHT) / ROW_HEIGHT) + BUFFER_ITEMS);
@@ -66,7 +67,11 @@ export function ItemList({ payload, onNavigate, onRefresh }: ItemListProps) {
           color: 'green'
         });
 
-        onRefresh();
+        if (payload?.current_id !== undefined) {
+          onNavigate(payload.current_id);
+        } else {
+          onRefresh();
+        }
       } catch (error) {
         notifications.show({
           title: 'Deletion Failed',
@@ -116,7 +121,7 @@ export function ItemList({ payload, onNavigate, onRefresh }: ItemListProps) {
       </Group>
 
       <div
-        id="virtual-scroll-viewport"
+        ref={viewportRef}
         onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
         style={{
           flex: 1,
@@ -137,7 +142,7 @@ export function ItemList({ payload, onNavigate, onRefresh }: ItemListProps) {
         >
           <Stack gap={0}>
             {displayItems.map((item) => {
-              const itemPercentage = item.percentage_of_parent ?? (item.size / maxVisibleSize) * 100;
+              const itemPercentage = item.percentage_of_parent;
               const isHovered = hoveredId === item.id;
 
               let barColor = 'green.5';

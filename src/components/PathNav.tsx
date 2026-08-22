@@ -51,6 +51,7 @@ export function PathNav({ currentPath, parentId, onNavigate, isWindows }: PathNa
     >
       {segments.map((seg, index) => {
         const isLast = index === segments.length - 1;
+        const isParent = index === segments.length - 2;
 
         if (isLast) {
           return (
@@ -60,17 +61,25 @@ export function PathNav({ currentPath, parentId, onNavigate, isWindows }: PathNa
           );
         }
 
+        if (isParent && parentId !== null) {
+          return (
+            <Anchor
+              key={seg.path}
+              component="button"
+              type="button"
+              size="sm"
+              underline="hover"
+              onClick={() => onNavigate(parentId)}
+            >
+              {seg.label}
+            </Anchor>
+          );
+        }
+
         return (
-          <Anchor
-            key={seg.path}
-            component="button"
-            type="button"
-            size="sm"
-            underline="hover"
-            onClick={() => parentId !== null && onNavigate(parentId)}
-          >
+          <Text key={seg.path} size="sm" c="dimmed">
             {seg.label}
-          </Anchor>
+          </Text>
         );
       })}
     </Breadcrumbs>

@@ -8,7 +8,6 @@ import { formatBytes } from '../utils/format';
 
 interface ExtensionChartProps {
   stats?: ExtensionStat[];
-  currentViewPath?: string;
 }
 
 export function ExtensionChart({ stats = [] }: ExtensionChartProps) {

@@ -142,8 +142,13 @@ export default function App() {
   }
 
   async function cancelScan() {
-    await invoke('cancel_scan');
-    setIsScanning(false);
+    try {
+      await invoke('cancel_scan');
+    } catch (error) {
+      console.warn('cancel_scan invocation failed:', error);
+    } finally {
+      setIsScanning(false);
+    }
   }
 
   const { dirCount, fileCount, currentViewSize } = useMemo(() => {
