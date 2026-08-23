@@ -52,10 +52,17 @@ pub struct TopFileNode {
 }
 
 #[derive(Serialize)]
+pub struct BreadcrumbItem {
+  pub id: u32,
+  pub name: String,
+}
+
+#[derive(Serialize)]
 pub struct DirectoryPayload {
     pub current_id: u32,
     pub current_path: String,
     pub parent_id: Option<u32>,
+    pub ancestors: Vec<BreadcrumbItem>,
     pub items: Vec<UiDiskNode>,
     pub extension_stats: Vec<ExtensionStat>,
     pub top_files: Vec<TopFileNode>,
@@ -567,10 +574,26 @@ fn build_directory_payload(arena: &[DiskNode], node_id: u32) -> Result<Directory
     let (extension_stats, top_files) = aggregate_subtree_stats(arena, node_id);
     let total_scanned_items = arena.len().saturating_sub(1);
 
+    // Hierarchy of ancestors of the current dir
+    let mut ancestors = Vec::new();
+    let mut current_id = node_id;
+
+    while current_id != u32::MAX {
+      let node = &arena[current_id as usize];
+      ancestors.push(BreadcrumbItem{
+        id: current_id,
+        name: node.name.to_string()
+      });
+      current_id = node.parent_id;
+    }
+    // Root first, current folder last
+    ancestors.reverse();
+
     Ok(DirectoryPayload {
         current_id: node_id,
         current_path,
         parent_id: if node.parent_id == u32::MAX { None } else { Some(node.parent_id) },
+        ancestors: ancestors,
         items,
         extension_stats,
         top_files,

@@ -78,7 +78,7 @@ export function Toolbar({
               }
             />
             <Button
-              onClick={onScan}
+              onClick={() => onScan()}
               disabled={isScanning || !targetPath.trim()}
               leftSection={isScanning ? <Loader2 size={16} className="force-spin" /> : <Search size={16} />}
             >

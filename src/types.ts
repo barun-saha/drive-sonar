@@ -20,10 +20,16 @@ export interface TopFileNode {
   modified_secs: number;
 }
 
+export interface BreadcrumbItem {
+  id: number;
+  name: string;
+}
+
 export interface DirectoryPayload {
   current_id: number;
   current_path: string;
   parent_id: number | null;
+  ancestors: BreadcrumbItem[];
   items: UiDiskNode[];
   extension_stats: ExtensionStat[];
   top_files: TopFileNode[];

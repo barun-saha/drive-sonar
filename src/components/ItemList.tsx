@@ -12,7 +12,7 @@ import { PathNav } from '../components/PathNav';
 interface ItemListProps {
   payload: DirectoryPayload | null;
   onNavigate: (nodeId: number) => void;
-  onRefresh: () => void;
+  onRefresh: (path?: string) => void;
 }
 
 export function ItemList({ payload, onNavigate, onRefresh }: ItemListProps) {
@@ -114,9 +114,11 @@ export function ItemList({ payload, onNavigate, onRefresh }: ItemListProps) {
     >
       <Group justify="space-between" align="center" mb="md">
         <PathNav
-          currentPath={payload?.current_path ?? ''}
-          parentId={payload?.parent_id ?? null}
+          ancestors={payload?.ancestors ?? []}
           onNavigate={onNavigate}
+          onRescan={(targetPath) => {
+            onRefresh(targetPath);
+          }}
         />
       </Group>
 
