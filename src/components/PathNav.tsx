@@ -34,6 +34,18 @@ export function PathNav({ ancestors, onNavigate, onRescan, isWindows }: PathNavP
     if (rootPathParts.length > 0) {
       let accumulated = '';
 
+      // For POSIX absolute paths, add a breadcrumb for the root "/" before processing parts
+      if (!isWin && rootNode.name.startsWith('/')) {
+        accumulated = '/';
+        result.push({
+          key: 'unscanned-/',
+          label: '/',
+          fullPath: '/',
+          isUnscanned: true,
+          isLast: false,
+        });
+      }
+
       rootPathParts.forEach((part, index) => {
         const isScanRootFolder = index === rootPathParts.length - 1;
 
