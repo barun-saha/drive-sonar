@@ -30,6 +30,7 @@ export function PathNav({ ancestors, onNavigate, onRescan, isWindows }: PathNavP
 
     // 1. Split the root path string into individual directory segments
     const isPOSIXRooted = !isWin && rootNode.name.startsWith('/');
+    const isUNCPath = isWin && /^\\\\/.test(rootNode.name);
     const rootPathParts = rootNode.name.split(/[\\/]/).filter(Boolean);
 
     if (rootPathParts.length > 0) {
@@ -50,7 +51,13 @@ export function PathNav({ ancestors, onNavigate, onRescan, isWindows }: PathNavP
         const isScanRootFolder = index === rootPathParts.length - 1;
 
         if (isWin && index === 0) {
-          accumulated = part.endsWith(':') ? `${part}\\` : part;
+          if (part.endsWith(':')) {
+            accumulated = `${part}\\`;
+          } else if (isUNCPath) {
+            accumulated = `\\\\${part}`;
+          } else {
+            accumulated = part;
+          }
         } else {
           accumulated = isWin
             ? accumulated.endsWith('\\')
