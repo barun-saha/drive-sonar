@@ -29,16 +29,16 @@ export function PathNav({ ancestors, onNavigate, onRescan, isWindows }: PathNavP
     const isWin = isWindows ?? (/^[a-zA-Z]:/.test(rootNode.name) || rootNode.name.includes('\\'));
 
     // 1. Split the root path string into individual directory segments
+    const isPOSIXRooted = !isWin && rootNode.name.startsWith('/');
     const rootPathParts = rootNode.name.split(/[\\/]/).filter(Boolean);
 
     if (rootPathParts.length > 0) {
       let accumulated = '';
 
       // For POSIX absolute paths, add a breadcrumb for the root "/" before processing parts
-      if (!isWin && rootNode.name.startsWith('/')) {
-        accumulated = '/';
+      if (isPOSIXRooted) {
         result.push({
-          key: 'unscanned-/',
+          key: 'unscanned-posix-root',
           label: '/',
           fullPath: '/',
           isUnscanned: true,
