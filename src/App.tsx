@@ -94,8 +94,14 @@ export default function App() {
     }
   }
 
-  async function handleScan() {
-    if (!targetPath.trim()) return;
+  async function handleScan(pathOverride?: string) {
+    const path = pathOverride ?? targetPath;
+    if (!path.trim()) return;
+
+    // Sync state if triggered with a new path parameter from breadcrumbs
+    if (pathOverride) {
+      setTargetPath(pathOverride);
+    }
 
     try {
       setIsScanning(true);
@@ -104,15 +110,15 @@ export default function App() {
       setScanPath('');
 
       try {
-        const di = await invoke<DiskInfo>('get_disk_info', { path: targetPath });
+        const di = await invoke<DiskInfo>('get_disk_info', { path });
         setDiskInfo(di);
-        setScanPath(targetPath);
+        setScanPath(path);
       } catch (e) {
         console.warn('get_disk_info failed:', e);
       }
 
       const startTime = performance.now();
-      const res = await invoke<DirectoryPayload>('scan_directory', { targetPath });
+      const res = await invoke<DirectoryPayload>('scan_directory', { targetPath: path });
       const endTime = performance.now();
 
       setPayload(res);
