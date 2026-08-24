@@ -68,6 +68,24 @@ Build the optimized desktop binary:
 npm run tauri build
 ```
 
+## 📦 Release Process
+
+To create a new release:
+
+1. **Bump Version:** Update the version number (e.g., `0.4.0` -> `0.5.0`) in:
+   - [`package.json`](package.json) (`"version"`)
+   - [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json) (`"version"`)
+   - [`src-tauri/Cargo.toml`](src-tauri/Cargo.toml) (`version` under `[package]`)
+2. **Merge to `main`:** Commit changes, raise a PR, and merge into `main`.
+3. **Tag & Push:** Checkout the latest `main` and push the Git tag:
+   ```bash
+   git checkout main
+   git pull origin main
+   git tag v0.5.0
+   git push origin v0.5.0
+   ```
+4. **Publish Release:** Pushing the `v*` tag triggers the GitHub Actions workflow, building binaries across platforms and creating a draft release on GitHub. Review and publish the draft.
+
 ## 📜 License
 
 Drive Sonar is open-source software, released under the Apache 2.0 license.
