@@ -301,7 +301,7 @@ mod windows_scanner {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(windows))]
 fn standard_list_directory(path: &Path) -> std::io::Result<Vec<DirEntry>> {
     let mut entries = Vec::new();
     for entry in std::fs::read_dir(path)? {
@@ -384,7 +384,7 @@ fn scan_dir_parallel(
 
     let start_idx = {
         let mut arena = shared_arena.lock().unwrap();
-        if arena.len() + local_nodes.len() >= u32::MAX as usize {
+        if arena.len() + local_nodes.len() > u32::MAX as usize {
             return Err("Arena exceeded maximum node capacity (4 billion nodes)".to_string());
         }
         let start = arena.len() as u32;
@@ -412,26 +412,35 @@ fn scan_dir_parallel(
     })
 }
 
-pub fn aggregate_node(node_id: u32, arena: &mut [DiskNode]) -> u64 {
-    let mut total_size = 0u64;
-    let mut child_id = arena[node_id as usize].first_child;
+pub fn aggregate_node(root_id: u32, arena: &mut [DiskNode]) -> u64 {
+    // Collect all nodes reachable from root in DFS pre-order
+    // Processing in reverse gives post-order: children before parents
+    let mut order: Vec<u32> = Vec::new();
+    let mut stack = vec![root_id];
 
-    while child_id != u32::MAX {
-        let is_dir = arena[child_id as usize].is_dir;
-        let child_size = if is_dir {
-            aggregate_node(child_id, arena)
-        } else {
-            arena[child_id as usize].size
-        };
-
-        total_size += child_size;
-        child_id = arena[child_id as usize].next_sibling;
+    while let Some(id) = stack.pop() {
+        order.push(id);
+        let mut child = arena[id as usize].first_child;
+        while child != u32::MAX {
+            stack.push(child);
+            child = arena[child as usize].next_sibling;
+        }
     }
 
-    if arena[node_id as usize].is_dir {
-        arena[node_id as usize].size = total_size;
+    // Post-order: children are always processed before their parent.
+    for &id in order.iter().rev() {
+        if arena[id as usize].is_dir {
+            let mut total = 0u64;
+            let mut child = arena[id as usize].first_child;
+            while child != u32::MAX {
+                total += arena[child as usize].size;
+                child = arena[child as usize].next_sibling;
+            }
+            arena[id as usize].size = total;
+        }
     }
-    total_size
+
+    arena[root_id as usize].size
 }
 
 fn init_rayon_thread_pool() {
@@ -476,7 +485,7 @@ fn aggregate_subtree_stats(
     root_id: u32,
 ) -> (Vec<ExtensionStat>, Vec<TopFileNode>) {
     let mut ext_map: HashMap<String, (u64, usize)> = HashMap::new();
-    let mut min_heap: BinaryHeap<TopCandidate> = BinaryHeap::with_capacity(31);
+    let mut min_heap: BinaryHeap<TopCandidate> = BinaryHeap::with_capacity(30);
 
     let mut stack = vec![arena[root_id as usize].first_child];
 
@@ -549,7 +558,7 @@ fn build_directory_payload(arena: &[DiskNode], node_id: u32) -> Result<Directory
     }
 
     let current_path = get_node_path(node_id, arena);
-    let parent_size = node.size.max(1) as f32;
+    let parent_size = node.size as f32;
 
     let mut items = Vec::new();
     let mut child_id = node.first_child;
@@ -563,7 +572,7 @@ fn build_directory_payload(arena: &[DiskNode], node_id: u32) -> Result<Directory
                 is_dir: child.is_dir,
                 size: child.size,
                 modified_secs: child.modified_secs,
-                percentage_of_parent: (child.size as f32 / parent_size) * 100.0,
+                percentage_of_parent: if parent_size > 0.0 { (child.size as f32 / parent_size) * 100.0 } else { 0.0 },
             });
         }
         child_id = child.next_sibling;
@@ -668,11 +677,7 @@ async fn scan_directory(app: tauri::AppHandle, target_path: String, state: State
     let canonical = Path::new(&target_path).canonicalize().map_err(|e| e.to_string())?;
 
     let base_path_str = canonical.to_string_lossy();
-    let root_name = if base_path_str.starts_with(r"\\?\") {
-        base_path_str[4..].to_string()
-    } else {
-        base_path_str.into_owned()
-    };
+    let root_name = base_path_str.strip_prefix(r"\\?\").unwrap_or(&base_path_str).to_string();
 
     let mut temp_arena = Vec::new();
     temp_arena.push(DiskNode {
