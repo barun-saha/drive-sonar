@@ -36,17 +36,16 @@ export default function App() {
   };
 
   useEffect(() => {
-    const unlisten = listen<string>('scan-warning', (event) => {
+    let unlisten: (() => void) | null = null;
+    listen<string>('scan-warning', (event) => {
       notifications.show({
         title: 'Scan Warning',
         message: event.payload,
         color: 'yellow',
         autoClose: 6000,
       });
-    });
-    return () => {
-      unlisten.then((f) => f());
-    };
+    }).then((f) => { unlisten = f; });
+    return () => { unlisten?.(); };
   }, []);
 
   useEffect(() => {
