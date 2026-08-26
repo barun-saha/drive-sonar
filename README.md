@@ -79,6 +79,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 To generate code coverage reports, install `cargo-tarpaulin` (if not already installed) and run:
 
 ```bash
+cargo install cargo-tarpaulin
 cargo tarpaulin --manifest-path src-tauri/Cargo.toml --ignore-tests
 ```
 
