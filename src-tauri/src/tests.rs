@@ -10,8 +10,7 @@ fn test_get_directory_entries() {
     let sub_dir_path = dir.path().join("subdir");
 
     fs::create_dir(&sub_dir_path).unwrap();
-    let mut f = File::create(&file_path).unwrap();
-    f.write_all(b"test content").unwrap();
+    fs::write(&file_path, b"test content").unwrap();
 
     let entries = get_directory_entries(dir.path()).unwrap();
     assert_eq!(entries.len(), 2);
@@ -308,12 +307,10 @@ fn test_scan_dir_parallel() {
     fs::create_dir(&sub_dir1).unwrap();
 
     let file1 = root_path.join("hello.txt");
-    let mut f1 = File::create(&file1).unwrap();
-    f1.write_all(b"Hello world").unwrap();
+    fs::write(&file1, b"Hello world").unwrap();
 
     let file2 = sub_dir1.join("data.bin");
-    let mut f2 = File::create(&file2).unwrap();
-    f2.write_all(b"1234567890").unwrap();
+    fs::write(&file2, b"1234567890").unwrap();
 
     let cancel_flag = AtomicBool::new(false);
     let skipped_count = AtomicUsize::new(0);
