@@ -72,6 +72,12 @@ npm run tauri build
 
 #### Frontend (React / TypeScript)
 
+First, ensure all project dependencies (including test libraries) are installed:
+
+```bash
+npm install
+```
+
 Run frontend unit tests with Vitest:
 
 ```bash
