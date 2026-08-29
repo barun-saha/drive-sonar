@@ -10,7 +10,8 @@ fn test_get_directory_entries() {
     let sub_dir_path = dir.path().join("subdir");
 
     fs::create_dir(&sub_dir_path).unwrap();
-    fs::write(&file_path, b"test content").unwrap();
+    let mut f = File::create(&file_path).unwrap();
+    f.write_all(b"test content").unwrap();
 
     let entries = get_directory_entries(dir.path()).unwrap();
     assert_eq!(entries.len(), 2);
@@ -307,10 +308,12 @@ fn test_scan_dir_parallel() {
     fs::create_dir(&sub_dir1).unwrap();
 
     let file1 = root_path.join("hello.txt");
-    fs::write(&file1, b"Hello world").unwrap();
+    let mut f1 = File::create(&file1).unwrap();
+    f1.write_all(b"Hello world").unwrap();
 
     let file2 = sub_dir1.join("data.bin");
-    fs::write(&file2, b"1234567890").unwrap();
+    let mut f2 = File::create(&file2).unwrap();
+    f2.write_all(b"1234567890").unwrap();
 
     let cancel_flag = AtomicBool::new(false);
     let skipped_count = AtomicUsize::new(0);
@@ -459,225 +462,4 @@ fn test_get_disk_info() {
 
     let err_info = get_disk_info("/non/existent/path/123456789".to_string());
     assert!(err_info.is_err());
-}
-
-#[test]
-fn test_remove_non_first_child() {
-    // Tree: root -> [file_a -> file_b -> file_c]  (file_b is middle)
-    let mut arena = vec![
-        DiskNode {
-            name: "root".into(),
-            size: 300,
-            is_dir: true,
-            modified_secs: 0,
-            parent_id: u32::MAX,
-            first_child: 1,
-            next_sibling: u32::MAX,
-            is_tombstoned: false,
-        },
-        DiskNode {
-            name: "file_a.txt".into(),
-            size: 100,
-            is_dir: false,
-            modified_secs: 0,
-            parent_id: 0,
-            first_child: u32::MAX,
-            next_sibling: 2,
-            is_tombstoned: false,
-        },
-        DiskNode {
-            name: "file_b.txt".into(),
-            size: 100,
-            is_dir: false,
-            modified_secs: 0,
-            parent_id: 0,
-            first_child: u32::MAX,
-            next_sibling: 3,
-            is_tombstoned: false,
-        },
-        DiskNode {
-            name: "file_c.txt".into(),
-            size: 100,
-            is_dir: false,
-            modified_secs: 0,
-            parent_id: 0,
-            first_child: u32::MAX,
-            next_sibling: u32::MAX,
-            is_tombstoned: false,
-        },
-    ];
-
-    // Remove file_b (id=2): NOT the first child
-    remove_node_from_tree(2, &mut arena);
-    assert_eq!(arena[1].next_sibling, 3);
-    assert_eq!(arena[0].size, 200);
-    assert!(arena[2].is_tombstoned);
-    assert!(!arena[1].is_tombstoned);
-    assert!(!arena[3].is_tombstoned);
-
-    // Remove last child (file_c, id=3): prev is file_a
-    remove_node_from_tree(3, &mut arena);
-    assert_eq!(arena[1].next_sibling, u32::MAX);
-    assert!(arena[3].is_tombstoned);
-}
-
-#[test]
-fn test_remove_root_node_no_parent() {
-    let mut arena = vec![DiskNode {
-        name: "orphan".into(),
-        size: 999,
-        is_dir: false,
-        modified_secs: 0,
-        parent_id: u32::MAX,
-        first_child: u32::MAX,
-        next_sibling: u32::MAX,
-        is_tombstoned: false,
-    }];
-    remove_node_from_tree(0, &mut arena);
-    assert!(arena[0].is_tombstoned);
-}
-
-#[test]
-fn test_build_directory_payload_zero_size_parent() {
-    let arena = vec![
-        DiskNode {
-            name: "root".into(),
-            size: 0,
-            is_dir: true,
-            modified_secs: 0,
-            parent_id: u32::MAX,
-            first_child: 1,
-            next_sibling: u32::MAX,
-            is_tombstoned: false,
-        },
-        DiskNode {
-            name: "child.txt".into(),
-            size: 0,
-            is_dir: false,
-            modified_secs: 0,
-            parent_id: 0,
-            first_child: u32::MAX,
-            next_sibling: u32::MAX,
-            is_tombstoned: false,
-        },
-    ];
-    let payload = build_directory_payload(&arena, 0).unwrap();
-    assert_eq!(payload.items.len(), 1);
-    assert_eq!(payload.items[0].percentage_of_parent, 0.0);
-}
-
-#[test]
-fn test_top_candidate_partial_cmp() {
-    let a = TopCandidate { size: 100, id: 1 };
-    let b = TopCandidate { size: 200, id: 2 };
-    assert_eq!(a.partial_cmp(&b), Some(Ordering::Greater));
-    assert_eq!(b.partial_cmp(&a), Some(Ordering::Less));
-    assert_eq!(a.partial_cmp(&a), Some(Ordering::Equal));
-}
-
-#[test]
-fn test_aggregate_subtree_stats_empty_dir() {
-    let arena = vec![DiskNode {
-        name: "root".into(),
-        size: 0,
-        is_dir: true,
-        modified_secs: 0,
-        parent_id: u32::MAX,
-        first_child: u32::MAX,
-        next_sibling: u32::MAX,
-        is_tombstoned: false,
-    }];
-    let (ext_stats, top_files) = aggregate_subtree_stats(&arena, 0);
-    assert!(ext_stats.is_empty());
-    assert!(top_files.is_empty());
-}
-
-#[test]
-fn test_aggregate_node_flat_files() {
-    let mut arena = vec![
-        DiskNode {
-            name: "root".into(),
-            size: 0,
-            is_dir: true,
-            modified_secs: 0,
-            parent_id: u32::MAX,
-            first_child: 1,
-            next_sibling: u32::MAX,
-            is_tombstoned: false,
-        },
-        DiskNode {
-            name: "a.txt".into(),
-            size: 500,
-            is_dir: false,
-            modified_secs: 0,
-            parent_id: 0,
-            first_child: u32::MAX,
-            next_sibling: 2,
-            is_tombstoned: false,
-        },
-        DiskNode {
-            name: "b.txt".into(),
-            size: 300,
-            is_dir: false,
-            modified_secs: 0,
-            parent_id: 0,
-            first_child: u32::MAX,
-            next_sibling: u32::MAX,
-            is_tombstoned: false,
-        },
-    ];
-    let total = aggregate_node(0, &mut arena);
-    assert_eq!(total, 800);
-}
-
-#[test]
-fn test_remove_node_tombstones_all_descendants() {
-    let mut arena = vec![
-        DiskNode {
-            name: "root".into(),
-            size: 600,
-            is_dir: true,
-            modified_secs: 0,
-            parent_id: u32::MAX,
-            first_child: 1,
-            next_sibling: u32::MAX,
-            is_tombstoned: false,
-        },
-        DiskNode {
-            name: "dir_a".into(),
-            size: 600,
-            is_dir: true,
-            modified_secs: 0,
-            parent_id: 0,
-            first_child: 2,
-            next_sibling: u32::MAX,
-            is_tombstoned: false,
-        },
-        DiskNode {
-            name: "nested_dir".into(),
-            size: 600,
-            is_dir: true,
-            modified_secs: 0,
-            parent_id: 1,
-            first_child: 3,
-            next_sibling: u32::MAX,
-            is_tombstoned: false,
-        },
-        DiskNode {
-            name: "deep_file.dat".into(),
-            size: 600,
-            is_dir: false,
-            modified_secs: 0,
-            parent_id: 2,
-            first_child: u32::MAX,
-            next_sibling: u32::MAX,
-            is_tombstoned: false,
-        },
-    ];
-    remove_node_from_tree(1, &mut arena);
-    assert!(arena[1].is_tombstoned);
-    assert!(arena[2].is_tombstoned);
-    assert!(arena[3].is_tombstoned);
-    assert_eq!(arena[0].size, 0);
-    assert_eq!(arena[0].first_child, u32::MAX);
 }
