@@ -70,6 +70,28 @@ npm run tauri build
 
 ### 🧪 Unit Testing
 
+#### Frontend (React / TypeScript)
+
+First, ensure all project dependencies (including test libraries) are installed:
+
+```bash
+npm install
+```
+
+Run frontend unit tests with Vitest:
+
+```bash
+npm test
+```
+
+To generate frontend code coverage reports:
+
+```bash
+npm run test:coverage
+```
+
+#### Backend (Rust)
+
 Run backend Rust unit tests:
 
 ```bash
