@@ -70,6 +70,22 @@ npm run tauri build
 
 ### 🧪 Unit Testing
 
+#### Frontend (React / TypeScript)
+
+Run frontend unit tests with Vitest:
+
+```bash
+npm test
+```
+
+To generate frontend code coverage reports:
+
+```bash
+npm run test:coverage
+```
+
+#### Backend (Rust)
+
 Run backend Rust unit tests:
 
 ```bash
