@@ -45,4 +45,7 @@ windows = { version = "0.62", features = [
 ] }
 
 [target.'cfg(not(windows))'.dependencies]
-sysinfo = { version = "0.39", default-features = false, features = ["disk"] }
+sysinfo = { version = "0.35", default-features = false, features = ["disk"] }
+
+[dev-dependencies]
+tempfile = "3"

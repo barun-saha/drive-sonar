@@ -68,6 +68,20 @@ Build the optimized desktop binary:
 npm run tauri build
 ```
 
+### 🧪 Unit Testing
+
+Run backend Rust unit tests:
+
+```bash
+cargo test --manifest-path src-tauri/Cargo.toml
+```
+
+To generate code coverage reports, install `cargo-tarpaulin` (if not already installed) and run:
+
+```bash
+cargo tarpaulin --manifest-path src-tauri/Cargo.toml --ignore-tests
+```
+
 ## 📦 Release Process
 
 To create a new release:
