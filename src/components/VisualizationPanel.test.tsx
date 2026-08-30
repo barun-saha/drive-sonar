@@ -16,7 +16,7 @@ describe('VisualizationPanel', () => {
     ancestors: [],
     items: [{ id: 1, name: 'file1.txt', is_dir: false, size: 100, modified_secs: 100, percentage_of_parent: 100 }],
     extension_stats: [{ extension: '.txt', total_bytes: 100, file_count: 1 }],
-    top_files: [{ id: 1, name: 'file1.txt', size: 100, modified_secs: 100 }],
+    top_files: [{ id: 1, name: 'file1.txt', size: 100, modified_secs: 100, path: '/path/to/file1.txt' }],
     total_scanned_items: 1,
   };
 
