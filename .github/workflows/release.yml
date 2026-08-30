@@ -17,7 +17,7 @@ jobs:
             args: ''
           - platform: 'ubuntu-22.04'
             args: ''
-          - platform: 'ubuntu-22.04-arm'
+          - platform: 'ubuntu-24.04-arm'
             args: ''
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin' # Apple Silicon (M1/M2/M3)
