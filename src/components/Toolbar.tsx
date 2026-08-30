@@ -146,7 +146,7 @@ export function Toolbar({
                   </Text>{' '}
                   items in{' '}
                   <Text span fw={600}>
-                    {(scanTime / 1000).toFixed(3)}s
+                    {(scanTime / 1000).toFixed(2)}s
                   </Text>
                 </Text>
               </>

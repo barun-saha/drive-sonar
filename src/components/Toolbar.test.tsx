@@ -114,7 +114,7 @@ describe('Toolbar', () => {
 
     expect(screen.getByText('Disk:')).toBeInTheDocument();
     expect(screen.getByText('1,234')).toBeInTheDocument();
-    expect(screen.getByText('1.500s')).toBeInTheDocument();
+    expect(screen.getByText('1.50s')).toBeInTheDocument();
     expect(screen.getByText('Current view:')).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.getByText('folder')).toBeInTheDocument();
