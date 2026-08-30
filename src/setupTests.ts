@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 import ResizeObserverPolyfill from 'resize-observer-polyfill';
 
 // Polyfill ResizeObserver
-global.ResizeObserver = ResizeObserverPolyfill;
+globalThis.ResizeObserver = ResizeObserverPolyfill;
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
