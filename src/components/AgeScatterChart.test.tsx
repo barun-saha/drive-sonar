@@ -30,8 +30,8 @@ describe('AgeScatterChart', () => {
 
   it('renders chart and handles semi-log scale toggle and tooltip content when files exist', () => {
     const mockFiles: TopFileNode[] = [
-      { id: 1, name: 'large_file.iso', size: 1048576 * 500, modified_secs: Math.floor(Date.now() / 1000) - 86400 * 60 },
-      { id: 2, name: 'zero_file.bin', size: 0, modified_secs: 0 },
+      { id: 1, name: 'large_file.iso', size: 1048576 * 500, modified_secs: Math.floor(Date.now() / 1000) - 86400 * 60, path: '/downloads/large_file.iso' },
+      { id: 2, name: 'zero_file.bin', size: 0, modified_secs: 0, path: '/downloads/zero_file.bin' },
     ];
 
     renderWithMantine(<AgeScatterChart files={mockFiles} />);

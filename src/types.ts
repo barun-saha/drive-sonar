@@ -18,6 +18,7 @@ export interface TopFileNode {
   name: string;
   size: number;
   modified_secs: number;
+  path: string;
 }
 
 export interface BreadcrumbItem {
