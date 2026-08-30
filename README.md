@@ -4,11 +4,11 @@
   <img src="public/drive_sonar_base.png" width="256" alt="Drive Sonar Logo" />
 </p>
 
-Drive Sonar is a fast, lightweight desktop disk usage explorer and analyzer built with Tauri v2, Rust, React, and TypeScript.
+[Drive Sonar](https://drivesonar.baruns.workers.dev/) is a fast, lightweight desktop disk usage explorer and analyzer built with Tauri v2, Rust, React, and TypeScript.
 
 Drive Sonar is inspired by the simplicity of `ncdu`. Drive Sonar offers different visualizations to help you gain a better idea of your disk usage.
 
-Drive Sonar runs entirely in **user mode**—no admin mode or elevated privilege is required to scan even the most protected corners of your disk. It's also fully **open source**, so you can see exactly what it's doing and build it yourself if you'd rather not trust a binary.
+[Drive Sonar](https://drivesonar.baruns.workers.dev/) runs entirely in **user mode**—no admin mode or elevated privilege is required to scan even the most protected corners of your disk. It's also fully **open source**, so you can see exactly what it's doing and build it yourself if you'd rather not trust a binary.
 
 ## ⚡ Features
 
@@ -25,6 +25,27 @@ Drive Sonar runs entirely in **user mode**—no admin mode or elevated privilege
 <p align="center">
   <img src="public/screenshot.png" width="896" alt="Drive Sonar screenshot" />
 </p>
+
+
+## Disk Scanner Performance Comparison
+
+| Metric | Drive Sonar | WinDirStat | WizTree |
+|---|---:|---:|---:|
+| Version tested | 0.6.0 | 2.8.0 | 4.3.1 |
+| License | Apache 2.0 | GPL v2 | Proprietary |
+| Runs in user mode (no admin required) | ✅ | ✅ | ❌[^1] |
+| Installed size [MB] | **5.7** | 7.1 | 20.0 |
+| Peak memory usage (median)[^2] [MB] | **108.7** | 239.6 | 635.2 |
+| Warm scan time (median)[^3] [s] | **3.3** | 9.1 | 6.5 |
+| Cold scan time (single run)[^4] [s] | **10.6** | 22.9 | 17.2 |
+
+[^1]: **Admin requirement:** WizTree requires administrator privileges to read the NTFS Master File Table directly for its full-speed mode; without elevation it falls back to a slower standard directory scan. WinDirStat can be optionally run with admin privileges as well.
+
+[^2]: **Memory usage:** Median of 3 independent runs, same scan location.
+
+[^3]: **Warm scan:** Median of 5 independent runs of the same folder, each app already opened once beforehand (warm file-system cache) — the scenario most users encounter when re-scanning (e.g., after deleting files). Because all three tools benefit equally from the OS file-system cache under this condition, disk I/O latency is minimized for each of them alike — this measurement isolates each application's own processing efficiency (directory traversal, tree construction, size aggregation) rather than raw disk speed.
+
+[^4]: **Cold scan:** Median of 3 independent runs per app, each following a full system restart. Disk activity was confirmed quiet via Resource Monitor before every run (queue length ~0, active time 1–3%, throughput under a few hundred KB/sec) to rule out background OS contention (updates, indexing, sync clients) as a confound. WizTree was run with administrator elevation (its intended mode, enabling direct MFT reads); WinDirStat and Drive Sonar were both run in standard user mode. WinDirStat does not report scan duration natively and was timed manually with a stopwatch. Item count varied slightly across runs (~1.2M items). Note: if background OS activity (updates, indexing, antivirus scans) is active during a scan, cold-scan times can spike well above these figures — we observed up to ~50s in earlier unconstrained trials — so results are only comparable when disk activity is confirmed idle beforehand.
 
 
 ## 🤔 Why Drive Sonar?
