@@ -226,7 +226,32 @@ export default function App() {
                 A fast, lightweight disk space explorer powered by Rust and Tauri. Apache-2.0 licensed.
               </Text>
               <br />
-              <Text size="lg">© Copyright 2026 Barun Saha.</Text>
+              <Text size="lg">Licensed under Apache-2.0</Text>
+              <Text size="lg">© 2026 Barun Saha.</Text>
+              <br />
+              <Text size="md">
+                Website:{' '}
+                <a
+                  href="https://drivesonar.baruns.workers.dev/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:underline"
+                >
+                  https://drivesonar.baruns.workers.dev/
+                </a>
+              </Text>
+
+              <Text size="md">
+                Source Code:{' '}
+                <a
+                  href="https://github.com/barun-saha/drive-sonar"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:underline"
+                >
+                  https://github.com/barun-saha/drive-sonar
+                </a>
+              </Text>
             </Stack>
           </Modal.Body>
         </Modal.Content>
