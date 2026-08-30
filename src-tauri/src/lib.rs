@@ -49,6 +49,7 @@ pub struct TopFileNode {
     pub name: String,
     pub size: u64,
     pub modified_secs: u64,
+    pub path: String,
 }
 
 #[derive(Serialize)]
@@ -122,6 +123,7 @@ impl PartialOrd for TopCandidate {
 // Protection Rules
 // -----------------------------------------------------------------------------
 
+/// Checks whether a given path is a protected OS system directory to prevent accidental deletion.
 fn is_protected_path(path: &Path) -> bool {
     let components: Vec<_> = path.components().collect();
 
@@ -224,6 +226,7 @@ mod windows_scanner {
         }
     }
 
+    /// Opens a directory handle configured for listing query operations on Windows.
     fn open_directory(path: &Path) -> io::Result<HandleGuard> {
         let wide: Vec<u16> = path.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
         let handle = unsafe {
@@ -238,6 +241,7 @@ mod windows_scanner {
         Ok(HandleGuard(handle))
     }
 
+    /// Lists entries in a directory using low-level Windows `NtQueryDirectoryFileEx` calls.
     pub fn list_directory(path: &Path) -> io::Result<Vec<DirEntry>> {
         let guard = open_directory(path)?;
         let mut entries = Vec::new();
@@ -285,6 +289,7 @@ mod windows_scanner {
         Ok(entries)
     }
 
+    /// Parses raw directory header bytes from the NT system call into structured `DirEntry` items.
     fn parse_entries(buf: &[u8], out: &mut Vec<DirEntry>) -> io::Result<()> {
         const HEADER_SIZE: usize = std::mem::size_of::<FileDirectoryInformationRaw>();
         let mut offset = 0usize;
@@ -331,6 +336,7 @@ mod windows_scanner {
 }
 
 #[cfg(not(windows))]
+/// Lists directory contents using standard library `std::fs::read_dir` for non-Windows platforms.
 fn standard_list_directory(path: &Path) -> std::io::Result<Vec<DirEntry>> {
     let mut entries = Vec::new();
     for entry in std::fs::read_dir(path)? {
@@ -356,11 +362,13 @@ fn standard_list_directory(path: &Path) -> std::io::Result<Vec<DirEntry>> {
 }
 
 #[cfg(windows)]
+/// Platform-specific entry point for reading directory entries on Windows.
 fn get_directory_entries(path: &Path) -> std::io::Result<Vec<DirEntry>> {
     windows_scanner::list_directory(path)
 }
 
 #[cfg(not(windows))]
+/// Platform-specific entry point for reading directory entries on non-Windows target platforms.
 fn get_directory_entries(path: &Path) -> std::io::Result<Vec<DirEntry>> {
     standard_list_directory(path)
 }
@@ -369,6 +377,7 @@ fn get_directory_entries(path: &Path) -> std::io::Result<Vec<DirEntry>> {
 // Parallel Arena Tree Builder & Aggregation
 // -----------------------------------------------------------------------------
 
+/// Recursively scans directory contents in parallel using Rayon and constructs the shared arena graph.
 fn scan_dir_parallel(
     dir_path: &Path,
     parent_id: u32,
@@ -448,6 +457,7 @@ fn scan_dir_parallel(
     })
 }
 
+/// Aggregates folder sizes throughout the arena using post-order DFS traversal and returns root size.
 pub fn aggregate_node(root_id: u32, arena: &mut [DiskNode]) -> u64 {
     // Collect all nodes reachable from root in DFS pre-order
     // Processing in reverse gives post-order: children before parents
@@ -479,6 +489,7 @@ pub fn aggregate_node(root_id: u32, arena: &mut [DiskNode]) -> u64 {
     arena[root_id as usize].size
 }
 
+/// Initializes the global Rayon thread pool for parallel directory scanning tasks.
 fn init_rayon_thread_pool() {
     static INIT: std::sync::Once = std::sync::Once::new();
     INIT.call_once(|| {
@@ -491,6 +502,7 @@ fn init_rayon_thread_pool() {
 // LCRS Navigation Helpers & Aggregation Tools
 // -----------------------------------------------------------------------------
 
+/// Reconstructs the absolute file system path for a given node by traversing upward through parent links.
 fn get_node_path(node_id: u32, arena: &[DiskNode]) -> String {
     let mut parts = Vec::new();
     let mut current_id = node_id;
@@ -507,6 +519,7 @@ fn get_node_path(node_id: u32, arena: &[DiskNode]) -> String {
     path_buf.to_string_lossy().into_owned()
 }
 
+/// Helper function to parse and isolate a lowercased extension string from a file name.
 fn extract_extension(name: &str) -> String {
     if let Some(idx) = name.rfind('.') {
         if idx > 0 && idx < name.len() - 1 {
@@ -516,6 +529,7 @@ fn extract_extension(name: &str) -> String {
     "<no ext>".to_string()
 }
 
+/// Collects file extension totals and tracks the top 30 largest files inside a target subtree using a min-heap.
 fn aggregate_subtree_stats(
     arena: &[DiskNode],
     root_id: u32,
@@ -576,6 +590,7 @@ fn aggregate_subtree_stats(
                 name: n.name.to_string(),
                 size: n.size,
                 modified_secs: n.modified_secs,
+                path: get_node_path(cand.id, arena),
             }
         })
         .collect();
@@ -583,6 +598,7 @@ fn aggregate_subtree_stats(
     (extension_stats, top_files)
 }
 
+/// Builds a complete `DirectoryPayload` containing UI node lists, ancestors, and aggregated stats for a node.
 fn build_directory_payload(arena: &[DiskNode], node_id: u32) -> Result<DirectoryPayload, String> {
     if node_id as usize >= arena.len() {
         return Err("Invalid node ID".into());
@@ -646,6 +662,7 @@ fn build_directory_payload(arena: &[DiskNode], node_id: u32) -> Result<Directory
     })
 }
 
+/// Unlinks a node from its parent's sibling chain, adjusts ancestor sizes, and marks descendants as tombstoned.
 fn remove_node_from_tree(node_id: u32, arena: &mut [DiskNode]) {
     if node_id as usize >= arena.len() {
         return;
@@ -706,6 +723,7 @@ fn remove_node_from_tree(node_id: u32, arena: &mut [DiskNode]) {
 // sizes; the vector still grows normally via `extend` beyond this if needed.
 const INITIAL_ARENA_CAPACITY: usize = 1 << 16; // 65,536 nodes
 
+/// Tauri command to initiate a parallel directory scan and construct the root payload.
 #[tauri::command]
 async fn scan_directory(app: tauri::AppHandle, target_path: String, state: State<'_, AppState>) -> Result<DirectoryPayload, String> {
     let scan_cancel_flag = {
@@ -770,6 +788,7 @@ async fn scan_directory(app: tauri::AppHandle, target_path: String, state: State
     }
 }
 
+/// Tauri command to retrieve the directory payload for a given node ID in the arena tree.
 #[tauri::command]
 async fn open_directory(node_id: u32, state: State<'_, AppState>) -> Result<DirectoryPayload, String> {
     let arena_arc = state.arena.clone();
@@ -781,6 +800,7 @@ async fn open_directory(node_id: u32, state: State<'_, AppState>) -> Result<Dire
     .map_err(|e| format!("Task failed: {}", e))?
 }
 
+/// Tauri command to reveal a node in the native system file explorer.
 #[tauri::command]
 fn open_in_explorer(app: tauri::AppHandle, node_id: u32, state: State<'_, AppState>) -> Result<(), String> {
     let (path_str, is_dir) = {
@@ -799,6 +819,7 @@ fn open_in_explorer(app: tauri::AppHandle, node_id: u32, state: State<'_, AppSta
     Ok(())
 }
 
+/// Tauri command to move a file or directory node to the OS trash bin and remove it from state.
 #[tauri::command]
 async fn move_to_trash(node_id: u32, state: State<'_, AppState>) -> Result<(), String> {
     let path_str = {
@@ -826,12 +847,14 @@ async fn move_to_trash(node_id: u32, state: State<'_, AppState>) -> Result<(), S
     Ok(())
 }
 
+/// Tauri command to trigger the cancellation flag for an active directory scan.
 #[tauri::command]
 fn cancel_scan(state: State<'_, AppState>) {
     let flag = state.cancel_flag.lock().unwrap().clone();
     flag.store(true, AtomicOrdering::Relaxed);
 }
 
+/// Tauri command to query total and free byte capacity for the drive containing a path.
 #[tauri::command]
 fn get_disk_info(path: String) -> Result<DiskInfo, String> {
     let p = Path::new(&path);
@@ -870,6 +893,7 @@ fn get_disk_info(path: String) -> Result<DiskInfo, String> {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+/// Builds and executes the main Tauri application instance.
 pub fn run() {
     tauri::Builder::default()
         .manage(AppState {
