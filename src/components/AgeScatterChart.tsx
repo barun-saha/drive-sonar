@@ -24,6 +24,7 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
       sizeMB: Number((file.size / (1024 * 1024)).toFixed(2)),
       rawBytes: file.size,
       fileName: file.name,
+      filePath: file.path || file.name,
     }));
   }, [files]);
 
@@ -76,13 +77,30 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
                       background: 'var(--bg-panel, #1e1e1e)',
                       border: '1px solid var(--border-color, #333)',
                       borderRadius: 6,
+                      maxWidth: 360, // Prevents tooltip from stretching off screen
                     }}
                   >
                     <Text size="sm" fw={700}>
                       {data.fileName}
                     </Text>
+
+                    {/* Muted path line */}
+                    <Text
+                      size="sm"
+                      c="dimmed"
+                      title={data.filePath} // Native tooltip fallback for full string on hover
+                      style={{
+                        wordBreak: 'break-all',
+                        fontFamily: 'monospace',
+                        marginTop: 2,
+                        marginBottom: 6,
+                      }}
+                    >
+                      {data.filePath}
+                    </Text>
+
                     <Text size="sm" fw={500} c="dimmed">
-                      Size: {formatBytes(data.rawBytes)} ({data.sizeMB} MB)
+                      Size: {formatBytes(data.rawBytes)}
                     </Text>
                     <Text size="sm" fw={500} c="dimmed">
                       Modified: {data.ageMonths} months ago
