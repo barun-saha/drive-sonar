@@ -65,6 +65,12 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
             xAxisLabel="Age (Months Since Modified)"
             yAxisLabel={getAxisLabel('Size (MB)')}
             yAxisProps={axisProps}
+            scatterProps={{
+              isAnimationActive: true,
+              animationDuration: 1000,
+              animationEasing: 'ease-in-out',
+              animationBegin: 100,
+            }}
             tooltipProps={{
               content: ({ payload }) => {
                 if (!payload || !payload.length) return null;

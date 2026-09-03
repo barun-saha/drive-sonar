@@ -63,6 +63,12 @@ export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
             xAxisLabel={getAxisLabel('Size (MB)')}
             yAxisLabel="Extension"
             gridAxis="y"
+            barProps={{
+              isAnimationActive: true,
+              animationDuration: 1000,        // Growth duration in ms
+              animationEasing: 'ease-out',    // 'ease', 'ease-in', 'ease-out', 'linear'
+              animationBegin: 100,            // Delay before animation starts
+            }}
             tooltipProps={{
               content: ({ payload }) => {
                 if (!payload || !payload.length) return null;

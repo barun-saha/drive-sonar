@@ -48,6 +48,9 @@ export function SizeChart({ items, onNavigate }: SizeChartProps) {
             dataKey="value"
             height={380}
             treemapProps={{
+              isAnimationActive: true,
+              animationDuration: 1000,
+              animationEasing: 'ease-out',
               onClick: (node: TreemapNode) => {
                 const isDir = Boolean(node?.isDir ?? (node as any)?.payload?.isDir);
                 const id = node?.id ?? (node as any)?.payload?.id;
