@@ -18,13 +18,17 @@ const DynamicScatterPoint = (props: any) => {
   // Use sizeMB from payload
   const sizeMB = payload?.sizeMB ?? 0;
 
-  // 1. Corrected Color Thresholds
+  // Corrected Color Thresholds
   let color = '#ef4444'; // Red (big: >= 1500 MB)
-  if (sizeMB < 500) color = '#22c55e'; // Green (small: < 500 MB)
-  else if (sizeMB < 1500) color = '#f59e0b'; // Amber/Yellow (medium: 500-1499 MB)
-
-  // 2. Dynamic Radius based on file size (clamped between 4px and 14px)
-  const radius = Math.max(4, Math.min(8, sizeMB / 50));
+  let radius = 8;
+  if (sizeMB < 500) {
+    color = '#22c55e'; // Green (small: < 500 MB)
+    radius = 4;
+  }
+  else if (sizeMB < 1500) {
+    color = '#f59e0b'; // Amber/Yellow (medium: 500-1499 MB)
+    radius = 6;
+  }
 
   return (
     <circle
