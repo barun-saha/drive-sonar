@@ -52,10 +52,16 @@ body {
 
 /* Wipes the treemap into view from top to bottom */
 .mantine-Treemap-root svg.recharts-surface {
-  animation: wipeDown 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: wipe-down 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes wipeDown {
+@media (prefers-reduced-motion: reduce) {
+  .mantine-Treemap-root svg.recharts-surface {
+    animation: none;
+  }
+}
+
+@keyframes wipe-down {
   0% {
     clip-path: inset(0 0 100% 0); /* Clipped at top */
     opacity: 0.3;

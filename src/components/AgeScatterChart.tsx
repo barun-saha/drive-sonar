@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Box, Text, Group } from '@mantine/core';
 import { ScatterChart } from '@mantine/charts';
+import { useReducedMotion } from '@mantine/hooks';
 import { TopFileNode } from '../types';
 import { ChartHeader } from './ChartHeader';
 import { useLogScale } from '../hooks/useLogScale';
@@ -11,6 +12,8 @@ interface AgeScatterChartProps {
 }
 
 export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
+  const reduceMotion = useReducedMotion();
+
   const points = useMemo(() => {
     if (!files.length) return [];
 
@@ -66,7 +69,7 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
             yAxisLabel={getAxisLabel('Size (MB)')}
             yAxisProps={axisProps}
             scatterProps={{
-              isAnimationActive: true,
+              isAnimationActive: !reduceMotion,
               animationDuration: 1000,
               animationEasing: 'ease-in-out',
               animationBegin: 100,

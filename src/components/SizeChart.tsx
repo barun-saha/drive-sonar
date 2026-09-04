@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Treemap } from '@mantine/charts';
 import { Text, Group, Box, Badge } from '@mantine/core';
+import { useReducedMotion } from '@mantine/hooks';
 import type { TreemapNode } from 'recharts';
 
 import { UiDiskNode } from '../types';
@@ -12,6 +13,8 @@ interface SizeChartProps {
 }
 
 export function SizeChart({ items, onNavigate }: SizeChartProps) {
+  const reduceMotion = useReducedMotion();
+
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => b.size - a.size);
   }, [items]);
@@ -48,7 +51,7 @@ export function SizeChart({ items, onNavigate }: SizeChartProps) {
             dataKey="value"
             height={380}
             treemapProps={{
-              isAnimationActive: true,
+              isAnimationActive: !reduceMotion,
               animationDuration: 1000,
               animationEasing: 'ease-out',
               onClick: (node: TreemapNode) => {
