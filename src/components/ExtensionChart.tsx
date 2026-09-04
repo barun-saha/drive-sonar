@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Box, Text, Group } from '@mantine/core';
 import { BarChart } from '@mantine/charts';
+import { useReducedMotion } from '@mantine/hooks';
 import { ExtensionStat } from '../types';
 import { ChartHeader } from './ChartHeader';
 import { useLogScale } from '../hooks/useLogScale';
@@ -11,6 +12,8 @@ interface ExtensionChartProps {
 }
 
 export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
+  const reduceMotion = useReducedMotion();
+
   const data = useMemo(() => {
     if (!stats.length) return [];
 
@@ -63,6 +66,12 @@ export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
             xAxisLabel={getAxisLabel('Size (MB)')}
             yAxisLabel="Extension"
             gridAxis="y"
+            barProps={{
+              isAnimationActive: !reduceMotion,
+              animationDuration: 1000,        // Growth duration in ms
+              animationEasing: 'ease-out',    // 'ease', 'ease-in', 'ease-out', 'linear'
+              animationBegin: 100,            // Delay before animation starts
+            }}
             tooltipProps={{
               content: ({ payload }) => {
                 if (!payload || !payload.length) return null;
