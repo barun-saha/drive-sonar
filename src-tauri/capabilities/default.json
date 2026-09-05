@@ -8,6 +8,12 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "fs:default",
+    "fs:allow-write-text-file",
+    "fs:allow-desktop-write-recursive",
+    "fs:allow-document-write-recursive",
+    "fs:allow-download-write-recursive"
   ]
 }

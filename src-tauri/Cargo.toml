@@ -27,6 +27,7 @@ jwalk = "0.8"
 trash = "5.2"
 rayon = "1"
 tokio = { version = "1", features = ["rt-multi-thread"] }
+tauri-plugin-fs = "2"
 
 [profile.release]
 panic = "abort"     # Reduces binary size by removing panic unwinding

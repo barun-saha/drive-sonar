@@ -3,7 +3,7 @@ import { ActionIcon, Grid, Group, Stack, Container, Text, Title, Menu, Modal } f
 import { useMantineColorScheme, useComputedColorScheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { Notifications, notifications } from '@mantine/notifications';
-import { Menu as MenuIcon, HelpCircle, Info, Sun, Moon } from 'lucide-react';
+import { Menu as MenuIcon, HelpCircle, Info, Sun, Moon, Save } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { homeDir } from '@tauri-apps/api/path';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
@@ -12,10 +12,11 @@ import { listen } from '@tauri-apps/api/event';
 import { Toolbar } from './components/Toolbar';
 import { ItemList } from './components/ItemList';
 import { VisualizationPanel } from './components/VisualizationPanel';
+import { saveReportToTextFile } from './utils/exportReport';
 
 import '@mantine/notifications/styles.css';
 
-import { DirectoryPayload, DiskInfo, ScanProgress } from './types';
+import { DirectoryPayload, DiskInfo, ScanProgress, KeyStats, DirNode } from './types';
 
 export default function App() {
   const [targetPath, setTargetPath] = useState('');
@@ -51,25 +52,18 @@ export default function App() {
         autoClose: 6000,
       });
     }).then((f) => {
-      if (disposed) {
-        f();
-      } else {
-        unlistenWarning = f;
-      }
+      if (disposed) f();
+      else unlistenWarning = f;
     });
 
-    // Listen for periodic scan progress updates streamed from backend
     listen<ScanProgress>('scan-progress', (event) => {
       const activeGeneration = activeScanGenerationRef.current;
       if (activeGeneration !== null && activeGeneration === scanGenerationRef.current) {
         setScanProgress(event.payload);
       }
     }).then((f) => {
-      if (disposed) {
-        f();
-      } else {
-        unlistenProgress = f;
-      }
+      if (disposed) f();
+      else unlistenProgress = f;
     });
 
     return () => {
@@ -130,7 +124,6 @@ export default function App() {
     const scanGeneration = ++scanGenerationRef.current;
     activeScanGenerationRef.current = scanGeneration;
 
-    // Sync state if triggered with a new path parameter from breadcrumbs
     if (pathOverride) {
       setTargetPath(pathOverride);
     }
@@ -186,8 +179,6 @@ export default function App() {
   }
 
   async function cancelScan() {
-    // Keep the scan active until scan_directory settles
-    // Let handleScan clear isScanning when its own invocation resolves or rejects
     try {
       await invoke('cancel_scan');
     } catch (error) {
@@ -209,6 +200,54 @@ export default function App() {
 
     return { dirCount: dirs, fileCount: files, currentViewSize: totalSize };
   }, [payload]);
+
+  // Handler for Exporting Report
+  const handleExportReport = async () => {
+    if (!payload) {
+      notifications.show({
+        title: 'No Data to Export',
+        message: 'Please run a scan before saving a report.',
+        color: 'yellow',
+      });
+      return;
+    }
+
+    const sep = payload.current_path.includes('\\') ? '\\' : '/';
+
+    // Map top level directories from payload items
+    const topLevelDirs: DirNode[] = payload.items
+      .filter((item) => item.is_dir)
+      .map((item) => ({
+        name: item.name,
+        path: `${payload.current_path}${payload.current_path.endsWith(sep) ? '' : sep}${item.name}`,
+        size: item.size,
+      }));
+
+    const stats: KeyStats = {
+      scanPath: scanPath || payload.current_path || targetPath,
+      totalBytes: payload.items.reduce((sum, item) => sum + item.size, 0),
+      totalFiles: scanProgress?.file_count ?? fileCount,
+      totalDirectories: scanProgress?.dir_count ?? dirCount,
+      scanDurationMs: scanTime ?? undefined,
+      totalDriveBytes: diskInfo?.total_bytes ?? -1,
+      totalDriveUsed: (diskInfo?.total_bytes ?? -1) - (diskInfo?.free_bytes ?? -2),
+      totalDriveFree: diskInfo?.free_bytes ?? -1,
+    };
+
+    const saved = await saveReportToTextFile(
+      stats,
+      topLevelDirs,
+      payload.top_files ?? []
+    );
+
+    if (saved) {
+      notifications.show({
+        title: 'Report Saved',
+        message: 'Scan report has been saved successfully.',
+        color: 'green',
+      });
+    }
+  };
 
   return (
     <>
@@ -310,10 +349,21 @@ export default function App() {
                   {computedColorScheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                 </Menu.Item>
                 <Menu.Divider />
+
+                <Menu.Item
+                  leftSection={<Save size={14} />}
+                  onClick={handleExportReport}
+                  disabled={!payload || isScanning}
+                >
+                  Save Report
+                </Menu.Item>
+                <Menu.Divider />
+
                 <Menu.Item leftSection={<HelpCircle size={14} />} onClick={openHelp}>
                   Help
                 </Menu.Item>
                 <Menu.Divider />
+
                 <Menu.Item leftSection={<Info size={14} />} onClick={openAbout}>
                   About Drive Sonar
                 </Menu.Item>
