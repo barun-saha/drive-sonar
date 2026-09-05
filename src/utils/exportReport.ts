@@ -34,7 +34,7 @@ export function generateTextReport(
   lines.push(divider);
   lines.push('');
 
-  // Section 1: Key Stats
+  // Section 1: Drive Stats
   lines.push('1. DRIVE STATISTICS');
   lines.push(subDivider);
   lines.push(`Total Size : ${formatBytes(stats.totalDriveBytes)}`);
@@ -42,7 +42,7 @@ export function generateTextReport(
   lines.push(`Space Free : ${formatBytes(stats.totalDriveFree)}`);
   lines.push('');
 
-  // Section 1: Key Stats
+  // Section 2: Key Stats
   lines.push('2. KEY STATISTICS');
   lines.push(subDivider);
   lines.push(`Scanned Target Path : ${stats.scanPath}`);
@@ -55,7 +55,7 @@ export function generateTextReport(
   lines.push('');
 
   // Section 3: Top Level Directories
-  lines.push('2. TOP-LEVEL DIRECTORIES LISTING');
+  lines.push('3. TOP-LEVEL DIRECTORIES LISTING');
   lines.push(subDivider);
   lines.push(`${'FOLDER NAME'.padEnd(30)} ${'SIZE'.padStart(12)}   ${'PATH'}`);
   lines.push(subDivider);
@@ -72,7 +72,7 @@ export function generateTextReport(
   lines.push('');
 
   // Section 4: Top 30 Largest Files
-  lines.push('3. TOP 30 LARGEST FILES (RECURSIVE)');
+  lines.push('4. TOP 30 LARGEST FILES (RECURSIVE)');
   lines.push(subDivider);
   lines.push(`${'#'.padEnd(4)} ${'FILE NAME'.padEnd(32)} ${'SIZE'.padStart(12)}   ${'PATH'}`);
   lines.push(subDivider);
