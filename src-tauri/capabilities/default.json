@@ -11,9 +11,13 @@
     "dialog:allow-open",
     "dialog:allow-save",
     "fs:default",
-    "fs:allow-write-text-file",
-    "fs:allow-desktop-write-recursive",
-    "fs:allow-document-write-recursive",
-    "fs:allow-download-write-recursive"
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [
+        { "path": "$DESKTOP/*.txt" },
+        { "path": "$DOCUMENT/*.txt" },
+        { "path": "$DOWNLOAD/*.txt" }
+      ]
+    }
   ]
 }
