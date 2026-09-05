@@ -150,4 +150,26 @@ describe('Toolbar', () => {
     expect(screen.getByText('files')).toBeInTheDocument();
     expect(screen.queryByText('Scanning progress:')).not.toBeInTheDocument();
   });
+
+  it('displays live scanning progress when disk information is unavailable', () => {
+    renderWithMantine(
+      <Toolbar
+        {...defaultProps}
+        isScanning={true}
+        scanProgress={{
+          file_count: 123,
+          dir_count: 45,
+          root_file_count: 10,
+          root_dir_count: 3,
+          total_file_bytes: 6789000,
+          elapsed_secs: 2.3,
+        }}
+      />
+    );
+
+    expect(screen.getByText('168')).toBeInTheDocument();
+    expect(screen.getByText('2.30s')).toBeInTheDocument();
+    expect(screen.getByText('Current view:')).toBeInTheDocument();
+    expect(screen.queryByText('Disk:')).not.toBeInTheDocument();
+  });
 });

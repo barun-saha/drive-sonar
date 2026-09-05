@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering as AtomicOrdering};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{mpsc, Arc, Mutex, RwLock};
 use tauri::{Emitter, State};
 use tauri_plugin_opener::OpenerExt;
 
@@ -831,12 +831,16 @@ async fn scan_directory(app: tauri::AppHandle, target_path: String, state: State
     let root_file_count_emitter = Arc::clone(&root_file_count);
     let root_dir_count_emitter = Arc::clone(&root_dir_count);
     let total_bytes_emitter = Arc::clone(&total_file_bytes);
+    let (progress_done_sender, progress_done_receiver) = mpsc::channel();
 
     // Periodically streams live scan progress to frontend via Tauri IPC
     let progress_emitter_handle = std::thread::spawn(move || {
         let start = std::time::Instant::now();
         loop {
-            std::thread::sleep(std::time::Duration::from_millis(500));
+            match progress_done_receiver.recv_timeout(std::time::Duration::from_millis(500)) {
+                Ok(()) | Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+            }
             if done_flag_emitter.load(AtomicOrdering::Relaxed) || cancel_flag_emitter.load(AtomicOrdering::Relaxed) {
                 break;
             }
@@ -878,6 +882,7 @@ async fn scan_directory(app: tauri::AppHandle, target_path: String, state: State
     }).await;
 
     done_flag.store(true, AtomicOrdering::Relaxed);
+    let _ = progress_done_sender.send(());
     let _ = progress_emitter_handle.join();
 
     match scan_res {

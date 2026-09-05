@@ -38,6 +38,7 @@ export function Toolbar({
   const showDiskInfo = diskInfo !== null && scanPath !== '';
   // Scan-specific stats only available after scan completes
   const showScanStats = scanTime !== null;
+  const showScanSummary = showScanStats || (isScanning && scanProgress !== null);
   // Dynamic dir counts shown once scan is done
   const showDirCounts = showScanStats;
 
@@ -99,46 +100,52 @@ export function Toolbar({
         </Group>
 
         {/* ── Line 1: Disk Capacity + Scan Performance ── */}
-        {showDiskInfo && (
+        {(showDiskInfo || showScanSummary) && (
           <Group gap="xs" align="center" wrap="wrap" pt={2}>
-            {/* Drive Label */}
-            <HardDrive size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
-            <Text size="sm" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
-              {driveLabel}:
-            </Text>
+            {showDiskInfo && diskInfo && (
+              <>
+                {/* Drive Label */}
+                <HardDrive size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
+                <Text size="sm" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+                  {driveLabel}:
+                </Text>
 
-            {/* Total Capacity */}
-            <Text size="sm" c="dimmed">
-              <Text span fw={600}>
-                {formatBytes(diskInfo!.total_bytes)}
-              </Text>{' '}
-              total
-            </Text>
+                {/* Total Capacity */}
+                <Text size="sm" c="dimmed">
+                  <Text span fw={600}>
+                    {formatBytes(diskInfo.total_bytes)}
+                  </Text>{' '}
+                  total
+                </Text>
 
-            <Text size="sm" c="dimmed">•</Text>
+                <Text size="sm" c="dimmed">•</Text>
 
-            {/* Used Capacity */}
-            <Text size="sm" c="dimmed">
-              <Text span fw={600}>
-                {formatBytes(diskInfo!.total_bytes - diskInfo!.free_bytes)}
-              </Text>{' '}
-              used
-            </Text>
+                {/* Used Capacity */}
+                <Text size="sm" c="dimmed">
+                  <Text span fw={600}>
+                    {formatBytes(diskInfo.total_bytes - diskInfo.free_bytes)}
+                  </Text>{' '}
+                  used
+                </Text>
 
-            <Text size="sm" c="dimmed">•</Text>
+                <Text size="sm" c="dimmed">•</Text>
 
-            {/* Free Capacity */}
-            <Text size="sm" c="dimmed">
-              <Text span fw={600}>
-                {formatBytes(diskInfo!.free_bytes)}
-              </Text>{' '}
-              free
-            </Text>
+                {/* Free Capacity */}
+                <Text size="sm" c="dimmed">
+                  <Text span fw={600}>
+                    {formatBytes(diskInfo.free_bytes)}
+                  </Text>{' '}
+                  free
+                </Text>
+              </>
+            )}
 
             {/* Vertical divider + Scan Summary (live during scan, final when done) */}
-            {(showScanStats || (isScanning && scanProgress)) && (
+            {showScanSummary && (
               <>
-                <Divider orientation="vertical" h={14} my="auto" mx={4} style={{ borderColor: 'var(--border-color)' }} />
+                {showDiskInfo && (
+                  <Divider orientation="vertical" h={14} my="auto" mx={4} style={{ borderColor: 'var(--border-color)' }} />
+                )}
 
                 <SearchCheck size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
                 <Text size="sm" c="dimmed">
