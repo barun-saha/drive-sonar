@@ -53,9 +53,9 @@ export interface ScanProgress {
 
 export interface KeyStats {
   scanPath: string;
-  totalDriveBytes: number;
-  totalDriveUsed: number;
-  totalDriveFree: number;
+  totalDriveBytes?: number;
+  totalDriveUsed?: number;
+  totalDriveFree?: number;
   totalBytes: number;
   totalFiles: number;
   totalDirectories: number;

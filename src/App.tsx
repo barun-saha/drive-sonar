@@ -223,15 +223,18 @@ export default function App() {
         size: item.size,
       }));
 
+    const isScanRoot = payload.parent_id === null;
     const stats: KeyStats = {
-      scanPath: scanPath || payload.current_path || targetPath,
+      scanPath: isScanRoot ? (scanPath || payload.current_path) : payload.current_path,
       totalBytes: payload.items.reduce((sum, item) => sum + item.size, 0),
-      totalFiles: scanProgress?.file_count ?? fileCount,
-      totalDirectories: scanProgress?.dir_count ?? dirCount,
+      totalFiles: isScanRoot ? (scanProgress?.file_count ?? fileCount) : fileCount,
+      totalDirectories: isScanRoot ? (scanProgress?.dir_count ?? dirCount) : dirCount,
       scanDurationMs: scanTime ?? undefined,
-      totalDriveBytes: diskInfo?.total_bytes ?? -1,
-      totalDriveUsed: (diskInfo?.total_bytes ?? -1) - (diskInfo?.free_bytes ?? -2),
-      totalDriveFree: diskInfo?.free_bytes ?? -1,
+      totalDriveBytes: diskInfo?.total_bytes,
+      totalDriveUsed: diskInfo
+        ? diskInfo.total_bytes - diskInfo.free_bytes
+        : undefined,
+      totalDriveFree: diskInfo?.free_bytes,
     };
 
     const saved = await saveReportToTextFile(

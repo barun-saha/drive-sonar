@@ -4,6 +4,8 @@ import { formatBytes } from './format';
 import { KeyStats, TopFileNode, DirNode } from '../types';
 
 const pad = (n: number) => String(n).padStart(2, '0');
+const formatOptionalBytes = (bytes: number | undefined) =>
+  bytes === undefined ? 'Unavailable' : formatBytes(bytes);
 
 export function generateTextReport(
   stats: KeyStats,
@@ -37,9 +39,9 @@ export function generateTextReport(
   // Section 1: Drive Stats
   lines.push('1. DRIVE STATISTICS');
   lines.push(subDivider);
-  lines.push(`Total Size : ${formatBytes(stats.totalDriveBytes)}`);
-  lines.push(`Space Used : ${formatBytes(stats.totalDriveUsed)}`);
-  lines.push(`Space Free : ${formatBytes(stats.totalDriveFree)}`);
+  lines.push(`Total Size : ${formatOptionalBytes(stats.totalDriveBytes)}`);
+  lines.push(`Space Used : ${formatOptionalBytes(stats.totalDriveUsed)}`);
+  lines.push(`Space Free : ${formatOptionalBytes(stats.totalDriveFree)}`);
   lines.push('');
 
   // Section 2: Key Stats
@@ -49,7 +51,7 @@ export function generateTextReport(
   lines.push(`Target Path Size    : ${formatBytes(stats.totalBytes)}`);
   lines.push(`Files Count         : ${stats.totalFiles.toLocaleString()}`);
   lines.push(`Folders Count       : ${stats.totalDirectories.toLocaleString()}`);
-  if (stats.scanDurationMs) {
+  if (stats.scanDurationMs !== undefined) {
     lines.push(`Scan Time           : ${(stats.scanDurationMs / 1000).toFixed(2)} seconds`);
   }
   lines.push('');
