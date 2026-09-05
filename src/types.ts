@@ -41,3 +41,12 @@ export interface DiskInfo {
   total_bytes: number;
   free_bytes: number;
 }
+
+export interface ScanProgress {
+  file_count: number;
+  dir_count: number;
+  root_file_count: number;
+  root_dir_count: number;
+  total_file_bytes: number;
+  elapsed_secs: number;
+}

@@ -41,17 +41,22 @@ function renderApp() {
 
 describe('App', () => {
   let scanWarningCallback: ((event: { payload: string }) => void) | null = null;
+  let scanProgressCallback: ((event: { payload: any }) => void) | null = null;
   const mockUnlisten = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
     scanWarningCallback = null;
+    scanProgressCallback = null;
 
     vi.mocked(homeDir).mockResolvedValue('/Users/testuser');
     vi.mocked(getVersion).mockResolvedValue('0.6.0');
     vi.mocked(listen).mockImplementation(async (event, callback) => {
       if (event === 'scan-warning') {
         scanWarningCallback = callback as any;
+      }
+      if (event === 'scan-progress') {
+        scanProgressCallback = callback as any;
       }
       return mockUnlisten;
     });
@@ -64,6 +69,7 @@ describe('App', () => {
       expect(homeDir).toHaveBeenCalled();
       expect(getVersion).toHaveBeenCalled();
       expect(listen).toHaveBeenCalledWith('scan-warning', expect.any(Function));
+      expect(listen).toHaveBeenCalledWith('scan-progress', expect.any(Function));
     });
 
     const input = screen.getByPlaceholderText('Select a target directory to scan...');
@@ -330,5 +336,69 @@ describe('App', () => {
     // Open menu again to verify label changed
     fireEvent.click(menuBtn);
     expect(await screen.findByText('Switch to Dark Mode')).toBeInTheDocument();
+  });
+
+  it('renders live progress when scan-progress events are emitted during scanning', async () => {
+    let resolveScan: ((value: any) => void) | null = null;
+    const scanPromise = new Promise((resolve) => {
+      resolveScan = resolve;
+    });
+
+    vi.mocked(invoke).mockImplementation(async (cmd) => {
+      if (cmd === 'get_disk_info') return { total_bytes: 500000000, free_bytes: 200000000 };
+      if (cmd === 'scan_directory') return scanPromise;
+      return null;
+    });
+
+    renderApp();
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Select a target directory to scan...')).toHaveValue('/Users/testuser');
+    });
+
+    const scanBtn = screen.getByRole('button', { name: 'Run Scan' });
+    fireEvent.click(scanBtn);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Scanning...' })).toBeInTheDocument();
+    });
+
+    // Simulate scan-progress event emission
+    if (scanProgressCallback) {
+      scanProgressCallback({
+        payload: {
+          file_count: 555,
+          dir_count: 42,
+          root_file_count: 15,
+          root_dir_count: 4,
+          total_file_bytes: 1048576,
+          elapsed_secs: 1.5,
+        },
+      });
+    }
+
+    expect(await screen.findByText('Current view:')).toBeInTheDocument();
+    expect(screen.getByText('597')).toBeInTheDocument(); // 555 files + 42 dirs
+    expect(screen.getByText('1.50s')).toBeInTheDocument();
+    expect(screen.getByText('4')).toBeInTheDocument();
+    expect(screen.getByText('folders')).toBeInTheDocument();
+    expect(screen.getByText('15')).toBeInTheDocument();
+    expect(screen.getByText('files')).toBeInTheDocument();
+
+    // Resolve the scan
+    resolveScan!({
+      current_id: 0,
+      current_path: '/Users/testuser',
+      parent_id: null,
+      ancestors: [{ id: 0, name: '/Users/testuser' }],
+      items: [],
+      extension_stats: [],
+      top_files: [],
+      total_scanned_items: 0,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Run Scan' })).toBeInTheDocument();
+    });
   });
 });
