@@ -326,6 +326,11 @@ fn test_scan_dir_parallel() {
     let cancel_flag = AtomicBool::new(false);
     let skipped_count = AtomicUsize::new(0);
     let depth_exceeded_count = AtomicUsize::new(0);
+    let file_count = AtomicUsize::new(0);
+    let dir_count = AtomicUsize::new(0);
+    let root_file_count = AtomicUsize::new(0);
+    let root_dir_count = AtomicUsize::new(0);
+    let total_file_bytes = AtomicU64::new(0);
     let shared_arena = Mutex::new(vec![DiskNode {
         name: root_path.to_string_lossy().into_owned().into_boxed_str(),
         size: 0,
@@ -343,10 +348,20 @@ fn test_scan_dir_parallel() {
         &cancel_flag,
         &skipped_count,
         &depth_exceeded_count,
+        &file_count,
+        &dir_count,
+        &root_file_count,
+        &root_dir_count,
+        &total_file_bytes,
         &shared_arena,
         0,
     );
     assert!(res.is_ok());
+    assert_eq!(file_count.load(AtomicOrdering::Relaxed), 2); // hello.txt, data.bin
+    assert_eq!(dir_count.load(AtomicOrdering::Relaxed), 1); // subdir1
+    assert_eq!(root_file_count.load(AtomicOrdering::Relaxed), 1); // hello.txt only at root
+    assert_eq!(root_dir_count.load(AtomicOrdering::Relaxed), 1); // subdir1 at root
+    assert_eq!(total_file_bytes.load(AtomicOrdering::Relaxed), 21); // 11 + 10 bytes
 
     let mut final_arena = shared_arena.into_inner().unwrap();
     aggregate_node(0, &mut final_arena);
@@ -363,6 +378,11 @@ fn test_scan_dir_parallel() {
         &cancel_flag_true,
         &skipped_count,
         &depth_exceeded_count,
+        &file_count,
+        &dir_count,
+        &root_file_count,
+        &root_dir_count,
+        &total_file_bytes,
         &shared_arena2,
         0,
     );
@@ -377,6 +397,11 @@ fn test_scan_dir_parallel() {
         &cancel_flag,
         &skipped_count,
         &depth_exceeded_count2,
+        &file_count,
+        &dir_count,
+        &root_file_count,
+        &root_dir_count,
+        &total_file_bytes,
         &shared_arena3,
         257,
     );
@@ -405,6 +430,11 @@ fn test_scan_dir_parallel_edge_cases() {
     let cancel_flag = AtomicBool::new(false);
     let skipped_count = AtomicUsize::new(0);
     let depth_exceeded_count = AtomicUsize::new(0);
+    let file_count = AtomicUsize::new(0);
+    let dir_count = AtomicUsize::new(0);
+    let root_file_count = AtomicUsize::new(0);
+    let root_dir_count = AtomicUsize::new(0);
+    let total_file_bytes = AtomicU64::new(0);
     let shared_arena = Mutex::new(vec![DiskNode {
         name: root_path.to_string_lossy().into_owned().into_boxed_str(),
         size: 0,
@@ -422,6 +452,11 @@ fn test_scan_dir_parallel_edge_cases() {
         &cancel_flag,
         &skipped_count,
         &depth_exceeded_count,
+        &file_count,
+        &dir_count,
+        &root_file_count,
+        &root_dir_count,
+        &total_file_bytes,
         &shared_arena,
         0,
     );
@@ -435,6 +470,11 @@ fn test_scan_dir_parallel_edge_cases() {
         &cancel_flag,
         &skipped_count,
         &depth_exceeded_count,
+        &file_count,
+        &dir_count,
+        &root_file_count,
+        &root_dir_count,
+        &total_file_bytes,
         &shared_arena,
         0,
     );

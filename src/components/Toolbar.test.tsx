@@ -121,4 +121,55 @@ describe('Toolbar', () => {
     expect(screen.getByText('10')).toBeInTheDocument();
     expect(screen.getByText('files')).toBeInTheDocument();
   });
+
+  it('displays live scanning progress when isScanning and scanProgress is provided in consistent format', () => {
+    renderWithMantine(
+      <Toolbar
+        {...defaultProps}
+        isScanning={true}
+        diskInfo={{ total_bytes: 1000000000, free_bytes: 400000000 }}
+        scanPath="/home/user"
+        scanProgress={{
+          file_count: 123,
+          dir_count: 45,
+          root_file_count: 10,
+          root_dir_count: 3,
+          total_file_bytes: 6789000,
+          elapsed_secs: 2.3,
+        }}
+      />
+    );
+
+    expect(screen.getByText('Disk:')).toBeInTheDocument();
+    expect(screen.getByText('168')).toBeInTheDocument(); // 123 files + 45 dirs
+    expect(screen.getByText('2.30s')).toBeInTheDocument();
+    expect(screen.getByText('Current view:')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getByText('folders')).toBeInTheDocument();
+    expect(screen.getByText('10')).toBeInTheDocument();
+    expect(screen.getByText('files')).toBeInTheDocument();
+    expect(screen.queryByText('Scanning progress:')).not.toBeInTheDocument();
+  });
+
+  it('displays live scanning progress when disk information is unavailable', () => {
+    renderWithMantine(
+      <Toolbar
+        {...defaultProps}
+        isScanning={true}
+        scanProgress={{
+          file_count: 123,
+          dir_count: 45,
+          root_file_count: 10,
+          root_dir_count: 3,
+          total_file_bytes: 6789000,
+          elapsed_secs: 2.3,
+        }}
+      />
+    );
+
+    expect(screen.getByText('168')).toBeInTheDocument();
+    expect(screen.getByText('2.30s')).toBeInTheDocument();
+    expect(screen.getByText('Current view:')).toBeInTheDocument();
+    expect(screen.queryByText('Disk:')).not.toBeInTheDocument();
+  });
 });

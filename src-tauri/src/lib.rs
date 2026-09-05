@@ -5,8 +5,8 @@ use serde::Serialize;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering as AtomicOrdering};
+use std::sync::{mpsc, Arc, Mutex, RwLock};
 use tauri::{Emitter, State};
 use tauri_plugin_opener::OpenerExt;
 
@@ -84,6 +84,16 @@ pub struct UiDiskNode {
 pub struct DiskInfo {
     pub total_bytes: u64,
     pub free_bytes: u64,
+}
+
+#[derive(Clone, Serialize)]
+pub struct ScanProgress {
+    pub file_count: usize,
+    pub dir_count: usize,
+    pub root_file_count: usize,
+    pub root_dir_count: usize,
+    pub total_file_bytes: u64,
+    pub elapsed_secs: f64,
 }
 
 pub struct AppState {
@@ -384,6 +394,11 @@ fn scan_dir_parallel(
     cancel_flag: &AtomicBool,
     skipped_count: &AtomicUsize,
     depth_exceeded_count: &AtomicUsize,
+    file_count: &AtomicUsize,
+    dir_count: &AtomicUsize,
+    root_file_count: &AtomicUsize,
+    root_dir_count: &AtomicUsize,
+    total_file_bytes: &AtomicU64,
     shared_arena: &Mutex<Vec<DiskNode>>,
     depth: usize,
 ) -> Result<(), String> {
@@ -412,11 +427,21 @@ fn scan_dir_parallel(
     // subdirectories happens first, borrowing the name, before it's moved.
     let mut local_nodes: Vec<DiskNode> = Vec::with_capacity(dir_entries.len());
     let mut subdir_relative: Vec<(PathBuf, u32)> = Vec::new();
+    let mut local_files: usize = 0;
+    let mut local_dirs: usize = 0;
+    let mut local_bytes: u64 = 0;
 
     for (i, entry) in dir_entries.into_iter().enumerate() {
         let is_subdir = entry.is_dir && !entry.is_reparse_point;
         if is_subdir {
             subdir_relative.push((dir_path.join(&entry.name), i as u32));
+        }
+
+        if entry.is_dir {
+            local_dirs += 1;
+        } else {
+            local_files += 1;
+            local_bytes += entry.size;
         }
 
         local_nodes.push(DiskNode {
@@ -429,6 +454,22 @@ fn scan_dir_parallel(
             next_sibling: u32::MAX,
             is_tombstoned: false,
         });
+    }
+
+    // Direct entry counts for the root directory of the scan view
+    if depth == 0 {
+        root_file_count.store(local_files, AtomicOrdering::Relaxed);
+        root_dir_count.store(local_dirs, AtomicOrdering::Relaxed);
+    }
+
+    if local_files > 0 {
+        file_count.fetch_add(local_files, AtomicOrdering::Relaxed);
+    }
+    if local_dirs > 0 {
+        dir_count.fetch_add(local_dirs, AtomicOrdering::Relaxed);
+    }
+    if local_bytes > 0 {
+        total_file_bytes.fetch_add(local_bytes, AtomicOrdering::Relaxed);
     }
 
     let start_idx = {
@@ -453,7 +494,20 @@ fn scan_dir_parallel(
         .collect();
 
     subdir_tasks.into_par_iter().try_for_each(|(child_path, child_id)| {
-        scan_dir_parallel(&child_path, child_id, cancel_flag, skipped_count, depth_exceeded_count, shared_arena, depth + 1)
+        scan_dir_parallel(
+            &child_path,
+            child_id,
+            cancel_flag,
+            skipped_count,
+            depth_exceeded_count,
+            file_count,
+            dir_count,
+            root_file_count,
+            root_dir_count,
+            total_file_bytes,
+            shared_arena,
+            depth + 1,
+        )
     })
 }
 
@@ -757,15 +811,79 @@ async fn scan_directory(app: tauri::AppHandle, target_path: String, state: State
     let depth_exceeded_count = Arc::new(AtomicUsize::new(0));
     let depth_exceeded_count_task = Arc::clone(&depth_exceeded_count);
 
+    let file_count = Arc::new(AtomicUsize::new(0));
+    let file_count_task = Arc::clone(&file_count);
+    let dir_count = Arc::new(AtomicUsize::new(0));
+    let dir_count_task = Arc::clone(&dir_count);
+    let root_file_count = Arc::new(AtomicUsize::new(0));
+    let root_file_count_task = Arc::clone(&root_file_count);
+    let root_dir_count = Arc::new(AtomicUsize::new(0));
+    let root_dir_count_task = Arc::clone(&root_dir_count);
+    let total_file_bytes = Arc::new(AtomicU64::new(0));
+    let total_file_bytes_task = Arc::clone(&total_file_bytes);
+
+    let done_flag = Arc::new(AtomicBool::new(false));
+    let done_flag_emitter = Arc::clone(&done_flag);
+    let cancel_flag_emitter = Arc::clone(&scan_cancel_flag);
+    let app_emitter = app.clone();
+    let file_count_emitter = Arc::clone(&file_count);
+    let dir_count_emitter = Arc::clone(&dir_count);
+    let root_file_count_emitter = Arc::clone(&root_file_count);
+    let root_dir_count_emitter = Arc::clone(&root_dir_count);
+    let total_bytes_emitter = Arc::clone(&total_file_bytes);
+    let (progress_done_sender, progress_done_receiver) = mpsc::channel();
+
+    // Periodically streams live scan progress to frontend via Tauri IPC
+    let progress_emitter_handle = std::thread::spawn(move || {
+        let start = std::time::Instant::now();
+        loop {
+            match progress_done_receiver.recv_timeout(std::time::Duration::from_millis(500)) {
+                Ok(()) | Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+            }
+            if done_flag_emitter.load(AtomicOrdering::Relaxed) || cancel_flag_emitter.load(AtomicOrdering::Relaxed) {
+                break;
+            }
+            let _ = app_emitter.emit(
+                "scan-progress",
+                ScanProgress {
+                    file_count: file_count_emitter.load(AtomicOrdering::Relaxed),
+                    dir_count: dir_count_emitter.load(AtomicOrdering::Relaxed),
+                    root_file_count: root_file_count_emitter.load(AtomicOrdering::Relaxed),
+                    root_dir_count: root_dir_count_emitter.load(AtomicOrdering::Relaxed),
+                    total_file_bytes: total_bytes_emitter.load(AtomicOrdering::Relaxed),
+                    elapsed_secs: start.elapsed().as_secs_f64(),
+                },
+            );
+        }
+    });
+
     init_rayon_thread_pool();
 
     let scan_res = tokio::task::spawn_blocking(move || {
-        scan_dir_parallel(&canonical, 0, &scan_cancel_flag, &skipped_count_task, &depth_exceeded_count_task, &shared_arena, 0)?;
+        scan_dir_parallel(
+            &canonical,
+            0,
+            &scan_cancel_flag,
+            &skipped_count_task,
+            &depth_exceeded_count_task,
+            &file_count_task,
+            &dir_count_task,
+            &root_file_count_task,
+            &root_dir_count_task,
+            &total_file_bytes_task,
+            &shared_arena,
+            0,
+        )?;
 
         let mut final_arena = shared_arena.into_inner().unwrap();
         aggregate_node(0, &mut final_arena);
         Ok::<Vec<DiskNode>, String>(final_arena)
     }).await;
+
+    done_flag.store(true, AtomicOrdering::Relaxed);
+    let _ = progress_done_sender.send(());
+    let _ = progress_emitter_handle.join();
 
     match scan_res {
         Ok(Ok(completed_arena)) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { ActionIcon, Grid, Group, Stack, Container, Text, Title, Menu, Modal } from '@mantine/core';
 import { useMantineColorScheme, useComputedColorScheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -15,7 +15,7 @@ import { VisualizationPanel } from './components/VisualizationPanel';
 
 import '@mantine/notifications/styles.css';
 
-import { DirectoryPayload, DiskInfo } from './types';
+import { DirectoryPayload, DiskInfo, ScanProgress } from './types';
 
 export default function App() {
   const [targetPath, setTargetPath] = useState('');
@@ -24,6 +24,9 @@ export default function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [diskInfo, setDiskInfo] = useState<DiskInfo | null>(null);
   const [scanPath, setScanPath] = useState<string>('');
+  const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
+  const scanGenerationRef = useRef(0);
+  const activeScanGenerationRef = useRef<number | null>(null);
 
   const [helpOpened, { open: openHelp, close: closeHelp }] = useDisclosure(false);
   const [aboutOpened, { open: openAbout, close: closeAbout }] = useDisclosure(false);
@@ -36,8 +39,10 @@ export default function App() {
   };
 
   useEffect(() => {
-    let unlisten: (() => void) | null = null;
+    let unlistenWarning: (() => void) | null = null;
+    let unlistenProgress: (() => void) | null = null;
     let disposed = false;
+
     listen<string>('scan-warning', (event) => {
       notifications.show({
         title: 'Scan Warning',
@@ -49,12 +54,28 @@ export default function App() {
       if (disposed) {
         f();
       } else {
-        unlisten = f;
+        unlistenWarning = f;
       }
     });
+
+    // Listen for periodic scan progress updates streamed from backend
+    listen<ScanProgress>('scan-progress', (event) => {
+      const activeGeneration = activeScanGenerationRef.current;
+      if (activeGeneration !== null && activeGeneration === scanGenerationRef.current) {
+        setScanProgress(event.payload);
+      }
+    }).then((f) => {
+      if (disposed) {
+        f();
+      } else {
+        unlistenProgress = f;
+      }
+    });
+
     return () => {
       disposed = true;
-      unlisten?.();
+      unlistenWarning?.();
+      unlistenProgress?.();
     };
   }, []);
 
@@ -106,6 +127,8 @@ export default function App() {
   async function handleScan(pathOverride?: string) {
     const path = pathOverride ?? targetPath;
     if (!path.trim()) return;
+    const scanGeneration = ++scanGenerationRef.current;
+    activeScanGenerationRef.current = scanGeneration;
 
     // Sync state if triggered with a new path parameter from breadcrumbs
     if (pathOverride) {
@@ -117,6 +140,7 @@ export default function App() {
       setScanTime(null);
       setDiskInfo(null);
       setScanPath('');
+      setScanProgress(null);
 
       try {
         const di = await invoke<DiskInfo>('get_disk_info', { path });
@@ -139,7 +163,12 @@ export default function App() {
         color: 'red',
       });
     } finally {
-      setIsScanning(false);
+      if (activeScanGenerationRef.current === scanGeneration) {
+        activeScanGenerationRef.current = null;
+        scanGenerationRef.current += 1;
+        setIsScanning(false);
+        setScanProgress(null);
+      }
     }
   }
 
@@ -306,6 +335,7 @@ export default function App() {
             dirCount={dirCount}
             fileCount={fileCount}
             currentViewSize={currentViewSize}
+            scanProgress={scanProgress}
           />
 
           <Grid gap="md" align="flex-start">

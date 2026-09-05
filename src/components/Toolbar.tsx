@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Group, TextInput, Button, Text, ActionIcon, Stack, Divider } from '@mantine/core';
 import { Search, FolderOpen, Loader2, CircleX, Folder, File, HardDrive, SearchCheck, Pin } from 'lucide-react';
 
-import { DiskInfo } from '../types';
+import { DiskInfo, ScanProgress } from '../types';
 import { formatBytes } from '../utils/format';
 
 interface ToolbarProps {
@@ -19,11 +19,13 @@ interface ToolbarProps {
   dirCount: number;
   fileCount: number;
   currentViewSize: number;
+  scanProgress?: ScanProgress | null;
 }
 
 export function Toolbar({
   targetPath, setTargetPath, onBrowse, onScan, onCancel, isScanning,
-  scanTime, totalItems, diskInfo, scanPath, dirCount, fileCount, currentViewSize
+  scanTime, totalItems, diskInfo, scanPath, dirCount, fileCount, currentViewSize,
+  scanProgress
 }: ToolbarProps) {
 
   const driveLabel = useMemo(() => {
@@ -36,6 +38,7 @@ export function Toolbar({
   const showDiskInfo = diskInfo !== null && scanPath !== '';
   // Scan-specific stats only available after scan completes
   const showScanStats = scanTime !== null;
+  const showScanSummary = showScanStats || (isScanning && scanProgress !== null);
   // Dynamic dir counts shown once scan is done
   const showDirCounts = showScanStats;
 
@@ -97,56 +100,67 @@ export function Toolbar({
         </Group>
 
         {/* ── Line 1: Disk Capacity + Scan Performance ── */}
-        {showDiskInfo && (
+        {(showDiskInfo || showScanSummary) && (
           <Group gap="xs" align="center" wrap="wrap" pt={2}>
-            {/* Drive Label */}
-            <HardDrive size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
-            <Text size="sm" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
-              {driveLabel}:
-            </Text>
-
-            {/* Total Capacity */}
-            <Text size="sm" c="dimmed">
-              <Text span fw={600}>
-                {formatBytes(diskInfo!.total_bytes)}
-              </Text>{' '}
-              total
-            </Text>
-
-            <Text size="sm" c="dimmed">•</Text>
-
-            {/* Used Capacity */}
-            <Text size="sm" c="dimmed">
-              <Text span fw={600}>
-                {formatBytes(diskInfo!.total_bytes - diskInfo!.free_bytes)}
-              </Text>{' '}
-              used
-            </Text>
-
-            <Text size="sm" c="dimmed">•</Text>
-
-            {/* Free Capacity */}
-            <Text size="sm" c="dimmed">
-              <Text span fw={600}>
-                {formatBytes(diskInfo!.free_bytes)}
-              </Text>{' '}
-              free
-            </Text>
-
-            {/* Vertical divider + Scan Summary */}
-            {showScanStats && (
+            {showDiskInfo && diskInfo && (
               <>
-                <Divider orientation="vertical" h={14} my="auto" mx={4} style={{ borderColor: 'var(--border-color)' }} />
+                {/* Drive Label */}
+                <HardDrive size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
+                <Text size="sm" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+                  {driveLabel}:
+                </Text>
+
+                {/* Total Capacity */}
+                <Text size="sm" c="dimmed">
+                  <Text span fw={600}>
+                    {formatBytes(diskInfo.total_bytes)}
+                  </Text>{' '}
+                  total
+                </Text>
+
+                <Text size="sm" c="dimmed">•</Text>
+
+                {/* Used Capacity */}
+                <Text size="sm" c="dimmed">
+                  <Text span fw={600}>
+                    {formatBytes(diskInfo.total_bytes - diskInfo.free_bytes)}
+                  </Text>{' '}
+                  used
+                </Text>
+
+                <Text size="sm" c="dimmed">•</Text>
+
+                {/* Free Capacity */}
+                <Text size="sm" c="dimmed">
+                  <Text span fw={600}>
+                    {formatBytes(diskInfo.free_bytes)}
+                  </Text>{' '}
+                  free
+                </Text>
+              </>
+            )}
+
+            {/* Vertical divider + Scan Summary (live during scan, final when done) */}
+            {showScanSummary && (
+              <>
+                {showDiskInfo && (
+                  <Divider orientation="vertical" h={14} my="auto" mx={4} style={{ borderColor: 'var(--border-color)' }} />
+                )}
 
                 <SearchCheck size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
                 <Text size="sm" c="dimmed">
                   Found{' '}
                   <Text span fw={600}>
-                    {totalItems.toLocaleString()}
+                    {(showScanStats
+                      ? totalItems
+                      : (scanProgress ? scanProgress.file_count + scanProgress.dir_count : 0)
+                    ).toLocaleString()}
                   </Text>{' '}
                   items in{' '}
                   <Text span fw={600}>
-                    {(scanTime / 1000).toFixed(2)}s
+                    {showScanStats
+                      ? `${(scanTime! / 1000).toFixed(2)}s`
+                      : `${scanProgress?.elapsed_secs.toFixed(2)}s`}
                   </Text>
                 </Text>
               </>
@@ -154,8 +168,8 @@ export function Toolbar({
           </Group>
         )}
 
-        {/* ── Line 2: Folder / File counts for current path ── */}
-        {showDirCounts && (
+        {/* ── Line 2: Folder / File counts for current path (uses root counts during scan) ── */}
+        {(showDirCounts || (isScanning && scanProgress)) && (
           <Group gap="xs" align="center" wrap="wrap">
             <Pin size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
             <Text size="sm" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
@@ -166,10 +180,10 @@ export function Toolbar({
             <Group gap={4} align="center">
               <Folder size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
               <Text size="sm" fw={600} c="dimmed">
-                {dirCount.toLocaleString()}
+                {(showDirCounts ? dirCount : scanProgress?.root_dir_count ?? 0).toLocaleString()}
               </Text>
               <Text c="dimmed" size="sm">
-                {dirCount === 1 ? 'folder' : 'folders'}
+                {(showDirCounts ? dirCount : scanProgress?.root_dir_count ?? 0) === 1 ? 'folder' : 'folders'}
               </Text>
             </Group>
 
@@ -179,10 +193,10 @@ export function Toolbar({
             <Group gap={4} align="center">
               <File size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
               <Text size="sm" fw={600} c="dimmed">
-                {fileCount.toLocaleString()}
+                {(showDirCounts ? fileCount : scanProgress?.root_file_count ?? 0).toLocaleString()}
               </Text>
               <Text c="dimmed" size="sm">
-                {fileCount === 1 ? 'file' : 'files'}
+                {(showDirCounts ? fileCount : scanProgress?.root_file_count ?? 0) === 1 ? 'file' : 'files'}
               </Text>
             </Group>
 
@@ -190,7 +204,7 @@ export function Toolbar({
             <Text size="sm" c="dimmed">
               (
               <Text span fw={600}>
-                {formatBytes(currentViewSize)}
+                {formatBytes(showDirCounts ? currentViewSize : scanProgress?.total_file_bytes ?? 0)}
               </Text>{' '}
               total)
             </Text>
