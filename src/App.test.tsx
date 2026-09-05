@@ -278,7 +278,7 @@ describe('App', () => {
     });
   });
 
-  it('exports statistics for the currently displayed scan snapshot', async () => {
+  it('exports root target scan statistics even after navigating into subdirectories', async () => {
     const initialPayload = {
       current_id: 0,
       current_path: '/canonical/testuser',
@@ -338,18 +338,20 @@ describe('App', () => {
       );
     });
 
+    // Navigate into Documents subfolder
     fireEvent.click(screen.getByText('Documents'));
     expect(await screen.findByText('notes.txt')).toBeInTheDocument();
 
+    // Verify report export still targets original root scan path stats
     fireEvent.click(screen.getByLabelText('Menu'));
     fireEvent.click(await screen.findByText('Save Report'));
     await waitFor(() => {
       expect(saveReportToTextFile).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          scanPath: '/canonical/testuser/Documents',
-          totalBytes: 7,
+          scanPath: '/Users/testuser',
+          totalBytes: 120,
           totalFiles: 1,
-          totalDirectories: 0,
+          totalDirectories: 1,
         }),
         expect.any(Array),
         expect.any(Array)

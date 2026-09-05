@@ -26,6 +26,16 @@ export default function App() {
   const [diskInfo, setDiskInfo] = useState<DiskInfo | null>(null);
   const [scanPath, setScanPath] = useState<string>('');
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
+
+  // Store the root scan statistics and top-level structure specifically for report export
+  const [rootStats, setRootStats] = useState<{
+    totalBytes: number;
+    totalFiles: number;
+    totalDirectories: number;
+    topLevelDirs: DirNode[];
+    topFiles: NonNullable<DirectoryPayload['top_files']>;
+  } | null>(null);
+
   const scanGenerationRef = useRef(0);
   const activeScanGenerationRef = useRef<number | null>(null);
 
@@ -134,6 +144,7 @@ export default function App() {
       setDiskInfo(null);
       setScanPath('');
       setScanProgress(null);
+      setRootStats(null);
 
       try {
         const di = await invoke<DiskInfo>('get_disk_info', { path });
@@ -149,6 +160,35 @@ export default function App() {
 
       setPayload(res);
       setScanTime(endTime - startTime);
+
+      // Compute and capture initial scan root stats before any navigation occurs
+      const sep = res.current_path.includes('\\') ? '\\' : '/';
+      let dirs = 0;
+      let files = 0;
+      let totalSize = 0;
+      const topLevelDirs: DirNode[] = [];
+
+      for (const item of res.items) {
+        if (item.is_dir) {
+          dirs++;
+          topLevelDirs.push({
+            name: item.name,
+            path: `${res.current_path}${res.current_path.endsWith(sep) ? '' : sep}${item.name}`,
+            size: item.size,
+          });
+        } else {
+          files++;
+        }
+        totalSize += item.size;
+      }
+
+      setRootStats({
+        totalBytes: totalSize,
+        totalFiles: files,
+        totalDirectories: dirs,
+        topLevelDirs,
+        topFiles: res.top_files ?? [],
+      });
     } catch (error) {
       notifications.show({
         title: 'Scan Failed',
@@ -203,7 +243,7 @@ export default function App() {
 
   // Handler for Exporting Report
   const handleExportReport = async () => {
-    if (!payload) {
+    if (!payload || !rootStats) {
       notifications.show({
         title: 'No Data to Export',
         message: 'Please run a scan before saving a report.',
@@ -212,23 +252,12 @@ export default function App() {
       return;
     }
 
-    const sep = payload.current_path.includes('\\') ? '\\' : '/';
-
-    // Map top level directories from payload items
-    const topLevelDirs: DirNode[] = payload.items
-      .filter((item) => item.is_dir)
-      .map((item) => ({
-        name: item.name,
-        path: `${payload.current_path}${payload.current_path.endsWith(sep) ? '' : sep}${item.name}`,
-        size: item.size,
-      }));
-
-    const isScanRoot = payload.parent_id === null;
+    // Report stats are always based on the target scan path, retrieved from saved rootStats
     const stats: KeyStats = {
-      scanPath: isScanRoot ? (scanPath || payload.current_path) : payload.current_path,
-      totalBytes: payload.items.reduce((sum, item) => sum + item.size, 0),
-      totalFiles: isScanRoot ? (scanProgress?.file_count ?? fileCount) : fileCount,
-      totalDirectories: isScanRoot ? (scanProgress?.dir_count ?? dirCount) : dirCount,
+      scanPath: scanPath,
+      totalBytes: rootStats.totalBytes,
+      totalFiles: rootStats.totalFiles,
+      totalDirectories: rootStats.totalDirectories,
       scanDurationMs: scanTime ?? undefined,
       totalDriveBytes: diskInfo?.total_bytes,
       totalDriveUsed: diskInfo
@@ -239,8 +268,8 @@ export default function App() {
 
     const saved = await saveReportToTextFile(
       stats,
-      topLevelDirs,
-      payload.top_files ?? []
+      rootStats.topLevelDirs,
+      rootStats.topFiles
     );
 
     if (saved) {
