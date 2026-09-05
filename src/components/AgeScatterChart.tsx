@@ -11,6 +11,39 @@ interface AgeScatterChartProps {
   files?: TopFileNode[];
 }
 
+// Custom Dot Component
+const DynamicScatterPoint = (props: any) => {
+  const { cx, cy, payload } = props;
+
+  // Use sizeMB from payload
+  const sizeMB = payload?.sizeMB ?? 0;
+
+  // Corrected Color Thresholds
+  let color = '#ef4444'; // Red (big: >= 1500 MB)
+  let radius = 8;
+  if (sizeMB < 500) {
+    color = '#22c55e'; // Green (small: < 500 MB)
+    radius = 4;
+  }
+  else if (sizeMB < 1500) {
+    color = '#f59e0b'; // Amber/Yellow (medium: 500-1499 MB)
+    radius = 6;
+  }
+
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={radius}
+      fill={color}
+      fillOpacity={0.8}
+      stroke="#ffffff"
+      strokeWidth={1.5}
+      style={{ transition: 'all 0.3s ease' }}
+    />
+  );
+};
+
 export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
   const reduceMotion = useReducedMotion();
 
@@ -69,6 +102,7 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
             yAxisLabel={getAxisLabel('Size (MB)')}
             yAxisProps={axisProps}
             scatterProps={{
+              shape: <DynamicScatterPoint />,
               isAnimationActive: !reduceMotion,
               animationDuration: 1000,
               animationEasing: 'ease-in-out',
@@ -86,18 +120,16 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
                       background: 'var(--bg-panel, #1e1e1e)',
                       border: '1px solid var(--border-color, #333)',
                       borderRadius: 6,
-                      maxWidth: 360, // Prevents tooltip from stretching off screen
+                      maxWidth: 360,
                     }}
                   >
                     <Text size="sm" fw={700}>
                       {data.fileName}
                     </Text>
-
-                    {/* Muted path line */}
                     <Text
                       size="sm"
                       c="dimmed"
-                      title={data.filePath} // Native tooltip fallback for full string on hover
+                      title={data.filePath}
                       style={{
                         wordBreak: 'break-all',
                         fontFamily: 'monospace',
@@ -107,7 +139,6 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
                     >
                       {data.filePath}
                     </Text>
-
                     <Text size="sm" fw={500} c="dimmed">
                       Size: {formatBytes(data.rawBytes)}
                     </Text>
