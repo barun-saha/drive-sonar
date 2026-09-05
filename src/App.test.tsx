@@ -8,6 +8,7 @@ import { homeDir } from '@tauri-apps/api/path';
 import { getVersion } from '@tauri-apps/api/app';
 import { listen } from '@tauri-apps/api/event';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
+import { saveReportToTextFile } from './utils/exportReport';
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
@@ -27,6 +28,10 @@ vi.mock('@tauri-apps/api/event', () => ({
 
 vi.mock('@tauri-apps/plugin-dialog', () => ({
   open: vi.fn(),
+}));
+
+vi.mock('./utils/exportReport', () => ({
+  saveReportToTextFile: vi.fn().mockResolvedValue(true),
 }));
 
 function renderApp() {
@@ -271,6 +276,130 @@ describe('App', () => {
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith('open_directory', { nodeId: 5 });
     });
+  });
+
+  it('exports root target scan statistics even after navigating into subdirectories', async () => {
+    const initialPayload = {
+      current_id: 0,
+      current_path: '/canonical/testuser',
+      parent_id: null,
+      ancestors: [{ id: 0, name: '/canonical/testuser' }],
+      items: [
+        { id: 5, name: 'Documents', is_dir: true, size: 100, modified_secs: 100, percentage_of_parent: 100 },
+        { id: 6, name: 'root.txt', is_dir: false, size: 20, modified_secs: 100, percentage_of_parent: 20 },
+      ],
+      extension_stats: [],
+      top_files: [],
+      total_scanned_items: 3,
+    };
+    const navigatedPayload = {
+      current_id: 5,
+      current_path: '/canonical/testuser/Documents',
+      parent_id: 0,
+      ancestors: [
+        { id: 0, name: '/canonical/testuser' },
+        { id: 5, name: 'Documents' },
+      ],
+      items: [
+        { id: 7, name: 'notes.txt', is_dir: false, size: 7, modified_secs: 100, percentage_of_parent: 100 },
+      ],
+      extension_stats: [],
+      top_files: [],
+      total_scanned_items: 3,
+    };
+
+    vi.mocked(invoke).mockImplementation(async (cmd) => {
+      if (cmd === 'get_disk_info') return { total_bytes: 1_000, free_bytes: 400 };
+      if (cmd === 'scan_directory') return initialPayload;
+      if (cmd === 'open_directory') return navigatedPayload;
+      return null;
+    });
+
+    renderApp();
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Select a target directory to scan...')).toHaveValue('/Users/testuser');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run Scan' }));
+    expect(await screen.findByText('Documents')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Menu'));
+    fireEvent.click(await screen.findByText('Save Report'));
+    await waitFor(() => {
+      expect(saveReportToTextFile).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          scanPath: '/Users/testuser',
+          totalBytes: 120,
+          totalFiles: 1,
+          totalDirectories: 1,
+        }),
+        expect.any(Array),
+        expect.any(Array)
+      );
+    });
+
+    // Navigate into Documents subfolder
+    fireEvent.click(screen.getByText('Documents'));
+    expect(await screen.findByText('notes.txt')).toBeInTheDocument();
+
+    // Verify report export still targets original root scan path stats
+    fireEvent.click(screen.getByLabelText('Menu'));
+    fireEvent.click(await screen.findByText('Save Report'));
+    await waitFor(() => {
+      expect(saveReportToTextFile).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          scanPath: '/Users/testuser',
+          totalBytes: 120,
+          totalFiles: 1,
+          totalDirectories: 1,
+        }),
+        expect.any(Array),
+        expect.any(Array)
+      );
+    });
+  });
+
+  it('exports unavailable drive statistics when disk information is missing', async () => {
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(invoke).mockImplementation(async (cmd) => {
+      if (cmd === 'get_disk_info') throw new Error('Disk info failed');
+      if (cmd === 'scan_directory') {
+        return {
+          current_id: 0,
+          current_path: '/Users/testuser',
+          parent_id: null,
+          ancestors: [{ id: 0, name: '/Users/testuser' }],
+          items: [],
+          extension_stats: [],
+          top_files: [],
+          total_scanned_items: 0,
+        };
+      }
+      return null;
+    });
+
+    renderApp();
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Select a target directory to scan...')).toHaveValue('/Users/testuser');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Run Scan' }));
+    await waitFor(() => expect(screen.getByLabelText('Menu')).toBeEnabled());
+
+    fireEvent.click(screen.getByLabelText('Menu'));
+    fireEvent.click(await screen.findByText('Save Report'));
+    await waitFor(() => {
+      expect(saveReportToTextFile).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          totalDriveBytes: undefined,
+          totalDriveUsed: undefined,
+          totalDriveFree: undefined,
+        }),
+        expect.any(Array),
+        expect.any(Array)
+      );
+    });
+
+    consoleWarn.mockRestore();
   });
 
   it('handles cancelScan invocation and warning on cancelScan error', async () => {

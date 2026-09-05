@@ -50,3 +50,20 @@ export interface ScanProgress {
   total_file_bytes: number;
   elapsed_secs: number;
 }
+
+export interface KeyStats {
+  scanPath: string;
+  totalDriveBytes?: number;
+  totalDriveUsed?: number;
+  totalDriveFree?: number;
+  totalBytes: number;
+  totalFiles: number;
+  totalDirectories: number;
+  scanDurationMs?: number;
+}
+
+export interface DirNode {
+  name: string;
+  path: string;
+  size: number;
+}

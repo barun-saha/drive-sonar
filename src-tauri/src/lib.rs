@@ -54,8 +54,8 @@ pub struct TopFileNode {
 
 #[derive(Serialize)]
 pub struct BreadcrumbItem {
-  pub id: u32,
-  pub name: String,
+    pub id: u32,
+    pub name: String,
 }
 
 #[derive(Serialize)]
@@ -119,7 +119,10 @@ struct TopCandidate {
 impl Ord for TopCandidate {
     fn cmp(&self, other: &Self) -> Ordering {
         // Reverse size ordering for min-heap behavior, then deterministic id tiebreak
-        other.size.cmp(&self.size).then_with(|| self.id.cmp(&other.id))
+        other
+            .size
+            .cmp(&self.size)
+            .then_with(|| self.id.cmp(&other.id))
     }
 }
 
@@ -156,22 +159,43 @@ fn is_protected_path(path: &Path) -> bool {
 
         #[cfg(windows)]
         let blocked: &[&str] = &[
-            "windows", "system32", "syswow64", "program files",
-            "program files (x86)", "programdata", "recovery", "boot",
-            "$recycle.bin", "system volume information",
+            "windows",
+            "system32",
+            "syswow64",
+            "program files",
+            "program files (x86)",
+            "programdata",
+            "recovery",
+            "boot",
+            "$recycle.bin",
+            "system volume information",
         ];
 
         #[cfg(target_os = "macos")]
         let blocked: &[&str] = &[
-            "bin", "sbin", "usr", "etc", "lib",
-            "dev", "private", "system", "library", "cores", "volumes",
+            "bin", "sbin", "usr", "etc", "lib", "dev", "private", "system", "library", "cores",
+            "volumes",
         ];
 
         #[cfg(all(not(windows), not(target_os = "macos")))]
         let blocked: &[&str] = &[
-            "bin", "sbin", "usr", "etc", "lib", "lib64", "lib32",
-            "boot", "dev", "proc", "sys", "run", "tmp", "var",
-            "root", "snap", "lost+found",
+            "bin",
+            "sbin",
+            "usr",
+            "etc",
+            "lib",
+            "lib64",
+            "lib32",
+            "boot",
+            "dev",
+            "proc",
+            "sys",
+            "run",
+            "tmp",
+            "var",
+            "root",
+            "snap",
+            "lost+found",
         ];
 
         if blocked.contains(&name.as_str()) {
@@ -197,8 +221,9 @@ mod windows_scanner {
     use windows::Wdk::Storage::FileSystem::{FileDirectoryInformation, NtQueryDirectoryFileEx};
     use windows::Win32::Foundation::{CloseHandle, HANDLE, STATUS_NO_MORE_FILES, STATUS_SUCCESS};
     use windows::Win32::Storage::FileSystem::{
-        CreateFileW, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_REPARSE_POINT, FILE_FLAG_BACKUP_SEMANTICS,
-        FILE_LIST_DIRECTORY, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+        CreateFileW, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_REPARSE_POINT,
+        FILE_FLAG_BACKUP_SEMANTICS, FILE_LIST_DIRECTORY, FILE_SHARE_DELETE, FILE_SHARE_READ,
+        FILE_SHARE_WRITE, OPEN_EXISTING,
     };
     use windows::Win32::System::IO::IO_STATUS_BLOCK;
 
@@ -232,22 +257,37 @@ mod windows_scanner {
     struct HandleGuard(HANDLE);
     impl Drop for HandleGuard {
         fn drop(&mut self) {
-            if !self.0.is_invalid() { unsafe { let _ = CloseHandle(self.0); } }
+            if !self.0.is_invalid() {
+                unsafe {
+                    let _ = CloseHandle(self.0);
+                }
+            }
         }
     }
 
     /// Opens a directory handle configured for listing query operations on Windows.
     fn open_directory(path: &Path) -> io::Result<HandleGuard> {
-        let wide: Vec<u16> = path.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+        let wide: Vec<u16> = path
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
         let handle = unsafe {
             CreateFileW(
-                PCWSTR(wide.as_ptr()), FILE_LIST_DIRECTORY.0,
-                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, None,
-                OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, None,
+                PCWSTR(wide.as_ptr()),
+                FILE_LIST_DIRECTORY.0,
+                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                None,
+                OPEN_EXISTING,
+                FILE_FLAG_BACKUP_SEMANTICS,
+                None,
             )
-        }.map_err(|e| io::Error::from_raw_os_error(e.code().0))?;
+        }
+        .map_err(|e| io::Error::from_raw_os_error(e.code().0))?;
 
-        if handle.is_invalid() { return Err(io::Error::last_os_error()); }
+        if handle.is_invalid() {
+            return Err(io::Error::last_os_error());
+        }
         Ok(HandleGuard(handle))
     }
 
@@ -264,20 +304,32 @@ mod windows_scanner {
                 let mut iosb = IO_STATUS_BLOCK::default();
                 let status = unsafe {
                     NtQueryDirectoryFileEx(
-                        guard.0, None, None, None, &mut iosb,
-                        buffer.as_mut_ptr() as *mut c_void, buffer.len() as u32,
-                        FileDirectoryInformation, if restart_scan { 0x00000001 } else { 0 }, None,
+                        guard.0,
+                        None,
+                        None,
+                        None,
+                        &mut iosb,
+                        buffer.as_mut_ptr() as *mut c_void,
+                        buffer.len() as u32,
+                        FileDirectoryInformation,
+                        if restart_scan { 0x00000001 } else { 0 },
+                        None,
                     )
                 };
                 restart_scan = false;
 
-                if status == STATUS_NO_MORE_FILES { break; }
+                if status == STATUS_NO_MORE_FILES {
+                    break;
+                }
 
                 const STATUS_BUFFER_OVERFLOW: i32 = 0x80000005u32 as i32;
                 const STATUS_BUFFER_TOO_SMALL: i32 = 0xC0000023u32 as i32;
                 if status.0 == STATUS_BUFFER_OVERFLOW || status.0 == STATUS_BUFFER_TOO_SMALL {
                     if buffer.len() >= 16 * 1024 * 1024 {
-                        return Err(io::Error::new(io::ErrorKind::OutOfMemory, "Buffer overflow"));
+                        return Err(io::Error::new(
+                            io::ErrorKind::OutOfMemory,
+                            "Buffer overflow",
+                        ));
                     }
                     let new_len = buffer.len() * 2;
                     buffer.resize(new_len, 0);
@@ -285,10 +337,15 @@ mod windows_scanner {
                 }
 
                 if status != STATUS_SUCCESS {
-                    return Err(io::Error::other(format!("NTSTATUS failure: 0x{:08X}", status.0 as u32)));
+                    return Err(io::Error::other(format!(
+                        "NTSTATUS failure: 0x{:08X}",
+                        status.0 as u32
+                    )));
                 }
                 let bytes_returned = iosb.Information as usize;
-                if bytes_returned == 0 { break; }
+                if bytes_returned == 0 {
+                    break;
+                }
 
                 parse_entries(&buffer[..bytes_returned], &mut entries)?;
             }
@@ -305,13 +362,18 @@ mod windows_scanner {
         let mut offset = 0usize;
 
         loop {
-            if offset + HEADER_SIZE > buf.len() { break; }
-            let header_ptr = unsafe { buf.as_ptr().add(offset) as *const FileDirectoryInformationRaw };
+            if offset + HEADER_SIZE > buf.len() {
+                break;
+            }
+            let header_ptr =
+                unsafe { buf.as_ptr().add(offset) as *const FileDirectoryInformationRaw };
             let header = unsafe { std::ptr::read_unaligned(header_ptr) };
 
             let name_len = header.file_name_length as usize;
             let name_end = offset + HEADER_SIZE + name_len;
-            if name_end > buf.len() { break; }
+            if name_end > buf.len() {
+                break;
+            }
 
             // Decode UTF-16 directly from the byte-pair iterator: no intermediate
             // Vec<u16> allocation per entry (previously ~1 extra alloc/file).
@@ -334,11 +396,17 @@ mod windows_scanner {
                     size: header.end_of_file.max(0) as u64,
                     is_dir: header.file_attributes & FILE_ATTRIBUTE_DIRECTORY.0 != 0,
                     is_reparse_point: header.file_attributes & FILE_ATTRIBUTE_REPARSE_POINT.0 != 0,
-                    modified_secs: if tw >= 116_444_736_000_000_000 { (tw - 116_444_736_000_000_000) / 10_000_000 } else { 0 },
+                    modified_secs: if tw >= 116_444_736_000_000_000 {
+                        (tw - 116_444_736_000_000_000) / 10_000_000
+                    } else {
+                        0
+                    },
                 });
             }
 
-            if header.next_entry_offset == 0 { break; }
+            if header.next_entry_offset == 0 {
+                break;
+            }
             offset += header.next_entry_offset as usize;
         }
         Ok(())
@@ -358,10 +426,15 @@ fn standard_list_directory(path: &Path) -> std::io::Result<Vec<DirEntry>> {
 
         entries.push(DirEntry {
             name: entry.file_name().to_string_lossy().into_owned(),
-            size: if is_dir { 0 } else { meta.as_ref().map(|m| m.len()).unwrap_or(0) },
+            size: if is_dir {
+                0
+            } else {
+                meta.as_ref().map(|m| m.len()).unwrap_or(0)
+            },
             is_dir,
             is_reparse_point: is_symlink,
-            modified_secs: meta.as_ref()
+            modified_secs: meta
+                .as_ref()
                 .and_then(|m| m.modified().ok())
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|d| d.as_secs())
@@ -419,7 +492,9 @@ fn scan_dir_parallel(
         }
     };
 
-    if dir_entries.is_empty() { return Ok(()); }
+    if dir_entries.is_empty() {
+        return Ok(());
+    }
 
     // Single pass over dir_entries: build local_nodes and record which entries
     // are subdirectories (as (path, relative-index) pairs) at the same time.
@@ -493,22 +568,24 @@ fn scan_dir_parallel(
         .map(|(path, i)| (path, start_idx + i))
         .collect();
 
-    subdir_tasks.into_par_iter().try_for_each(|(child_path, child_id)| {
-        scan_dir_parallel(
-            &child_path,
-            child_id,
-            cancel_flag,
-            skipped_count,
-            depth_exceeded_count,
-            file_count,
-            dir_count,
-            root_file_count,
-            root_dir_count,
-            total_file_bytes,
-            shared_arena,
-            depth + 1,
-        )
-    })
+    subdir_tasks
+        .into_par_iter()
+        .try_for_each(|(child_path, child_id)| {
+            scan_dir_parallel(
+                &child_path,
+                child_id,
+                cancel_flag,
+                skipped_count,
+                depth_exceeded_count,
+                file_count,
+                dir_count,
+                root_file_count,
+                root_dir_count,
+                total_file_bytes,
+                shared_arena,
+                depth + 1,
+            )
+        })
 }
 
 /// Aggregates folder sizes throughout the arena using post-order DFS traversal and returns root size.
@@ -547,8 +624,12 @@ pub fn aggregate_node(root_id: u32, arena: &mut [DiskNode]) -> u64 {
 fn init_rayon_thread_pool() {
     static INIT: std::sync::Once = std::sync::Once::new();
     INIT.call_once(|| {
-        let cpus = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
-        let _ = rayon::ThreadPoolBuilder::new().num_threads(cpus.saturating_sub(1).max(1)).build_global();
+        let cpus = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(4);
+        let _ = rayon::ThreadPoolBuilder::new()
+            .num_threads(cpus.saturating_sub(1).max(1))
+            .build_global();
     });
 }
 
@@ -569,7 +650,9 @@ fn get_node_path(node_id: u32, arena: &[DiskNode]) -> String {
 
     parts.reverse();
     let mut path_buf = PathBuf::new();
-    for part in parts { path_buf.push(part); }
+    for part in parts {
+        path_buf.push(part);
+    }
     path_buf.to_string_lossy().into_owned()
 }
 
@@ -609,11 +692,17 @@ fn aggregate_subtree_stats(
                     entry.1 += 1;
 
                     if min_heap.len() < 30 {
-                        min_heap.push(TopCandidate { size: node.size, id: curr_child });
+                        min_heap.push(TopCandidate {
+                            size: node.size,
+                            id: curr_child,
+                        });
                     } else if let Some(smallest) = min_heap.peek() {
                         if node.size > smallest.size {
                             min_heap.pop();
-                            min_heap.push(TopCandidate { size: node.size, id: curr_child });
+                            min_heap.push(TopCandidate {
+                                size: node.size,
+                                id: curr_child,
+                            });
                         }
                     }
                 }
@@ -678,7 +767,11 @@ fn build_directory_payload(arena: &[DiskNode], node_id: u32) -> Result<Directory
                 is_dir: child.is_dir,
                 size: child.size,
                 modified_secs: child.modified_secs,
-                percentage_of_parent: if parent_size > 0.0 { (child.size as f32 / parent_size) * 100.0 } else { 0.0 },
+                percentage_of_parent: if parent_size > 0.0 {
+                    (child.size as f32 / parent_size) * 100.0
+                } else {
+                    0.0
+                },
             });
         }
         child_id = child.next_sibling;
@@ -694,12 +787,12 @@ fn build_directory_payload(arena: &[DiskNode], node_id: u32) -> Result<Directory
     let mut current_id = node_id;
 
     while current_id != u32::MAX {
-      let node = &arena[current_id as usize];
-      ancestors.push(BreadcrumbItem{
-        id: current_id,
-        name: node.name.to_string()
-      });
-      current_id = node.parent_id;
+        let node = &arena[current_id as usize];
+        ancestors.push(BreadcrumbItem {
+            id: current_id,
+            name: node.name.to_string(),
+        });
+        current_id = node.parent_id;
     }
     // Root first, current folder last
     ancestors.reverse();
@@ -707,7 +800,11 @@ fn build_directory_payload(arena: &[DiskNode], node_id: u32) -> Result<Directory
     Ok(DirectoryPayload {
         current_id: node_id,
         current_path,
-        parent_id: if node.parent_id == u32::MAX { None } else { Some(node.parent_id) },
+        parent_id: if node.parent_id == u32::MAX {
+            None
+        } else {
+            Some(node.parent_id)
+        },
         ancestors: ancestors,
         items,
         extension_stats,
@@ -779,7 +876,11 @@ const INITIAL_ARENA_CAPACITY: usize = 1 << 16; // 65,536 nodes
 
 /// Tauri command to initiate a parallel directory scan and construct the root payload.
 #[tauri::command]
-async fn scan_directory(app: tauri::AppHandle, target_path: String, state: State<'_, AppState>) -> Result<DirectoryPayload, String> {
+async fn scan_directory(
+    app: tauri::AppHandle,
+    target_path: String,
+    state: State<'_, AppState>,
+) -> Result<DirectoryPayload, String> {
     let scan_cancel_flag = {
         let mut guard = state.cancel_flag.lock().unwrap();
         guard.store(true, AtomicOrdering::Relaxed);
@@ -788,10 +889,15 @@ async fn scan_directory(app: tauri::AppHandle, target_path: String, state: State
         new_flag
     };
 
-    let canonical = Path::new(&target_path).canonicalize().map_err(|e| e.to_string())?;
+    let canonical = Path::new(&target_path)
+        .canonicalize()
+        .map_err(|e| e.to_string())?;
 
     let base_path_str = canonical.to_string_lossy();
-    let root_name = base_path_str.strip_prefix(r"\\?\").unwrap_or(&base_path_str).to_string();
+    let root_name = base_path_str
+        .strip_prefix(r"\\?\")
+        .unwrap_or(&base_path_str)
+        .to_string();
 
     let mut temp_arena = Vec::with_capacity(INITIAL_ARENA_CAPACITY);
     temp_arena.push(DiskNode {
@@ -841,7 +947,9 @@ async fn scan_directory(app: tauri::AppHandle, target_path: String, state: State
                 Ok(()) | Err(mpsc::RecvTimeoutError::Disconnected) => break,
                 Err(mpsc::RecvTimeoutError::Timeout) => {}
             }
-            if done_flag_emitter.load(AtomicOrdering::Relaxed) || cancel_flag_emitter.load(AtomicOrdering::Relaxed) {
+            if done_flag_emitter.load(AtomicOrdering::Relaxed)
+                || cancel_flag_emitter.load(AtomicOrdering::Relaxed)
+            {
                 break;
             }
             let _ = app_emitter.emit(
@@ -879,7 +987,8 @@ async fn scan_directory(app: tauri::AppHandle, target_path: String, state: State
         let mut final_arena = shared_arena.into_inner().unwrap();
         aggregate_node(0, &mut final_arena);
         Ok::<Vec<DiskNode>, String>(final_arena)
-    }).await;
+    })
+    .await;
 
     done_flag.store(true, AtomicOrdering::Relaxed);
     let _ = progress_done_sender.send(());
@@ -889,18 +998,27 @@ async fn scan_directory(app: tauri::AppHandle, target_path: String, state: State
         Ok(Ok(completed_arena)) => {
             let skipped = skipped_count.load(AtomicOrdering::Relaxed);
             if skipped > 0 {
-                let _ = app.emit("scan-warning", format!("{} location(s) were inaccessible and skipped.", skipped));
+                let _ = app.emit(
+                    "scan-warning",
+                    format!("{} location(s) were inaccessible and skipped.", skipped),
+                );
             }
             let depth_exceeded = depth_exceeded_count.load(AtomicOrdering::Relaxed);
             if depth_exceeded > 0 {
-                let _ = app.emit("scan-warning", format!("{} path(s) exceeded maximum scan depth limit (256).", depth_exceeded));
+                let _ = app.emit(
+                    "scan-warning",
+                    format!(
+                        "{} path(s) exceeded maximum scan depth limit (256).",
+                        depth_exceeded
+                    ),
+                );
             }
 
             let mut state_arena = state.arena.write().map_err(|_| "Failed to lock state")?;
             state_arena.nodes = completed_arena;
 
             build_directory_payload(&state_arena.nodes, 0)
-        },
+        }
         Ok(Err(e)) => Err(e),
         Err(e) => Err(format!("Task failed: {}", e)),
     }
@@ -908,7 +1026,10 @@ async fn scan_directory(app: tauri::AppHandle, target_path: String, state: State
 
 /// Tauri command to retrieve the directory payload for a given node ID in the arena tree.
 #[tauri::command]
-async fn open_directory(node_id: u32, state: State<'_, AppState>) -> Result<DirectoryPayload, String> {
+async fn open_directory(
+    node_id: u32,
+    state: State<'_, AppState>,
+) -> Result<DirectoryPayload, String> {
     let arena_arc = state.arena.clone();
     tokio::task::spawn_blocking(move || {
         let arena = arena_arc.read().map_err(|_| "Failed to lock state")?;
@@ -920,19 +1041,31 @@ async fn open_directory(node_id: u32, state: State<'_, AppState>) -> Result<Dire
 
 /// Tauri command to reveal a node in the native system file explorer.
 #[tauri::command]
-fn open_in_explorer(app: tauri::AppHandle, node_id: u32, state: State<'_, AppState>) -> Result<(), String> {
+fn open_in_explorer(
+    app: tauri::AppHandle,
+    node_id: u32,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let (path_str, is_dir) = {
         let arena = state.arena.read().map_err(|_| "Failed to lock state")?;
-        if node_id as usize >= arena.nodes.len() { return Err("Invalid ID".into()); }
+        if node_id as usize >= arena.nodes.len() {
+            return Err("Invalid ID".into());
+        }
         let node = &arena.nodes[node_id as usize];
-        if node.is_tombstoned { return Err("Node has been removed".into()); }
+        if node.is_tombstoned {
+            return Err("Node has been removed".into());
+        }
         (get_node_path(node_id, &arena.nodes), node.is_dir)
     };
 
     if is_dir {
-        app.opener().open_path(&path_str, None::<&str>).map_err(|e| e.to_string())?;
+        app.opener()
+            .open_path(&path_str, None::<&str>)
+            .map_err(|e| e.to_string())?;
     } else {
-        app.opener().reveal_item_in_dir(&path_str).map_err(|e| e.to_string())?;
+        app.opener()
+            .reveal_item_in_dir(&path_str)
+            .map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -942,15 +1075,22 @@ fn open_in_explorer(app: tauri::AppHandle, node_id: u32, state: State<'_, AppSta
 async fn move_to_trash(node_id: u32, state: State<'_, AppState>) -> Result<(), String> {
     let path_str = {
         let arena = state.arena.read().map_err(|_| "Failed to lock state")?;
-        if node_id as usize >= arena.nodes.len() { return Err("Invalid ID".into()); }
+        if node_id as usize >= arena.nodes.len() {
+            return Err("Invalid ID".into());
+        }
         let node = &arena.nodes[node_id as usize];
-        if node.is_tombstoned { return Err("Node has been removed".into()); }
+        if node.is_tombstoned {
+            return Err("Node has been removed".into());
+        }
         get_node_path(node_id, &arena.nodes)
     };
 
     let path = Path::new(&path_str);
     if is_protected_path(path) {
-        return Err(format!("Refusing to delete protected path: {}", path.display()));
+        return Err(format!(
+            "Refusing to delete protected path: {}",
+            path.display()
+        ));
     }
 
     let delete_path = path_str.clone();
@@ -976,22 +1116,38 @@ fn cancel_scan(state: State<'_, AppState>) {
 #[tauri::command]
 fn get_disk_info(path: String) -> Result<DiskInfo, String> {
     let p = Path::new(&path);
-    if !p.exists() { return Err(format!("Path does not exist: {}", path)); }
+    if !p.exists() {
+        return Err(format!("Path does not exist: {}", path));
+    }
 
     #[cfg(windows)]
     {
         use std::os::windows::ffi::OsStrExt;
-        let wide: Vec<u16> = p.as_os_str().encode_wide().chain(std::iter::once(0u16)).collect();
+        let wide: Vec<u16> = p
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0u16))
+            .collect();
         let mut free_caller: u64 = 0;
         let mut total: u64 = 0;
         let mut free_total: u64 = 0;
 
         let ok = unsafe {
-            GetDiskFreeSpaceExW(PCWSTR(wide.as_ptr()), Some(&mut free_caller), Some(&mut total), Some(&mut free_total))
+            GetDiskFreeSpaceExW(
+                PCWSTR(wide.as_ptr()),
+                Some(&mut free_caller),
+                Some(&mut total),
+                Some(&mut free_total),
+            )
         };
 
-        if ok.is_err() { return Err(format!("GetDiskFreeSpaceExW failed for '{}'", path)); }
-        return Ok(DiskInfo { total_bytes: total, free_bytes: free_caller });
+        if ok.is_err() {
+            return Err(format!("GetDiskFreeSpaceExW failed for '{}'", path));
+        }
+        return Ok(DiskInfo {
+            total_bytes: total,
+            free_bytes: free_caller,
+        });
     }
 
     #[cfg(not(windows))]
@@ -999,12 +1155,16 @@ fn get_disk_info(path: String) -> Result<DiskInfo, String> {
         use sysinfo::Disks;
         let disks = Disks::new_with_refreshed_list();
         let canonical = p.canonicalize().map_err(|e| e.to_string())?;
-        let best = disks.iter()
+        let best = disks
+            .iter()
             .filter(|d| canonical.starts_with(d.mount_point()))
             .max_by_key(|d| d.mount_point().as_os_str().len());
 
         match best {
-            Some(disk) => Ok(DiskInfo { total_bytes: disk.total_space(), free_bytes: disk.available_space() }),
+            Some(disk) => Ok(DiskInfo {
+                total_bytes: disk.total_space(),
+                free_bytes: disk.available_space(),
+            }),
             None => Err(format!("No mounted disk found for path '{}'", path)),
         }
     }
@@ -1014,6 +1174,7 @@ fn get_disk_info(path: String) -> Result<DiskInfo, String> {
 /// Builds and executes the main Tauri application instance.
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .manage(AppState {
             arena: Arc::new(RwLock::new(ArenaTree::default())),
             cancel_flag: Mutex::new(Arc::new(AtomicBool::new(false))),

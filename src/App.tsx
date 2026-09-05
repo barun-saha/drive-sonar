@@ -3,7 +3,7 @@ import { ActionIcon, Grid, Group, Stack, Container, Text, Title, Menu, Modal } f
 import { useMantineColorScheme, useComputedColorScheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { Notifications, notifications } from '@mantine/notifications';
-import { Menu as MenuIcon, HelpCircle, Info, Sun, Moon } from 'lucide-react';
+import { Menu as MenuIcon, HelpCircle, Info, Sun, Moon, Save } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { homeDir } from '@tauri-apps/api/path';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
@@ -12,10 +12,11 @@ import { listen } from '@tauri-apps/api/event';
 import { Toolbar } from './components/Toolbar';
 import { ItemList } from './components/ItemList';
 import { VisualizationPanel } from './components/VisualizationPanel';
+import { saveReportToTextFile } from './utils/exportReport';
 
 import '@mantine/notifications/styles.css';
 
-import { DirectoryPayload, DiskInfo, ScanProgress } from './types';
+import { DirectoryPayload, DiskInfo, ScanProgress, KeyStats, DirNode } from './types';
 
 export default function App() {
   const [targetPath, setTargetPath] = useState('');
@@ -25,6 +26,16 @@ export default function App() {
   const [diskInfo, setDiskInfo] = useState<DiskInfo | null>(null);
   const [scanPath, setScanPath] = useState<string>('');
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
+
+  // Store the root scan statistics and top-level structure specifically for report export
+  const [rootStats, setRootStats] = useState<{
+    totalBytes: number;
+    totalFiles: number;
+    totalDirectories: number;
+    topLevelDirs: DirNode[];
+    topFiles: NonNullable<DirectoryPayload['top_files']>;
+  } | null>(null);
+
   const scanGenerationRef = useRef(0);
   const activeScanGenerationRef = useRef<number | null>(null);
 
@@ -51,25 +62,18 @@ export default function App() {
         autoClose: 6000,
       });
     }).then((f) => {
-      if (disposed) {
-        f();
-      } else {
-        unlistenWarning = f;
-      }
+      if (disposed) f();
+      else unlistenWarning = f;
     });
 
-    // Listen for periodic scan progress updates streamed from backend
     listen<ScanProgress>('scan-progress', (event) => {
       const activeGeneration = activeScanGenerationRef.current;
       if (activeGeneration !== null && activeGeneration === scanGenerationRef.current) {
         setScanProgress(event.payload);
       }
     }).then((f) => {
-      if (disposed) {
-        f();
-      } else {
-        unlistenProgress = f;
-      }
+      if (disposed) f();
+      else unlistenProgress = f;
     });
 
     return () => {
@@ -130,7 +134,6 @@ export default function App() {
     const scanGeneration = ++scanGenerationRef.current;
     activeScanGenerationRef.current = scanGeneration;
 
-    // Sync state if triggered with a new path parameter from breadcrumbs
     if (pathOverride) {
       setTargetPath(pathOverride);
     }
@@ -141,6 +144,7 @@ export default function App() {
       setDiskInfo(null);
       setScanPath('');
       setScanProgress(null);
+      setRootStats(null);
 
       try {
         const di = await invoke<DiskInfo>('get_disk_info', { path });
@@ -156,6 +160,35 @@ export default function App() {
 
       setPayload(res);
       setScanTime(endTime - startTime);
+
+      // Compute and capture initial scan root stats before any navigation occurs
+      const sep = res.current_path.includes('\\') ? '\\' : '/';
+      let dirs = 0;
+      let files = 0;
+      let totalSize = 0;
+      const topLevelDirs: DirNode[] = [];
+
+      for (const item of res.items) {
+        if (item.is_dir) {
+          dirs++;
+          topLevelDirs.push({
+            name: item.name,
+            path: `${res.current_path}${res.current_path.endsWith(sep) ? '' : sep}${item.name}`,
+            size: item.size,
+          });
+        } else {
+          files++;
+        }
+        totalSize += item.size;
+      }
+
+      setRootStats({
+        totalBytes: totalSize,
+        totalFiles: files,
+        totalDirectories: dirs,
+        topLevelDirs,
+        topFiles: res.top_files ?? [],
+      });
     } catch (error) {
       notifications.show({
         title: 'Scan Failed',
@@ -186,8 +219,6 @@ export default function App() {
   }
 
   async function cancelScan() {
-    // Keep the scan active until scan_directory settles
-    // Let handleScan clear isScanning when its own invocation resolves or rejects
     try {
       await invoke('cancel_scan');
     } catch (error) {
@@ -209,6 +240,46 @@ export default function App() {
 
     return { dirCount: dirs, fileCount: files, currentViewSize: totalSize };
   }, [payload]);
+
+  // Handler for Exporting Report
+  const handleExportReport = async () => {
+    if (!payload || !rootStats) {
+      notifications.show({
+        title: 'No Data to Export',
+        message: 'Please run a scan before saving a report.',
+        color: 'yellow',
+      });
+      return;
+    }
+
+    // Report stats are always based on the target scan path, retrieved from saved rootStats
+    const stats: KeyStats = {
+      scanPath: scanPath,
+      totalBytes: rootStats.totalBytes,
+      totalFiles: rootStats.totalFiles,
+      totalDirectories: rootStats.totalDirectories,
+      scanDurationMs: scanTime ?? undefined,
+      totalDriveBytes: diskInfo?.total_bytes,
+      totalDriveUsed: diskInfo
+        ? diskInfo.total_bytes - diskInfo.free_bytes
+        : undefined,
+      totalDriveFree: diskInfo?.free_bytes,
+    };
+
+    const saved = await saveReportToTextFile(
+      stats,
+      rootStats.topLevelDirs,
+      rootStats.topFiles
+    );
+
+    if (saved) {
+      notifications.show({
+        title: 'Report Saved',
+        message: 'Scan report has been saved successfully.',
+        color: 'green',
+      });
+    }
+  };
 
   return (
     <>
@@ -310,10 +381,21 @@ export default function App() {
                   {computedColorScheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                 </Menu.Item>
                 <Menu.Divider />
+
+                <Menu.Item
+                  leftSection={<Save size={14} />}
+                  onClick={handleExportReport}
+                  disabled={!payload || isScanning}
+                >
+                  Save Report
+                </Menu.Item>
+                <Menu.Divider />
+
                 <Menu.Item leftSection={<HelpCircle size={14} />} onClick={openHelp}>
                   Help
                 </Menu.Item>
                 <Menu.Divider />
+
                 <Menu.Item leftSection={<Info size={14} />} onClick={openAbout}>
                   About Drive Sonar
                 </Menu.Item>

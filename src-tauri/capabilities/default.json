@@ -8,6 +8,16 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "fs:default",
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [
+        { "path": "$DESKTOP/*.txt" },
+        { "path": "$DOCUMENT/*.txt" },
+        { "path": "$DOWNLOAD/*.txt" }
+      ]
+    }
   ]
 }
