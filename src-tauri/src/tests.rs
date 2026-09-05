@@ -41,18 +41,16 @@ fn test_init_rayon_thread_pool() {
 #[test]
 fn test_aggregate_subtree_stats_large() {
     // Create tree with >30 files to exercise min_heap replacement branch
-    let mut arena = vec![
-        DiskNode {
-            name: "root".into(),
-            size: 0,
-            is_dir: true,
-            modified_secs: 100,
-            parent_id: u32::MAX,
-            first_child: 1,
-            next_sibling: u32::MAX,
-            is_tombstoned: false,
-        }
-    ];
+    let mut arena = vec![DiskNode {
+        name: "root".into(),
+        size: 0,
+        is_dir: true,
+        modified_secs: 100,
+        parent_id: u32::MAX,
+        first_child: 1,
+        next_sibling: u32::MAX,
+        is_tombstoned: false,
+    }];
 
     for i in 1..=40 {
         let next_sib = if i == 40 { u32::MAX } else { (i + 1) as u32 };
@@ -105,14 +103,18 @@ fn test_is_protected_path() {
     {
         assert!(is_protected_path(Path::new(r"C:\Windows\System32")));
         assert!(is_protected_path(Path::new(r"C:\Program Files\App")));
-        assert!(!is_protected_path(Path::new(r"C:\Users\Name\Documents\Projects\MyCode")));
+        assert!(!is_protected_path(Path::new(
+            r"C:\Users\Name\Documents\Projects\MyCode"
+        )));
     }
 
     #[cfg(target_os = "macos")]
     {
         assert!(is_protected_path(Path::new("/System/Library")));
         assert!(is_protected_path(Path::new("/usr/bin")));
-        assert!(!is_protected_path(Path::new("/Users/Name/Documents/Projects")));
+        assert!(!is_protected_path(Path::new(
+            "/Users/Name/Documents/Projects"
+        )));
     }
 
     #[cfg(all(not(windows), not(target_os = "macos")))]
@@ -196,7 +198,10 @@ fn test_arena_helpers_and_payload() {
     let path0 = get_node_path(0, &arena);
     assert_eq!(path0, "root");
     let path3 = get_node_path(3, &arena);
-    assert_eq!(Path::new(&path3), Path::new("root").join("folder1").join("file1.txt"));
+    assert_eq!(
+        Path::new(&path3),
+        Path::new("root").join("folder1").join("file1.txt")
+    );
 
     // Test aggregate_subtree_stats on root
     let (ext_stats, top_files) = aggregate_subtree_stats(&arena, 0);
@@ -420,7 +425,10 @@ fn test_scan_dir_parallel_edge_cases() {
 
     // 2. Symlink / Reparse point (if OS supports it)
     let file_path = root_path.join("real.txt");
-    File::create(&file_path).unwrap().write_all(b"data").unwrap();
+    File::create(&file_path)
+        .unwrap()
+        .write_all(b"data")
+        .unwrap();
 
     #[cfg(unix)]
     let symlink_path = root_path.join("link.txt");
