@@ -50,24 +50,24 @@ body {
   }
 }
 
-/* Wipes the treemap into view from top to bottom */
-.mantine-Treemap-root svg.recharts-surface {
+/* Wipes the treemap container into view from top to bottom */
+.mantine-Treemap-root {
   animation: wipe-down 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mantine-Treemap-root svg.recharts-surface {
+  .mantine-Treemap-root {
     animation: none;
   }
 }
 
 @keyframes wipe-down {
   0% {
-    clip-path: inset(0 0 100% 0); /* Clipped at top */
+    clip-path: inset(0 0 100% 0);
     opacity: 0.3;
   }
   100% {
-    clip-path: inset(0 0 0 0);    /* Fully revealed */
+    clip-path: none; /* Clears clip-path context so hover tooltips work properly */
     opacity: 1;
   }
 }
