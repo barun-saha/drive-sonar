@@ -90,7 +90,7 @@ export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
                       {item.extension}
                     </Text>
                     <Text size="sm" fw={500} c="dimmed">
-                      Size: {formatBytes(item.rawBytes)} ({item.sizeMB} MB)
+                      Size: {formatBytes(item.rawBytes)}
                     </Text>
                     <Text size="xs" c="dimmed">
                       Files: {item.fileCount.toLocaleString()}
