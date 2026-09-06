@@ -1,0 +1,19 @@
+name: drivesonar
+base: core22
+version: '0.8.1'
+summary: Fast disk usage analyzer
+description: |
+  Drive Sonar is a fast, low-memory disk usage scanner built with Rust and Tauri.
+grade: devel
+confinement: strict
+
+apps:
+  drivesonar:
+    command: usr/bin/drivesonar
+    extensions: [gnome]
+    plugs: [home, removable-media]
+
+parts:
+  drivesonar:
+    plugin: dump
+    source: snap/extracted
