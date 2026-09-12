@@ -144,6 +144,14 @@ To create a new release:
    ```
 4. **Publish Release:** Pushing the `v*` tag triggers the GitHub Actions workflow, building binaries across platforms and creating a draft release on GitHub. Review and publish the draft.
 
+
+## Blogs and Videos
+
+Find out more about Drive Sonar:
+
+- [WinDirStat vs WizTree vs Drive Sonar: Which Free Disk Space Analyzer Should You Use in 2026?](https://dev.to/barun_saha/windirstat-vs-wiztree-vs-drive-sonar-which-free-disk-space-analyzer-should-you-use-in-2026-56lo)
+
+
 ## 📜 License
 
 Drive Sonar is open-source software, released under the Apache 2.0 license.
