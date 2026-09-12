@@ -158,6 +158,24 @@ describe('ItemList', () => {
     });
   });
 
+  it('rescans instead of navigating when trashing detects stale arena state', async () => {
+    vi.mocked(invoke).mockResolvedValue(true);
+    const onNavigate = vi.fn();
+    const onRefresh = vi.fn();
+
+    renderWithMantine(
+      <ItemList payload={mockPayload} onNavigate={onNavigate} onRefresh={onRefresh} />
+    );
+
+    fireEvent.click(screen.getAllByTitle('Move to Trash')[0]);
+    fireEvent.click(await screen.findByText('Move to Trash'));
+
+    await waitFor(() => {
+      expect(onRefresh).toHaveBeenCalledOnce();
+      expect(onNavigate).not.toHaveBeenCalled();
+    });
+  });
+
   it('triggers scroll event on viewport', () => {
     const { container } = renderWithMantine(
       <ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />

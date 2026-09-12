@@ -530,4 +530,60 @@ describe('App', () => {
       expect(screen.getByRole('button', { name: 'Run Scan' })).toBeInTheDocument();
     });
   });
+
+  it('does not apply a scan response after a newer breadcrumb rescan starts', async () => {
+    let resolveOlderScan: ((value: any) => void) | null = null;
+    let resolveNewerScan: ((value: any) => void) | null = null;
+    const olderScan = new Promise((resolve) => { resolveOlderScan = resolve; });
+    const newerScan = new Promise((resolve) => { resolveNewerScan = resolve; });
+    let scanCount = 0;
+
+    const payload = (currentPath: string, itemName: string) => ({
+      current_id: 0,
+      current_path: currentPath,
+      parent_id: null,
+      ancestors: [{ id: 0, name: '/Users/testuser/projects' }],
+      items: [{
+        id: 1,
+        name: itemName,
+        is_dir: false,
+        size: 1,
+        modified_secs: 0,
+        percentage_of_parent: 100,
+      }],
+      extension_stats: [],
+      top_files: [],
+      total_scanned_items: 1,
+    });
+
+    vi.mocked(invoke).mockImplementation(async (cmd) => {
+      if (cmd === 'get_disk_info') return { total_bytes: 100, free_bytes: 50 };
+      if (cmd === 'scan_directory') {
+        scanCount += 1;
+        if (scanCount === 1) return payload('/Users/testuser', 'Initial result');
+        if (scanCount === 2) return olderScan;
+        return newerScan;
+      }
+      return null;
+    });
+
+    renderApp();
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Select a target directory to scan...')).toHaveValue('/Users/testuser');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Run Scan' }));
+    expect(await screen.findByText('Initial result')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Users'));
+    await waitFor(() => expect(scanCount).toBe(2));
+    fireEvent.click(screen.getByText('testuser'));
+    await waitFor(() => expect(scanCount).toBe(3));
+
+    resolveNewerScan!(payload('/Users/testuser', 'Newer result'));
+    expect(await screen.findByText('Newer result')).toBeInTheDocument();
+
+    resolveOlderScan!(payload('/Users', 'Stale result'));
+    await waitFor(() => expect(screen.queryByText('Stale result')).not.toBeInTheDocument());
+    expect(screen.getByText('Newer result')).toBeInTheDocument();
+  });
 });

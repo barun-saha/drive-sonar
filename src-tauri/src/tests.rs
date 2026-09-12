@@ -1,6 +1,14 @@
 use super::*;
+use crate::commands::disk::get_disk_info;
+use crate::models::*;
+use crate::scanner::*;
+use crate::tree::*;
+use std::cmp::Ordering;
 use std::fs::{self, File};
 use std::io::Write;
+use std::path::Path;
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering as AtomicOrdering};
+use std::sync::{Arc, Mutex, RwLock};
 use tempfile::tempdir;
 
 #[test]
@@ -43,6 +51,7 @@ fn test_aggregate_subtree_stats_large() {
     // Create tree with >30 files to exercise min_heap replacement branch
     let mut arena = vec![DiskNode {
         name: "root".into(),
+        native_name: "root".into(),
         size: 0,
         is_dir: true,
         modified_secs: 100,
@@ -56,6 +65,7 @@ fn test_aggregate_subtree_stats_large() {
         let next_sib = if i == 40 { u32::MAX } else { (i + 1) as u32 };
         arena.push(DiskNode {
             name: format!("file_{}.dat", i).into_boxed_str(),
+            native_name: format!("file_{}.dat", i).into(),
             size: i * 10,
             is_dir: false,
             modified_secs: 100,
@@ -139,6 +149,7 @@ fn test_arena_helpers_and_payload() {
     let mut arena = vec![
         DiskNode {
             name: "root".into(),
+            native_name: "root".into(),
             size: 0,
             is_dir: true,
             modified_secs: 100,
@@ -149,6 +160,7 @@ fn test_arena_helpers_and_payload() {
         },
         DiskNode {
             name: "folder1".into(),
+            native_name: "folder1".into(),
             size: 0,
             is_dir: true,
             modified_secs: 100,
@@ -159,6 +171,7 @@ fn test_arena_helpers_and_payload() {
         },
         DiskNode {
             name: "file3.txt".into(),
+            native_name: "file3.txt".into(),
             size: 50,
             is_dir: false,
             modified_secs: 100,
@@ -169,6 +182,7 @@ fn test_arena_helpers_and_payload() {
         },
         DiskNode {
             name: "file1.txt".into(),
+            native_name: "file1.txt".into(),
             size: 100,
             is_dir: false,
             modified_secs: 100,
@@ -179,6 +193,7 @@ fn test_arena_helpers_and_payload() {
         },
         DiskNode {
             name: "file2.pdf".into(),
+            native_name: "file2.pdf".into(),
             size: 200,
             is_dir: false,
             modified_secs: 100,
@@ -198,10 +213,7 @@ fn test_arena_helpers_and_payload() {
     let path0 = get_node_path(0, &arena);
     assert_eq!(path0, "root");
     let path3 = get_node_path(3, &arena);
-    assert_eq!(
-        Path::new(&path3),
-        Path::new("root").join("folder1").join("file1.txt")
-    );
+    assert_eq!(path3, Path::new("root").join("folder1").join("file1.txt"));
 
     // Test aggregate_subtree_stats on root
     let (ext_stats, top_files) = aggregate_subtree_stats(&arena, 0);
@@ -229,82 +241,96 @@ fn test_arena_helpers_and_payload() {
 
 #[test]
 fn test_remove_node_from_tree() {
-    let mut arena = vec![
-        DiskNode {
-            name: "root".into(),
-            size: 350,
-            is_dir: true,
-            modified_secs: 100,
-            parent_id: u32::MAX,
-            first_child: 1,
-            next_sibling: u32::MAX,
-            is_tombstoned: false,
-        },
-        DiskNode {
-            name: "folder1".into(),
-            size: 300,
-            is_dir: true,
-            modified_secs: 100,
-            parent_id: 0,
-            first_child: 3,
-            next_sibling: 2,
-            is_tombstoned: false,
-        },
-        DiskNode {
-            name: "file3.txt".into(),
-            size: 50,
-            is_dir: false,
-            modified_secs: 100,
-            parent_id: 0,
-            first_child: u32::MAX,
-            next_sibling: u32::MAX,
-            is_tombstoned: false,
-        },
-        DiskNode {
-            name: "file1.txt".into(),
-            size: 100,
-            is_dir: false,
-            modified_secs: 100,
-            parent_id: 1,
-            first_child: u32::MAX,
-            next_sibling: 4,
-            is_tombstoned: false,
-        },
-        DiskNode {
-            name: "file2.pdf".into(),
-            size: 200,
-            is_dir: false,
-            modified_secs: 100,
-            parent_id: 1,
-            first_child: u32::MAX,
-            next_sibling: u32::MAX,
-            is_tombstoned: false,
-        },
-    ];
+    let mut arena = ArenaTree {
+        generation: 7,
+        nodes: vec![
+            DiskNode {
+                name: "root".into(),
+                native_name: "root".into(),
+                size: 350,
+                is_dir: true,
+                modified_secs: 100,
+                parent_id: u32::MAX,
+                first_child: 1,
+                next_sibling: u32::MAX,
+                is_tombstoned: false,
+            },
+            DiskNode {
+                name: "folder1".into(),
+                native_name: "folder1".into(),
+                size: 300,
+                is_dir: true,
+                modified_secs: 100,
+                parent_id: 0,
+                first_child: 3,
+                next_sibling: 2,
+                is_tombstoned: false,
+            },
+            DiskNode {
+                name: "file3.txt".into(),
+                native_name: "file3.txt".into(),
+                size: 50,
+                is_dir: false,
+                modified_secs: 100,
+                parent_id: 0,
+                first_child: u32::MAX,
+                next_sibling: u32::MAX,
+                is_tombstoned: false,
+            },
+            DiskNode {
+                name: "file1.txt".into(),
+                native_name: "file1.txt".into(),
+                size: 100,
+                is_dir: false,
+                modified_secs: 100,
+                parent_id: 1,
+                first_child: u32::MAX,
+                next_sibling: 4,
+                is_tombstoned: false,
+            },
+            DiskNode {
+                name: "file2.pdf".into(),
+                native_name: "file2.pdf".into(),
+                size: 200,
+                is_dir: false,
+                modified_secs: 100,
+                parent_id: 1,
+                first_child: u32::MAX,
+                next_sibling: u32::MAX,
+                is_tombstoned: false,
+            },
+        ],
+    };
 
     // Remove folder1 (id 1)
-    remove_node_from_tree(1, &mut arena);
+    remove_node_from_tree(1, 7, Path::new("root/folder1"), &mut arena).unwrap();
 
     // Root first_child should now point to file3.txt (id 2)
-    assert_eq!(arena[0].first_child, 2);
+    assert_eq!(arena.nodes[0].first_child, 2);
     // Root size updated: 350 - 300 = 50
-    assert_eq!(arena[0].size, 50);
+    assert_eq!(arena.nodes[0].size, 50);
 
     // Nodes 1, 3, 4 should be tombstoned
-    assert!(arena[1].is_tombstoned);
-    assert!(arena[3].is_tombstoned);
-    assert!(arena[4].is_tombstoned);
+    assert!(arena.nodes[1].is_tombstoned);
+    assert!(arena.nodes[3].is_tombstoned);
+    assert!(arena.nodes[4].is_tombstoned);
 
     // Building payload on tombstoned node fails
-    assert!(build_directory_payload(&arena, 1).is_err());
+    assert!(build_directory_payload(&arena.nodes, 1).is_err());
 
     // Payload on root only includes non-tombstoned children
-    let root_payload = build_directory_payload(&arena, 0).unwrap();
+    let root_payload = build_directory_payload(&arena.nodes, 0).unwrap();
     assert_eq!(root_payload.items.len(), 1);
     assert_eq!(root_payload.items[0].name, "file3.txt");
 
     // Removing non-existent node doesn't panic
-    remove_node_from_tree(99, &mut arena);
+    assert!(remove_node_from_tree(99, 7, Path::new("missing"), &mut arena).is_err());
+
+    // A reused ID from a newer scan, or a node at a different path within the
+    // same generation, must never be unlinked.
+    assert!(remove_node_from_tree(2, 8, Path::new("root/file3.txt"), &mut arena).is_err());
+    assert!(remove_node_from_tree(2, 7, Path::new("root/other.txt"), &mut arena).is_err());
+    assert!(!arena.nodes[2].is_tombstoned);
 }
 
 #[test]
@@ -338,6 +364,7 @@ fn test_scan_dir_parallel() {
     let total_file_bytes = AtomicU64::new(0);
     let shared_arena = Mutex::new(vec![DiskNode {
         name: root_path.to_string_lossy().into_owned().into_boxed_str(),
+        native_name: root_path.as_os_str().to_owned(),
         size: 0,
         is_dir: true,
         modified_secs: 0,
@@ -435,6 +462,16 @@ fn test_scan_dir_parallel_edge_cases() {
     #[cfg(unix)]
     let _ = std::os::unix::fs::symlink(&file_path, &symlink_path);
 
+    #[cfg(unix)]
+    let non_utf_path = {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
+
+        let path = root_path.join(OsString::from_vec(b"native-\xFF-name".to_vec()));
+        File::create(&path).unwrap();
+        path
+    };
+
     let cancel_flag = AtomicBool::new(false);
     let skipped_count = AtomicUsize::new(0);
     let depth_exceeded_count = AtomicUsize::new(0);
@@ -445,6 +482,7 @@ fn test_scan_dir_parallel_edge_cases() {
     let total_file_bytes = AtomicU64::new(0);
     let shared_arena = Mutex::new(vec![DiskNode {
         name: root_path.to_string_lossy().into_owned().into_boxed_str(),
+        native_name: root_path.as_os_str().to_owned(),
         size: 0,
         is_dir: true,
         modified_secs: 0,
@@ -469,6 +507,15 @@ fn test_scan_dir_parallel_edge_cases() {
         0,
     );
     assert!(res.is_ok());
+
+    #[cfg(unix)]
+    {
+        let arena = shared_arena.lock().unwrap();
+        assert!(arena
+            .iter()
+            .enumerate()
+            .any(|(id, _)| get_node_path(id as u32, &arena) == non_utf_path));
+    }
 
     // 3. Non-existent path causes skipped_count increment
     let non_existent = root_path.join("does_not_exist");
@@ -495,6 +542,7 @@ fn test_cancel_scan_logic() {
     let state = AppState {
         arena: Arc::new(RwLock::new(ArenaTree::default())),
         cancel_flag: Mutex::new(Arc::new(AtomicBool::new(false))),
+        scan_generation: AtomicU64::new(0),
     };
     let flag = state.cancel_flag.lock().unwrap().clone();
     assert!(!flag.load(AtomicOrdering::Relaxed));
