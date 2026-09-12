@@ -3,7 +3,6 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:  # Temporary testing
 jobs:
   publish-tauri:
     permissions:
@@ -47,12 +46,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # Temporarily disable release for testing
-          # tagName: v__VERSION__ # Uses version specified in src-tauri/tauri.conf.json
-          # releaseName: 'Drive Sonar v__VERSION__'
-          # releaseBody: 'See below for platform installation binaries.'
-          # releaseDraft: true
-          # prerelease: false
+          tagName: v__VERSION__ # Uses version specified in src-tauri/tauri.conf.json
+          releaseName: 'Drive Sonar v__VERSION__'
+          releaseBody: 'See below for platform installation binaries.'
+          releaseDraft: true
+          prerelease: false
           args: ${{ matrix.args }}
 
       - name: Extract .deb for snap packaging
@@ -61,7 +59,7 @@ jobs:
           DEB_PATH=$(echo '${{ steps.tauri-build.outputs.artifactPaths }}' | jq -r '.[] | select(endswith(".deb"))')
           echo "Using deb: $DEB_PATH"
           mkdir -p snap/extracted
-          dpkg-deb -x "$DEB_PATH" snap/extracted
+          dpkg-deb -R "$DEB_PATH" snap/extracted
 
       - name: Build snap
         if: matrix.platform == 'ubuntu-22.04'
