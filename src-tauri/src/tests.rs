@@ -7,6 +7,7 @@ use std::cmp::Ordering;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::{Arc, Mutex, RwLock};
 use tempfile::tempdir;
@@ -51,7 +52,6 @@ fn test_aggregate_subtree_stats_large() {
     // Create tree with >30 files to exercise min_heap replacement branch
     let mut arena = vec![DiskNode {
         name: "root".into(),
-        native_name: "root".into(),
         size: 0,
         is_dir: true,
         modified_secs: 100,
@@ -65,7 +65,6 @@ fn test_aggregate_subtree_stats_large() {
         let next_sib = if i == 40 { u32::MAX } else { (i + 1) as u32 };
         arena.push(DiskNode {
             name: format!("file_{}.dat", i).into_boxed_str(),
-            native_name: format!("file_{}.dat", i).into(),
             size: i * 10,
             is_dir: false,
             modified_secs: 100,
@@ -149,7 +148,6 @@ fn test_arena_helpers_and_payload() {
     let mut arena = vec![
         DiskNode {
             name: "root".into(),
-            native_name: "root".into(),
             size: 0,
             is_dir: true,
             modified_secs: 100,
@@ -160,7 +158,6 @@ fn test_arena_helpers_and_payload() {
         },
         DiskNode {
             name: "folder1".into(),
-            native_name: "folder1".into(),
             size: 0,
             is_dir: true,
             modified_secs: 100,
@@ -171,7 +168,6 @@ fn test_arena_helpers_and_payload() {
         },
         DiskNode {
             name: "file3.txt".into(),
-            native_name: "file3.txt".into(),
             size: 50,
             is_dir: false,
             modified_secs: 100,
@@ -182,7 +178,6 @@ fn test_arena_helpers_and_payload() {
         },
         DiskNode {
             name: "file1.txt".into(),
-            native_name: "file1.txt".into(),
             size: 100,
             is_dir: false,
             modified_secs: 100,
@@ -193,7 +188,6 @@ fn test_arena_helpers_and_payload() {
         },
         DiskNode {
             name: "file2.pdf".into(),
-            native_name: "file2.pdf".into(),
             size: 200,
             is_dir: false,
             modified_secs: 100,
@@ -211,7 +205,7 @@ fn test_arena_helpers_and_payload() {
 
     // Test get_node_path
     let path0 = get_node_path(0, &arena);
-    assert_eq!(path0, "root");
+    assert_eq!(path0, PathBuf::from("root"));
     let path3 = get_node_path(3, &arena);
     assert_eq!(path3, Path::new("root").join("folder1").join("file1.txt"));
 
@@ -246,7 +240,6 @@ fn test_remove_node_from_tree() {
         nodes: vec![
             DiskNode {
                 name: "root".into(),
-                native_name: "root".into(),
                 size: 350,
                 is_dir: true,
                 modified_secs: 100,
@@ -257,7 +250,6 @@ fn test_remove_node_from_tree() {
             },
             DiskNode {
                 name: "folder1".into(),
-                native_name: "folder1".into(),
                 size: 300,
                 is_dir: true,
                 modified_secs: 100,
@@ -268,7 +260,6 @@ fn test_remove_node_from_tree() {
             },
             DiskNode {
                 name: "file3.txt".into(),
-                native_name: "file3.txt".into(),
                 size: 50,
                 is_dir: false,
                 modified_secs: 100,
@@ -279,7 +270,6 @@ fn test_remove_node_from_tree() {
             },
             DiskNode {
                 name: "file1.txt".into(),
-                native_name: "file1.txt".into(),
                 size: 100,
                 is_dir: false,
                 modified_secs: 100,
@@ -290,7 +280,6 @@ fn test_remove_node_from_tree() {
             },
             DiskNode {
                 name: "file2.pdf".into(),
-                native_name: "file2.pdf".into(),
                 size: 200,
                 is_dir: false,
                 modified_secs: 100,
@@ -364,7 +353,6 @@ fn test_scan_dir_parallel() {
     let total_file_bytes = AtomicU64::new(0);
     let shared_arena = Mutex::new(vec![DiskNode {
         name: root_path.to_string_lossy().into_owned().into_boxed_str(),
-        native_name: root_path.as_os_str().to_owned(),
         size: 0,
         is_dir: true,
         modified_secs: 0,
@@ -482,7 +470,6 @@ fn test_scan_dir_parallel_edge_cases() {
     let total_file_bytes = AtomicU64::new(0);
     let shared_arena = Mutex::new(vec![DiskNode {
         name: root_path.to_string_lossy().into_owned().into_boxed_str(),
-        native_name: root_path.as_os_str().to_owned(),
         size: 0,
         is_dir: true,
         modified_secs: 0,

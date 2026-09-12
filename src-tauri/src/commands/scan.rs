@@ -52,7 +52,6 @@ pub async fn scan_directory(
     let mut temp_arena = Vec::with_capacity(INITIAL_ARENA_CAPACITY);
     temp_arena.push(DiskNode {
         name: root_name.into_boxed_str(),
-        native_name: canonical.as_os_str().to_owned(),
         size: 0,
         is_dir: true,
         modified_secs: 0,

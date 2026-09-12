@@ -19,11 +19,8 @@ pub fn list_directory(path: &Path) -> std::io::Result<Vec<DirEntry>> {
         let is_dir = file_type.is_dir();
         let is_symlink = file_type.is_symlink();
         let meta = entry.metadata().ok();
-        let native_name = entry.file_name();
-
         entries.push(DirEntry {
-            name: native_name.to_string_lossy().into_owned(),
-            native_name,
+            name: entry.file_name().to_string_lossy().into_owned(),
             size: if is_dir {
                 0
             } else {
