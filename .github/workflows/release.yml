@@ -13,7 +13,7 @@ jobs:
         include:
           - platform: 'windows-latest'
             args: ''
-          - platform: 'ubuntu-22.04'
+          - platform: 'ubuntu-24.04'
             args: ''
           - platform: 'ubuntu-24.04-arm'
             args: ''
@@ -54,7 +54,7 @@ jobs:
           args: ${{ matrix.args }}
 
       - name: Extract .deb for snap packaging
-        if: matrix.platform == 'ubuntu-22.04'
+        if: startsWith(matrix.platform, 'ubuntu-24.04')
         run: |
           DEB_PATH=$(echo '${{ steps.tauri-build.outputs.artifactPaths }}' | jq -r '.[] | select(endswith(".deb"))')
           echo "Using deb: $DEB_PATH"
@@ -62,12 +62,12 @@ jobs:
           dpkg-deb -R "$DEB_PATH" snap/extracted
 
       - name: Build snap
-        if: matrix.platform == 'ubuntu-22.04'
+        if: startsWith(matrix.platform, 'ubuntu-24.04')
         id: snapcraft-build
         uses: snapcore/action-build@v1
 
       - name: Publish snap to Snap Store
-        if: matrix.platform == 'ubuntu-22.04'
+        if: startsWith(matrix.platform, 'ubuntu-24.04')
         uses: snapcore/action-publish@v1
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}

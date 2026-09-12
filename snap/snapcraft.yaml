@@ -1,5 +1,5 @@
 name: drivesonar
-base: core22
+base: core24
 adopt-info: drivesonar
 license: Apache-2.0
 icon: snap/gui/icon.png
@@ -30,6 +30,10 @@ apps:
     command: usr/bin/drivesonar
     extensions: [gnome]
     plugs: [home, removable-media]
+
+platforms:
+  amd64:
+  arm64:
 
 parts:
   drivesonar:
