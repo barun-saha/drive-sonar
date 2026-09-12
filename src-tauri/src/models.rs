@@ -2,16 +2,18 @@
 
 use serde::Serialize;
 use std::cmp::Ordering;
-use std::sync::atomic::AtomicBool;
+use std::ffi::OsString;
+use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::{Arc, Mutex, RwLock};
 
 // -----------------------------------------------------------------------------
 // Data Structures: Arena Tree & Payloads
 // -----------------------------------------------------------------------------
 
-#[derive(Clone, Serialize)]
+#[derive(Clone)]
 pub struct DiskNode {
     pub name: Box<str>,
+    pub native_name: OsString,
     pub size: u64,
     pub is_dir: bool,
     pub modified_secs: u64,
@@ -24,6 +26,7 @@ pub struct DiskNode {
 #[derive(Default)]
 pub struct ArenaTree {
     pub nodes: Vec<DiskNode>,
+    pub generation: u64,
 }
 
 #[derive(Serialize)]
@@ -89,11 +92,13 @@ pub struct ScanProgress {
 pub struct AppState {
     pub arena: Arc<RwLock<ArenaTree>>,
     pub cancel_flag: Mutex<Arc<AtomicBool>>,
+    pub scan_generation: AtomicU64,
 }
 
 #[derive(Clone)]
 pub struct DirEntry {
     pub name: String,
+    pub native_name: OsString,
     pub size: u64,
     pub is_dir: bool,
     pub is_reparse_point: bool,

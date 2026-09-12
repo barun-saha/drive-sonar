@@ -81,8 +81,8 @@ pub fn scan_dir_parallel(
 
     // Single pass over dir_entries: build local_nodes and record which entries
     // are subdirectories (as (path, relative-index) pairs) at the same time.
-    // entry.name is moved directly into the node (no clone) — the path join for
-    // subdirectories happens first, borrowing the name, before it's moved.
+    // Native path components are retained so filesystem operations never need
+    // to reconstruct identity from the lossy display name.
     let mut local_nodes: Vec<DiskNode> = Vec::with_capacity(dir_entries.len());
     let mut subdir_relative: Vec<(PathBuf, u32)> = Vec::new();
     let mut local_files: usize = 0;
@@ -92,7 +92,7 @@ pub fn scan_dir_parallel(
     for (i, entry) in dir_entries.into_iter().enumerate() {
         let is_subdir = entry.is_dir && !entry.is_reparse_point;
         if is_subdir {
-            subdir_relative.push((dir_path.join(&entry.name), i as u32));
+            subdir_relative.push((dir_path.join(&entry.native_name), i as u32));
         }
 
         if entry.is_dir {
@@ -104,6 +104,7 @@ pub fn scan_dir_parallel(
 
         local_nodes.push(DiskNode {
             name: entry.name.into_boxed_str(),
+            native_name: entry.native_name,
             size: entry.size,
             is_dir: entry.is_dir,
             modified_secs: entry.modified_secs,

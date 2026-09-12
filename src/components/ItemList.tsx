@@ -59,7 +59,7 @@ export function ItemList({ payload, onNavigate, onRefresh }: ItemListProps) {
   const handleDelete = (item: UiDiskNode) => {
     const executeDelete = async () => {
       try {
-        await invoke('move_to_trash', { nodeId: item.id });
+        const rescanRequired = await invoke<boolean>('move_to_trash', { nodeId: item.id });
 
         notifications.show({
           title: 'Success',
@@ -67,7 +67,9 @@ export function ItemList({ payload, onNavigate, onRefresh }: ItemListProps) {
           color: 'green'
         });
 
-        if (payload?.current_id !== undefined) {
+        if (rescanRequired) {
+          onRefresh();
+        } else if (payload?.current_id !== undefined) {
           onNavigate(payload.current_id);
         } else {
           onRefresh();

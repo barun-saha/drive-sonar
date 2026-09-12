@@ -110,23 +110,23 @@ pub fn aggregate_node(root_id: u32, arena: &mut [DiskNode]) -> u64 {
     arena[root_id as usize].size
 }
 
-/// Reconstructs the absolute file system path for a given node by traversing upward through parent links.
-pub fn get_node_path(node_id: u32, arena: &[DiskNode]) -> String {
+/// Reconstructs the native path from the original OS-native components captured during scanning.
+pub fn get_node_path(node_id: u32, arena: &[DiskNode]) -> PathBuf {
     let mut parts = Vec::new();
     let mut current_id = node_id;
 
     while current_id != u32::MAX {
         let node = &arena[current_id as usize];
-        parts.push(node.name.as_ref());
+        parts.push(node.native_name.as_os_str());
         current_id = node.parent_id;
     }
 
     parts.reverse();
-    let mut path_buf = PathBuf::new();
+    let mut path = PathBuf::new();
     for part in parts {
-        path_buf.push(part);
+        path.push(part);
     }
-    path_buf.to_string_lossy().into_owned()
+    path
 }
 
 /// Helper function to parse and isolate a lowercased extension string from a file name.
@@ -206,7 +206,7 @@ pub fn aggregate_subtree_stats(
                 name: n.name.to_string(),
                 size: n.size,
                 modified_secs: n.modified_secs,
-                path: get_node_path(cand.id, arena),
+                path: get_node_path(cand.id, arena).to_string_lossy().into_owned(),
             }
         })
         .collect();
@@ -215,7 +215,10 @@ pub fn aggregate_subtree_stats(
 }
 
 /// Builds a complete `DirectoryPayload` containing UI node lists, ancestors, and aggregated stats for a node.
-pub fn build_directory_payload(arena: &[DiskNode], node_id: u32) -> Result<DirectoryPayload, String> {
+pub fn build_directory_payload(
+    arena: &[DiskNode],
+    node_id: u32,
+) -> Result<DirectoryPayload, String> {
     if node_id as usize >= arena.len() {
         return Err("Invalid node ID".into());
     }
@@ -225,7 +228,7 @@ pub fn build_directory_payload(arena: &[DiskNode], node_id: u32) -> Result<Direc
         return Err("Node has been removed".into());
     }
 
-    let current_path = get_node_path(node_id, arena);
+    let current_path = get_node_path(node_id, arena).to_string_lossy().into_owned();
     let parent_size = node.size as f32;
 
     let mut items = Vec::new();
@@ -287,52 +290,66 @@ pub fn build_directory_payload(arena: &[DiskNode], node_id: u32) -> Result<Direc
 }
 
 /// Unlinks a node from its parent's sibling chain, adjusts ancestor sizes, and marks descendants as tombstoned.
-pub fn remove_node_from_tree(node_id: u32, arena: &mut [DiskNode]) {
-    if node_id as usize >= arena.len() {
-        return;
+pub fn remove_node_from_tree(
+    node_id: u32,
+    expected_generation: u64,
+    expected_path: &Path,
+    arena: &mut crate::models::ArenaTree,
+) -> Result<(), String> {
+    if arena.generation != expected_generation {
+        return Err("Arena changed while moving item to trash".into());
+    }
+    if node_id as usize >= arena.nodes.len() {
+        return Err("Node no longer exists".into());
+    }
+    let nodes = &mut arena.nodes;
+    if nodes[node_id as usize].is_tombstoned || get_node_path(node_id, nodes) != expected_path {
+        return Err("Node changed while moving item to trash".into());
     }
 
-    let node_to_remove = &arena[node_id as usize];
+    let node_to_remove = &nodes[node_id as usize];
     let parent_id = node_to_remove.parent_id;
     let next_sibling = node_to_remove.next_sibling;
     let removed_size = node_to_remove.size;
 
     // 1. Unlink from parent's sibling chain
-    if parent_id != u32::MAX && (parent_id as usize) < arena.len() {
+    if parent_id != u32::MAX && (parent_id as usize) < nodes.len() {
         let mut prev_id = u32::MAX;
-        let mut curr_id = arena[parent_id as usize].first_child;
+        let mut curr_id = nodes[parent_id as usize].first_child;
 
         while curr_id != u32::MAX {
             if curr_id == node_id {
                 if prev_id == u32::MAX {
-                    arena[parent_id as usize].first_child = next_sibling;
+                    nodes[parent_id as usize].first_child = next_sibling;
                 } else {
-                    arena[prev_id as usize].next_sibling = next_sibling;
+                    nodes[prev_id as usize].next_sibling = next_sibling;
                 }
                 break;
             }
             prev_id = curr_id;
-            curr_id = arena[curr_id as usize].next_sibling;
+            curr_id = nodes[curr_id as usize].next_sibling;
         }
 
         // 2. Adjust ancestor sizes
         let mut p = parent_id;
-        while p != u32::MAX && (p as usize) < arena.len() {
-            arena[p as usize].size = arena[p as usize].size.saturating_sub(removed_size);
-            p = arena[p as usize].parent_id;
+        while p != u32::MAX && (p as usize) < nodes.len() {
+            nodes[p as usize].size = nodes[p as usize].size.saturating_sub(removed_size);
+            p = nodes[p as usize].parent_id;
         }
     }
 
     // 3. Tombstone node and all its descendants
     let mut stack = vec![node_id];
     while let Some(curr) = stack.pop() {
-        if (curr as usize) < arena.len() {
-            arena[curr as usize].is_tombstoned = true;
-            let mut child = arena[curr as usize].first_child;
+        if (curr as usize) < nodes.len() {
+            nodes[curr as usize].is_tombstoned = true;
+            let mut child = nodes[curr as usize].first_child;
             while child != u32::MAX {
                 stack.push(child);
-                child = arena[child as usize].next_sibling;
+                child = nodes[child as usize].next_sibling;
             }
         }
     }
+
+    Ok(())
 }

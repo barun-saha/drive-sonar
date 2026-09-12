@@ -148,15 +148,23 @@ export default function App() {
 
       try {
         const di = await invoke<DiskInfo>('get_disk_info', { path });
-        setDiskInfo(di);
-        setScanPath(path);
+        if (activeScanGenerationRef.current === scanGeneration && scanGenerationRef.current === scanGeneration) {
+          setDiskInfo(di);
+          setScanPath(path);
+        }
       } catch (e) {
-        console.warn('get_disk_info failed:', e);
+        if (activeScanGenerationRef.current === scanGeneration && scanGenerationRef.current === scanGeneration) {
+          console.warn('get_disk_info failed:', e);
+        }
       }
 
       const startTime = performance.now();
       const res = await invoke<DirectoryPayload>('scan_directory', { targetPath: path });
       const endTime = performance.now();
+
+      if (activeScanGenerationRef.current !== scanGeneration || scanGenerationRef.current !== scanGeneration) {
+        return;
+      }
 
       setPayload(res);
       setScanTime(endTime - startTime);
@@ -190,11 +198,13 @@ export default function App() {
         topFiles: res.top_files ?? [],
       });
     } catch (error) {
-      notifications.show({
-        title: 'Scan Failed',
-        message: String(error),
-        color: 'red',
-      });
+      if (activeScanGenerationRef.current === scanGeneration && scanGenerationRef.current === scanGeneration) {
+        notifications.show({
+          title: 'Scan Failed',
+          message: String(error),
+          color: 'red',
+        });
+      }
     } finally {
       if (activeScanGenerationRef.current === scanGeneration) {
         activeScanGenerationRef.current = null;
@@ -332,12 +342,12 @@ export default function App() {
               <Text size="md">
                 Website:{' '}
                 <a
-                  href="https://drivesonar.baruns.workers.dev/"
+                  href="https://drivesonar.download/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-500 hover:underline"
                 >
-                  https://drivesonar.baruns.workers.dev/
+                  https://drivesonar.download/
                 </a>
               </Text>
 

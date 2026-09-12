@@ -22,12 +22,21 @@ pub async fn scan_directory(
     target_path: String,
     state: State<'_, AppState>,
 ) -> Result<DirectoryPayload, String> {
-    let scan_cancel_flag = {
+    let (scan_generation, scan_cancel_flag) = {
         let mut guard = state.cancel_flag.lock().unwrap();
         guard.store(true, AtomicOrdering::Relaxed);
         let new_flag = Arc::new(AtomicBool::new(false));
         *guard = new_flag.clone();
-        new_flag
+        let previous_generation = state
+            .scan_generation
+            .fetch_update(
+                AtomicOrdering::SeqCst,
+                AtomicOrdering::SeqCst,
+                |generation| generation.checked_add(1),
+            )
+            .map_err(|_| "Scan generation exhausted")?;
+        let generation = previous_generation + 1;
+        (generation, new_flag)
     };
 
     let canonical = Path::new(&target_path)
@@ -43,6 +52,7 @@ pub async fn scan_directory(
     let mut temp_arena = Vec::with_capacity(INITIAL_ARENA_CAPACITY);
     temp_arena.push(DiskNode {
         name: root_name.into_boxed_str(),
+        native_name: canonical.as_os_str().to_owned(),
         size: 0,
         is_dir: true,
         modified_secs: 0,
@@ -68,6 +78,7 @@ pub async fn scan_directory(
     let root_dir_count_task = Arc::clone(&root_dir_count);
     let total_file_bytes = Arc::new(AtomicU64::new(0));
     let total_file_bytes_task = Arc::clone(&total_file_bytes);
+    let scan_cancel_flag_task = Arc::clone(&scan_cancel_flag);
 
     let done_flag = Arc::new(AtomicBool::new(false));
     let done_flag_emitter = Arc::clone(&done_flag);
@@ -113,7 +124,7 @@ pub async fn scan_directory(
         scan_dir_parallel(
             &canonical,
             0,
-            &scan_cancel_flag,
+            &scan_cancel_flag_task,
             &skipped_count_task,
             &depth_exceeded_count_task,
             &file_count_task,
@@ -137,6 +148,26 @@ pub async fn scan_directory(
 
     match scan_res {
         Ok(Ok(completed_arena)) => {
+            // Scan startup and commit share this lock, making the generation
+            // check and arena replacement atomic with respect to newer scans.
+            let payload = {
+                let _scan_guard = state
+                    .cancel_flag
+                    .lock()
+                    .map_err(|_| "Failed to lock scan state")?;
+                if state.scan_generation.load(AtomicOrdering::SeqCst) != scan_generation
+                    || scan_cancel_flag.load(AtomicOrdering::Relaxed)
+                {
+                    return Err("Scan was superseded by a newer request".into());
+                }
+
+                let mut state_arena = state.arena.write().map_err(|_| "Failed to lock state")?;
+                state_arena.nodes = completed_arena;
+                state_arena.generation = scan_generation;
+
+                build_directory_payload(&state_arena.nodes, 0)?
+            };
+
             let skipped = skipped_count.load(AtomicOrdering::Relaxed);
             if skipped > 0 {
                 let _ = app.emit(
@@ -155,10 +186,7 @@ pub async fn scan_directory(
                 );
             }
 
-            let mut state_arena = state.arena.write().map_err(|_| "Failed to lock state")?;
-            state_arena.nodes = completed_arena;
-
-            build_directory_payload(&state_arena.nodes, 0)
+            Ok(payload)
         }
         Ok(Err(e)) => Err(e),
         Err(e) => Err(format!("Task failed: {}", e)),

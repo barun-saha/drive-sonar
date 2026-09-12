@@ -1,9 +1,9 @@
 //! High-performance Windows directory scanner utilizing low-level `NtQueryDirectoryFileEx` APIs.
 
 use crate::models::DirEntry;
-use std::ffi::c_void;
+use std::ffi::{c_void, OsString};
 use std::io;
-use std::os::windows::ffi::OsStrExt;
+use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::path::Path;
 use windows::core::PCWSTR;
 use windows::Wdk::Storage::FileSystem::{FileDirectoryInformation, NtQueryDirectoryFileEx};
@@ -153,8 +153,7 @@ fn parse_entries(buf: &[u8], out: &mut Vec<DirEntry>) -> io::Result<()> {
         if offset + HEADER_SIZE > buf.len() {
             break;
         }
-        let header_ptr =
-            unsafe { buf.as_ptr().add(offset) as *const FileDirectoryInformationRaw };
+        let header_ptr = unsafe { buf.as_ptr().add(offset) as *const FileDirectoryInformationRaw };
         let header = unsafe { std::ptr::read_unaligned(header_ptr) };
 
         let name_len = header.file_name_length as usize;
@@ -163,24 +162,19 @@ fn parse_entries(buf: &[u8], out: &mut Vec<DirEntry>) -> io::Result<()> {
             break;
         }
 
-        // Decode UTF-16 directly from the byte-pair iterator: no intermediate
-        // Vec<u16> allocation per entry (previously ~1 extra alloc/file).
-        // Note: buf is a &[u8], so we can't reinterpret it as &[u16] via a raw
-        // pointer cast (that requires 2-byte alignment we can't guarantee at
-        // arbitrary offsets); decode_utf16 avoids that unsafety entirely while
-        // still being allocation-free for the u16 collection step.
-        let name: String = char::decode_utf16(
-            buf[offset + HEADER_SIZE..name_end]
-                .chunks_exact(2)
-                .map(|b| u16::from_ne_bytes([b[0], b[1]])),
-        )
-        .map(|r| r.unwrap_or(char::REPLACEMENT_CHARACTER))
-        .collect();
+        // Preserve the native UTF-16 filename for filesystem identity. A lossy
+        // String is kept separately for display and serialization only.
+        let wide_name: Vec<u16> = buf[offset + HEADER_SIZE..name_end]
+            .chunks_exact(2)
+            .map(|b| u16::from_ne_bytes([b[0], b[1]]))
+            .collect();
+        let native_name = OsString::from_wide(&wide_name);
 
-        if name != "." && name != ".." {
+        if native_name != "." && native_name != ".." {
             let tw = header.last_write_time as u64;
             out.push(DirEntry {
-                name,
+                name: native_name.to_string_lossy().into_owned(),
+                native_name,
                 size: header.end_of_file.max(0) as u64,
                 is_dir: header.file_attributes & FILE_ATTRIBUTE_DIRECTORY.0 != 0,
                 is_reparse_point: header.file_attributes & FILE_ATTRIBUTE_REPARSE_POINT.0 != 0,

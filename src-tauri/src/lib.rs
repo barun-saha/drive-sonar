@@ -5,7 +5,7 @@
 //! Exposes Tauri commands, file system scanners, and arena tree data structures
 //! for fast, parallel disk usage analysis.
 
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::{Arc, Mutex, RwLock};
 
 pub mod commands;
@@ -26,6 +26,7 @@ pub fn run() {
         .manage(AppState {
             arena: Arc::new(RwLock::new(ArenaTree::default())),
             cancel_flag: Mutex::new(Arc::new(AtomicBool::new(false))),
+            scan_generation: AtomicU64::new(0),
         })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
