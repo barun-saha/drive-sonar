@@ -1,6 +1,14 @@
 use super::*;
+use crate::commands::disk::get_disk_info;
+use crate::models::*;
+use crate::scanner::*;
+use crate::tree::*;
+use std::cmp::Ordering;
 use std::fs::{self, File};
 use std::io::Write;
+use std::path::Path;
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering as AtomicOrdering};
+use std::sync::{Arc, Mutex, RwLock};
 use tempfile::tempdir;
 
 #[test]
