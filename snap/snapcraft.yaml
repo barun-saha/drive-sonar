@@ -28,6 +28,7 @@ website:
 apps:
   drivesonar:
     command: usr/bin/drivesonar
+    desktop: "usr/share/applications/Drive Sonar.desktop"
     extensions: [gnome]
     plugs: [home, removable-media]
 
