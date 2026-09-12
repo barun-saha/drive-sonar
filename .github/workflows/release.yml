@@ -1,10 +1,8 @@
 name: 'Publish Release'
-
 on:
   push:
     tags:
       - 'v*'
-
 jobs:
   publish-tauri:
     permissions:
@@ -15,7 +13,7 @@ jobs:
         include:
           - platform: 'windows-latest'
             args: ''
-          - platform: 'ubuntu-22.04'
+          - platform: 'ubuntu-24.04'
             args: ''
           - platform: 'ubuntu-24.04-arm'
             args: ''
@@ -23,33 +21,27 @@ jobs:
             args: '--target aarch64-apple-darwin' # Apple Silicon (M1/M2/M3)
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'  # Intel Mac
-
     runs-on: ${{ matrix.platform }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
-
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
       - name: Install Linux dependencies
         if: startsWith(matrix.platform, 'ubuntu')
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
-
       - name: Install frontend dependencies
         run: npm ci # or yarn install / pnpm install
-
       - name: Build and Publish Tauri App
+        id: tauri-build
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -60,3 +52,25 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: Extract .deb for snap packaging
+        if: startsWith(matrix.platform, 'ubuntu-24.04')
+        run: |
+          DEB_PATH=$(echo '${{ steps.tauri-build.outputs.artifactPaths }}' | jq -r '.[] | select(endswith(".deb"))')
+          echo "Using deb: $DEB_PATH"
+          mkdir -p snap/extracted
+          dpkg-deb -R "$DEB_PATH" snap/extracted
+
+      - name: Build snap
+        if: startsWith(matrix.platform, 'ubuntu-24.04')
+        id: snapcraft-build
+        uses: snapcore/action-build@v1
+
+      - name: Publish snap to Snap Store
+        if: startsWith(matrix.platform, 'ubuntu-24.04')
+        uses: snapcore/action-publish@214b86e5ca036ead1668c79afb81e550e6c54d40 # v1
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        with:
+          snap: ${{ steps.snapcraft-build.outputs.snap }}
+          release: edge

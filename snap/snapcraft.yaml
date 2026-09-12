@@ -1,0 +1,47 @@
+name: drivesonar
+base: core24
+adopt-info: drivesonar
+license: Apache-2.0
+icon: snap/gui/icon.png
+summary: Fast, light disk usage analyzer
+description: |
+  Drive Sonar is a fast, low-memory disk usage scanner built with Rust and Tauri.
+
+  Features:
+    - Treemap, file type breakdown, and age vs. size analysis views
+    - Significantly lower memory usage
+    - View items or delete with confirmation
+    - Export scan reports as text files
+
+  Open source under the Apache 2.0 license.
+grade: devel
+confinement: strict
+source-code:
+  - https://github.com/barun-saha/drive-sonar
+issues:
+  - https://github.com/barun-saha/drive-sonar/issues
+contact:
+  - https://barunsaha.me/
+website:
+  - https://drivesonar.baruns.workers.dev/
+
+apps:
+  drivesonar:
+    command: usr/bin/drivesonar
+    desktop: "usr/share/applications/Drive Sonar.desktop"
+    extensions: [gnome]
+    plugs: [home, removable-media]
+
+platforms:
+  amd64:
+  arm64:
+
+parts:
+  drivesonar:
+    plugin: dump
+    source: snap/extracted
+    override-pull: |
+      craftctl default
+      craftctl set version="$(grep -oP '(?<=^Version: ).*' DEBIAN/control)"
+    prime:
+      - -DEBIAN
