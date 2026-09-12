@@ -4,11 +4,11 @@
   <img src="public/drive_sonar_base.png" width="256" alt="Drive Sonar Logo" />
 </p>
 
-[Drive Sonar](https://drivesonar.baruns.workers.dev/) is a fast, lightweight desktop disk usage explorer and analyzer built with Tauri v2, Rust, React, and TypeScript.
+[Drive Sonar](https://drivesonar.download/) is a fast, lightweight desktop disk usage explorer and analyzer built with Tauri v2, Rust, React, and TypeScript.
 
 Drive Sonar is inspired by the simplicity of `ncdu`. Drive Sonar offers different visualizations to help you gain a better idea of your disk usage.
 
-[Drive Sonar](https://drivesonar.baruns.workers.dev/) runs entirely in **user mode**—no admin mode or elevated privilege is required to scan even the most protected corners of your disk. It's also fully **open source**, so you can see exactly what it's doing and build it yourself if you'd rather not trust a binary.
+[Drive Sonar](https://drivesonar.download/) runs entirely in **user mode**—no admin mode or elevated privilege is required to scan even the most protected corners of your disk. It's also fully **open source**, so you can see exactly what it's doing and build it yourself if you'd rather not trust a binary.
 
 ## ⚡ Features
 
