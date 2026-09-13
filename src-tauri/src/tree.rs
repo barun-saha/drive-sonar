@@ -110,14 +110,14 @@ pub fn aggregate_node(root_id: u32, arena: &mut [DiskNode]) -> u64 {
     arena[root_id as usize].size
 }
 
-/// Reconstructs the native path from the original OS-native components captured during scanning.
+/// Reconstructs the file system path for a given node by traversing upward through parent links.
 pub fn get_node_path(node_id: u32, arena: &[DiskNode]) -> PathBuf {
     let mut parts = Vec::new();
     let mut current_id = node_id;
 
     while current_id != u32::MAX {
         let node = &arena[current_id as usize];
-        parts.push(node.native_name.as_os_str());
+        parts.push(node.name.as_ref());
         current_id = node.parent_id;
     }
 

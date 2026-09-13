@@ -2,7 +2,6 @@
 
 use serde::Serialize;
 use std::cmp::Ordering;
-use std::ffi::OsString;
 use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -13,7 +12,6 @@ use std::sync::{Arc, Mutex, RwLock};
 #[derive(Clone)]
 pub struct DiskNode {
     pub name: Box<str>,
-    pub native_name: OsString,
     pub size: u64,
     pub is_dir: bool,
     pub modified_secs: u64,
@@ -98,7 +96,6 @@ pub struct AppState {
 #[derive(Clone)]
 pub struct DirEntry {
     pub name: String,
-    pub native_name: OsString,
     pub size: u64,
     pub is_dir: bool,
     pub is_reparse_point: bool,

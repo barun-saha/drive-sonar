@@ -174,7 +174,6 @@ fn parse_entries(buf: &[u8], out: &mut Vec<DirEntry>) -> io::Result<()> {
             let tw = header.last_write_time as u64;
             out.push(DirEntry {
                 name: native_name.to_string_lossy().into_owned(),
-                native_name,
                 size: header.end_of_file.max(0) as u64,
                 is_dir: header.file_attributes & FILE_ATTRIBUTE_DIRECTORY.0 != 0,
                 is_reparse_point: header.file_attributes & FILE_ATTRIBUTE_REPARSE_POINT.0 != 0,

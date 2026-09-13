@@ -92,7 +92,7 @@ pub fn scan_dir_parallel(
     for (i, entry) in dir_entries.into_iter().enumerate() {
         let is_subdir = entry.is_dir && !entry.is_reparse_point;
         if is_subdir {
-            subdir_relative.push((dir_path.join(&entry.native_name), i as u32));
+            subdir_relative.push((dir_path.join(&entry.name), i as u32));
         }
 
         if entry.is_dir {
@@ -104,7 +104,6 @@ pub fn scan_dir_parallel(
 
         local_nodes.push(DiskNode {
             name: entry.name.into_boxed_str(),
-            native_name: entry.native_name,
             size: entry.size,
             is_dir: entry.is_dir,
             modified_secs: entry.modified_secs,
