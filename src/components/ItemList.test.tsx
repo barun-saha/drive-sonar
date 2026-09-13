@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
@@ -127,10 +127,10 @@ describe('ItemList', () => {
     const trashIcons = screen.getAllByTitle('Move to Trash');
     fireEvent.click(trashIcons[0]); // Folder A
 
-    expect(await screen.findByText('Confirm File/Directory Deletion')).toBeInTheDocument();
+    expect(await screen.findByText(/Are you sure you want to move/)).toBeInTheDocument();
 
-    const confirmSpan = screen.getByText('Move to Trash');
-    fireEvent.click(confirmSpan);
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Move to Trash' }));
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith('move_to_trash', { nodeId: 10 });
@@ -148,10 +148,10 @@ describe('ItemList', () => {
     const trashIcons = screen.getAllByTitle('Move to Trash');
     fireEvent.click(trashIcons[1]); // File B.txt
 
-    expect(await screen.findByText('Confirm File/Directory Deletion')).toBeInTheDocument();
+    expect(await screen.findByText(/Are you sure you want to move/)).toBeInTheDocument();
 
-    const confirmSpan = screen.getByText('Move to Trash');
-    fireEvent.click(confirmSpan);
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Move to Trash' }));
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith('move_to_trash', { nodeId: 11 });
@@ -167,8 +167,13 @@ describe('ItemList', () => {
       <ItemList payload={mockPayload} onNavigate={onNavigate} onRefresh={onRefresh} />
     );
 
+    // Trigger modal
     fireEvent.click(screen.getAllByTitle('Move to Trash')[0]);
-    fireEvent.click(await screen.findByText('Move to Trash'));
+    expect(await screen.findByText(/Are you sure you want to move/)).toBeInTheDocument();
+
+    // Scope query to the modal dialog
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Move to Trash' }));
 
     await waitFor(() => {
       expect(onRefresh).toHaveBeenCalledOnce();
