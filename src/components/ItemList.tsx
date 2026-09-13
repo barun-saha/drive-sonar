@@ -84,19 +84,31 @@ export function ItemList({ payload, onNavigate, onRefresh }: ItemListProps) {
     };
 
     modals.openConfirmModal({
-      title: 'Confirm File/Directory Deletion',
+      title: 'Move to Trash',
       centered: true,
-      children: item.is_dir ? (
-        <Text size="sm">
-          Are you absolutely sure you want to move the directory <strong>{item.name}</strong> and all its contents to the Trash?
-        </Text>
-      ) : (
-        <Text size="sm">
-          Are you absolutely sure you want to move the file <strong>{item.name}</strong> to the Trash?
-        </Text>
-      ),
+      // 1. Make the destructive nature visually distinct
+      children:
+        <Stack gap="xs">
+          <Text size="md">
+            Are you sure you want to move {item.is_dir ? 'the directory' : 'the file'}{' '}
+            <Text span fw={700} c="red.6" style={{ wordBreak: 'break-all' }}>
+              {item.name}
+            </Text>
+            {item.is_dir ? ' and all its contents' : ''} to the Trash?
+          </Text>
+          <Text size="md" c="dimmed">
+            You can restore items or delete them permanently anytime from your system's Trash.
+          </Text>
+        </Stack>
+      ,
       labels: { confirm: 'Move to Trash', cancel: 'Cancel' },
       confirmProps: { color: 'red' },
+      // 2. CRITICAL UX TWEAK: Default focus on the Cancel button
+      // This prevents accidental deletions if the user happens to press 'Enter' or 'Space' double-tapping
+      cancelProps: {
+        'data-autofocus': true,
+        variant: 'default' // standard neutral styling makes the focus ring clear
+      },
       onConfirm: executeDelete
     });
   };
