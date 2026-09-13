@@ -48,5 +48,9 @@ windows = { version = "0.62", features = [
 [target.'cfg(not(windows))'.dependencies]
 sysinfo = { version = "0.35", default-features = false, features = ["disk"] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+tempfile = "3"
+
 [dev-dependencies]
 tempfile = "3"

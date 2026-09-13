@@ -554,3 +554,79 @@ fn test_get_disk_info() {
     let err_info = get_disk_info("/non/existent/path/123456789".to_string());
     assert!(err_info.is_err());
 }
+
+// Linux
+
+#[cfg(target_os = "linux")]
+#[test]
+fn linux_scanner_matches_default() {
+    // point at any populated dir, e.g. env!("CARGO_MANIFEST_DIR")
+    let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut fast = crate::scanner::linux::list_directory(p).unwrap();
+    let mut slow = crate::scanner::default::list_directory(p).unwrap();
+    fast.sort_by(|a, b| a.name.cmp(&b.name));
+    slow.sort_by(|a, b| a.name.cmp(&b.name));
+    assert_eq!(fast.len(), slow.len());
+    for (f, s) in fast.iter().zip(slow.iter()) {
+        assert_eq!((&f.name, f.size, f.is_dir, f.is_reparse_point),
+                   (&s.name, s.size, s.is_dir, s.is_reparse_point));
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn linux_scanner_handles_edge_cases() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path();
+
+    // 1. Empty directory
+    assert!(crate::scanner::linux::list_directory(p).unwrap().is_empty());
+
+    // 2. Symlink to a file, symlink to a dir, broken symlink
+    std::fs::write(p.join("real.txt"), b"hello").unwrap();
+    std::os::unix::fs::symlink(p.join("real.txt"), p.join("link_to_file")).unwrap();
+    std::os::unix::fs::symlink(p.join("nonexistent"), p.join("broken_link")).unwrap();
+    std::fs::create_dir(p.join("subdir")).unwrap();
+    std::os::unix::fs::symlink(p.join("subdir"), p.join("link_to_dir")).unwrap();
+
+    let entries = crate::scanner::linux::list_directory(p).unwrap();
+    let find = |n: &str| entries.iter().find(|e| e.name == n).unwrap();
+    assert!(find("link_to_file").is_reparse_point);
+    assert!(find("broken_link").is_reparse_point); // must not crash/error on dangling target
+    assert!(find("link_to_dir").is_reparse_point);
+    assert!(!find("link_to_dir").is_dir); // lstat semantics: it's a link, not a dir
+
+    // 3. Non-UTF8 filename (Linux allows arbitrary bytes)
+    use std::os::unix::ffi::OsStrExt;
+    let raw_name = std::ffi::OsStr::from_bytes(b"bad_\xffname");
+    std::fs::write(p.join(raw_name), b"x").unwrap();
+    assert_eq!(entries.iter().filter(|e| e.name.starts_with("bad_")).count(), 0); // pre-list, ignore
+    let entries2 = crate::scanner::linux::list_directory(p).unwrap();
+    assert!(entries2.iter().any(|e| e.name.contains('\u{fffd}'))); // lossy replacement present, no panic
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn linux_scanner_handles_many_entries() {
+    // Forces multiple getdents64 calls within the 64KB buffer.
+    let dir = tempfile::tempdir().unwrap();
+    for i in 0..5000 {
+        std::fs::write(dir.path().join(format!("file_{i}.txt")), b"x").unwrap();
+    }
+    let entries = crate::scanner::linux::list_directory(dir.path()).unwrap();
+    assert_eq!(entries.len(), 5000);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn linux_scanner_permission_denied_subdir_does_not_panic() {
+    let dir = tempfile::tempdir().unwrap();
+    let sub = dir.path().join("locked");
+    std::fs::create_dir(&sub).unwrap();
+    std::fs::set_permissions(&sub, std::os::unix::fs::PermissionsExt::from_mode(0o000)).unwrap();
+    // list_directory on the parent should succeed; only descending into `locked` should fail gracefully.
+    let entries = crate::scanner::linux::list_directory(dir.path()).unwrap();
+    assert!(entries.iter().any(|e| e.name == "locked" && e.is_dir));
+    // cleanup permission so tempdir can be deleted
+    std::fs::set_permissions(&sub, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+}

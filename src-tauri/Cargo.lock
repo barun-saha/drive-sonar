@@ -838,6 +838,7 @@ name = "drive-sonar"
 version = "0.8.1"
 dependencies = [
  "jwalk",
+ "libc",
  "rayon",
  "serde",
  "serde_json",
