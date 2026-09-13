@@ -498,10 +498,13 @@ fn test_scan_dir_parallel_edge_cases() {
     #[cfg(unix)]
     {
         let arena = shared_arena.lock().unwrap();
-        assert!(arena
-            .iter()
-            .enumerate()
-            .any(|(id, _)| get_node_path(id as u32, &arena) == non_utf_path));
+        // DiskNode.name is Box<str>, so non-UTF-8 filenames are stored via
+        // to_string_lossy() and won't round-trip byte-for-byte
+        // Compare lossy-to-lossy instead of expecting an exact PathBuf match
+        let found = arena.iter().enumerate().any(|(id, _)| {
+            get_node_path(id as u32, &arena).to_string_lossy() == non_utf_path.to_string_lossy()
+        });
+        assert!(found);
     }
 
     // 3. Non-existent path causes skipped_count increment
