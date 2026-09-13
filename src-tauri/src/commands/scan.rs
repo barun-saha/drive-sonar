@@ -137,6 +137,7 @@ pub async fn scan_directory(
 
         let mut final_arena = shared_arena.into_inner().unwrap();
         aggregate_node(0, &mut final_arena);
+        final_arena.shrink_to_fit();
         Ok::<Vec<DiskNode>, String>(final_arena)
     })
     .await;
