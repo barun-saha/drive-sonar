@@ -12,12 +12,12 @@ Drive Sonar is inspired by the simplicity of `ncdu`. Drive Sonar offers differen
 
 ## ⚡ Features
 
-- **Fast Parallel Scanning:** Native fast-path scanning on Windows and a multi-threaded `jwalk`-based fallback for other platforms
+- **Fast Parallel Scanning:** Native fast-path scanning on Windows and a multi-threaded fallback for other platforms
 - **Interactive Visualizations:**
   - **Space Distribution Map:** High-performance storage treemap
   - **Extension Breakdown:** Top file extensions by storage utilization
   - **File Age Analysis:** Scatter plot visualizing file size vs. age
-- **In-App File Management:** Open files or folders directly in native OS file managers or safely move items to system trash (requires confirmation)
+- **In-App File Management:** Open files or folders directly in native OS file managers or safely move items to system trash (requires confirmation + additional background safetry checks)
 - **Print Scan Report:** Not just identify what's causing high disk usage, but also export a report for the future reference
 - **Security Hardened:** Path canonicalization guards against relative traversal, strict Content Security Policy (CSP), and system root deletion protection
 - **No Admin Required:** Runs entirely in user mode, unlike many disk analyzers that need elevated privileges to scan protected directories
