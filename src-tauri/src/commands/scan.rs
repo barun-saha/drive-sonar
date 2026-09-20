@@ -6,7 +6,7 @@ use std::sync::{mpsc, Arc, Mutex};
 use tauri::{Emitter, State};
 
 use crate::models::{AppState, DirectoryPayload, DiskNode, ScanProgress};
-use crate::scanner::{init_rayon_thread_pool, scan_dir_parallel};
+use crate::scanner::{get_dev, init_rayon_thread_pool, scan_dir_parallel};
 use crate::tree::{aggregate_node, build_directory_payload};
 
 // Initial capacity for the shared arena backing vector. Reserving a generous
@@ -120,6 +120,10 @@ pub async fn scan_directory(
     init_rayon_thread_pool();
 
     let scan_res = tokio::task::spawn_blocking(move || {
+        // Resolve the device ID of the scan root once
+        // On Unix this is used to skip subdirectories on different filesystems (e.g. /proc, /sys)
+        let root_dev = get_dev(&canonical);
+
         scan_dir_parallel(
             &canonical,
             0,
@@ -133,6 +137,7 @@ pub async fn scan_directory(
             &total_file_bytes_task,
             &shared_arena,
             0,
+            root_dev,
         )?;
 
         let mut final_arena = shared_arena.into_inner().unwrap();

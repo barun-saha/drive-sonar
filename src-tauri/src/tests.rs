@@ -375,6 +375,7 @@ fn test_scan_dir_parallel() {
         &total_file_bytes,
         &shared_arena,
         0,
+        get_dev(root_path),
     );
     assert!(res.is_ok());
     assert_eq!(file_count.load(AtomicOrdering::Relaxed), 2); // hello.txt, data.bin
@@ -405,6 +406,7 @@ fn test_scan_dir_parallel() {
         &total_file_bytes,
         &shared_arena2,
         0,
+        get_dev(root_path),
     );
     assert!(res_cancelled.is_err());
 
@@ -424,6 +426,7 @@ fn test_scan_dir_parallel() {
         &total_file_bytes,
         &shared_arena3,
         257,
+        get_dev(root_path),
     );
     assert!(res_depth.is_ok());
     assert_eq!(depth_exceeded_count2.load(AtomicOrdering::Relaxed), 1);
@@ -492,6 +495,7 @@ fn test_scan_dir_parallel_edge_cases() {
         &total_file_bytes,
         &shared_arena,
         0,
+        get_dev(root_path),
     );
     assert!(res.is_ok());
 
@@ -519,6 +523,7 @@ fn test_scan_dir_parallel_edge_cases() {
         &total_file_bytes,
         &shared_arena,
         0,
+        get_dev(root_path),
     );
     assert!(res_non_exist.is_ok());
     assert_eq!(skipped_count.load(AtomicOrdering::Relaxed), 1);

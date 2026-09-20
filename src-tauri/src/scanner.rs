@@ -42,7 +42,28 @@ pub fn init_rayon_thread_pool() {
     });
 }
 
+/// Returns the device ID (`st_dev`) of `path`'s filesystem, used for cross-device
+/// boundary detection. Returns 0 on non-Unix platforms (no boundary checks there).
+pub fn get_dev(path: &Path) -> u64 {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        std::fs::metadata(path).map(|m| m.dev()).unwrap_or(0)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+        0
+    }
+}
+
 /// Recursively scans directory contents in parallel using Rayon and constructs the shared arena graph.
+///
+/// `root_dev` is the device ID (`st_dev`) of the scan root directory. On Unix, subdirectories
+/// residing on a different device (e.g. `/proc`, `/sys`, `/dev`, bind-mounts) are skipped to
+/// prevent virtual pseudo-files with nonsensical sizes (e.g. `/proc/kcore` = 128 TB on x86_64)
+/// from inflating scan totals. Obtain this value via `get_dev(root_path)` before the first call.
+/// On non-Unix platforms the value is ignored and all subdirectories are walked as before.
 #[allow(clippy::too_many_arguments)]
 pub fn scan_dir_parallel(
     dir_path: &Path,
@@ -57,6 +78,7 @@ pub fn scan_dir_parallel(
     total_file_bytes: &AtomicU64,
     shared_arena: &Mutex<Vec<DiskNode>>,
     depth: usize,
+    root_dev: u64,
 ) -> Result<(), String> {
     if cancel_flag.load(AtomicOrdering::Relaxed) {
         return Err("Scan was cancelled".to_string());
@@ -92,7 +114,31 @@ pub fn scan_dir_parallel(
     for (i, entry) in dir_entries.into_iter().enumerate() {
         let is_subdir = entry.is_dir && !entry.is_reparse_point;
         if is_subdir {
-            subdir_relative.push((dir_path.join(&entry.name), i as u32));
+            let child_path = dir_path.join(&entry.name);
+
+            // On Unix, skip subdirectories that cross a filesystem device boundary (#63).
+            // This prevents walking virtual/pseudo filesystems (procfs, sysfs, devtmpfs,
+            // tmpfs, bind-mounts, etc.) whose files can have nonsensical reported sizes
+            // (e.g. /proc/kcore reports 128 TB on x86_64). Mirrors `du -x` behaviour.
+            // The directory node is still added (size 0) so it appears in the listing.
+            #[cfg(unix)]
+            if root_dev != 0 && get_dev(&child_path) != root_dev {
+                skipped_count.fetch_add(1, AtomicOrdering::Relaxed);
+                local_dirs += 1;
+                local_nodes.push(DiskNode {
+                    name: entry.name.into_boxed_str(),
+                    size: 0,
+                    is_dir: true,
+                    modified_secs: entry.modified_secs,
+                    parent_id,
+                    first_child: u32::MAX,
+                    next_sibling: u32::MAX,
+                    is_tombstoned: false,
+                });
+                continue;
+            }
+
+            subdir_relative.push((child_path, i as u32));
         }
 
         if entry.is_dir {
@@ -167,6 +213,7 @@ pub fn scan_dir_parallel(
                 total_file_bytes,
                 shared_arena,
                 depth + 1,
+                root_dev,
             )
         })
 }
