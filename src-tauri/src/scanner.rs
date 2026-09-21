@@ -60,7 +60,7 @@ pub fn get_dev(path: &Path) -> u64 {
 /// Recursively scans directory contents in parallel using Rayon and constructs the shared arena graph.
 ///
 /// `root_dev` is the device ID (`st_dev`) of the scan root directory. On Unix, subdirectories
-/// residing on a different device (e.g. `/proc`, `/sys`, `/dev`, bind-mounts) are skipped to
+/// residing on a different device (e.g. `/proc`, `/sys`, `/dev`) are skipped to
 /// prevent virtual pseudo-files with nonsensical sizes (e.g. `/proc/kcore` = 128 TB on x86_64)
 /// from inflating scan totals. Obtain this value via `get_dev(root_path)` before the first call.
 /// On non-Unix platforms the value is ignored and all subdirectories are walked as before.
@@ -70,6 +70,7 @@ pub fn scan_dir_parallel(
     parent_id: u32,
     cancel_flag: &AtomicBool,
     skipped_count: &AtomicUsize,
+    filesystem_skipped_count: &AtomicUsize,
     depth_exceeded_count: &AtomicUsize,
     file_count: &AtomicUsize,
     dir_count: &AtomicUsize,
@@ -118,12 +119,12 @@ pub fn scan_dir_parallel(
 
             // On Unix, skip subdirectories that cross a filesystem device boundary (#63).
             // This prevents walking virtual/pseudo filesystems (procfs, sysfs, devtmpfs,
-            // tmpfs, bind-mounts, etc.) whose files can have nonsensical reported sizes
+            // tmpfs, etc.) whose files can have nonsensical reported sizes
             // (e.g. /proc/kcore reports 128 TB on x86_64). Mirrors `du -x` behaviour.
             // The directory node is still added (size 0) so it appears in the listing.
             #[cfg(unix)]
             if root_dev != 0 && get_dev(&child_path) != root_dev {
-                skipped_count.fetch_add(1, AtomicOrdering::Relaxed);
+                filesystem_skipped_count.fetch_add(1, AtomicOrdering::Relaxed);
                 local_dirs += 1;
                 local_nodes.push(DiskNode {
                     name: entry.name.into_boxed_str(),
@@ -205,6 +206,7 @@ pub fn scan_dir_parallel(
                 child_id,
                 cancel_flag,
                 skipped_count,
+                filesystem_skipped_count,
                 depth_exceeded_count,
                 file_count,
                 dir_count,
