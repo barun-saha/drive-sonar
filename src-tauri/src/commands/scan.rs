@@ -6,7 +6,7 @@ use std::sync::{mpsc, Arc, Mutex};
 use tauri::{Emitter, State};
 
 use crate::models::{AppState, DirectoryPayload, DiskNode, ScanProgress};
-use crate::scanner::{init_rayon_thread_pool, scan_dir_parallel};
+use crate::scanner::{get_dev, init_rayon_thread_pool, scan_dir_parallel};
 use crate::tree::{aggregate_node, build_directory_payload};
 
 // Initial capacity for the shared arena backing vector. Reserving a generous
@@ -64,6 +64,8 @@ pub async fn scan_directory(
     let shared_arena = Mutex::new(temp_arena);
     let skipped_count = Arc::new(AtomicUsize::new(0));
     let skipped_count_task = Arc::clone(&skipped_count);
+    let filesystem_skipped_count = Arc::new(AtomicUsize::new(0));
+    let filesystem_skipped_count_task = Arc::clone(&filesystem_skipped_count);
     let depth_exceeded_count = Arc::new(AtomicUsize::new(0));
     let depth_exceeded_count_task = Arc::clone(&depth_exceeded_count);
 
@@ -120,11 +122,16 @@ pub async fn scan_directory(
     init_rayon_thread_pool();
 
     let scan_res = tokio::task::spawn_blocking(move || {
+        // Resolve the device ID of the scan root once
+        // On Unix this is used to skip subdirectories on different filesystems (e.g. /proc, /sys)
+        let root_dev = get_dev(&canonical);
+
         scan_dir_parallel(
             &canonical,
             0,
             &scan_cancel_flag_task,
             &skipped_count_task,
+            &filesystem_skipped_count_task,
             &depth_exceeded_count_task,
             &file_count_task,
             &dir_count_task,
@@ -133,6 +140,7 @@ pub async fn scan_directory(
             &total_file_bytes_task,
             &shared_arena,
             0,
+            root_dev,
         )?;
 
         let mut final_arena = shared_arena.into_inner().unwrap();
@@ -173,6 +181,16 @@ pub async fn scan_directory(
                 let _ = app.emit(
                     "scan-warning",
                     format!("{} location(s) were inaccessible and skipped.", skipped),
+                );
+            }
+            let filesystem_skipped = filesystem_skipped_count.load(AtomicOrdering::Relaxed);
+            if filesystem_skipped > 0 {
+                let _ = app.emit(
+                    "scan-warning",
+                    format!(
+                        "{} location(s) on other filesystems were intentionally skipped.",
+                        filesystem_skipped
+                    ),
                 );
             }
             let depth_exceeded = depth_exceeded_count.load(AtomicOrdering::Relaxed);

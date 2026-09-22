@@ -345,6 +345,7 @@ fn test_scan_dir_parallel() {
 
     let cancel_flag = AtomicBool::new(false);
     let skipped_count = AtomicUsize::new(0);
+    let filesystem_skipped_count = AtomicUsize::new(0);
     let depth_exceeded_count = AtomicUsize::new(0);
     let file_count = AtomicUsize::new(0);
     let dir_count = AtomicUsize::new(0);
@@ -367,6 +368,7 @@ fn test_scan_dir_parallel() {
         0,
         &cancel_flag,
         &skipped_count,
+        &filesystem_skipped_count,
         &depth_exceeded_count,
         &file_count,
         &dir_count,
@@ -375,6 +377,7 @@ fn test_scan_dir_parallel() {
         &total_file_bytes,
         &shared_arena,
         0,
+        get_dev(root_path),
     );
     assert!(res.is_ok());
     assert_eq!(file_count.load(AtomicOrdering::Relaxed), 2); // hello.txt, data.bin
@@ -397,6 +400,7 @@ fn test_scan_dir_parallel() {
         0,
         &cancel_flag_true,
         &skipped_count,
+        &filesystem_skipped_count,
         &depth_exceeded_count,
         &file_count,
         &dir_count,
@@ -405,6 +409,7 @@ fn test_scan_dir_parallel() {
         &total_file_bytes,
         &shared_arena2,
         0,
+        get_dev(root_path),
     );
     assert!(res_cancelled.is_err());
 
@@ -416,6 +421,7 @@ fn test_scan_dir_parallel() {
         0,
         &cancel_flag,
         &skipped_count,
+        &filesystem_skipped_count,
         &depth_exceeded_count2,
         &file_count,
         &dir_count,
@@ -424,6 +430,7 @@ fn test_scan_dir_parallel() {
         &total_file_bytes,
         &shared_arena3,
         257,
+        get_dev(root_path),
     );
     assert!(res_depth.is_ok());
     assert_eq!(depth_exceeded_count2.load(AtomicOrdering::Relaxed), 1);
@@ -462,6 +469,7 @@ fn test_scan_dir_parallel_edge_cases() {
 
     let cancel_flag = AtomicBool::new(false);
     let skipped_count = AtomicUsize::new(0);
+    let filesystem_skipped_count = AtomicUsize::new(0);
     let depth_exceeded_count = AtomicUsize::new(0);
     let file_count = AtomicUsize::new(0);
     let dir_count = AtomicUsize::new(0);
@@ -484,6 +492,7 @@ fn test_scan_dir_parallel_edge_cases() {
         0,
         &cancel_flag,
         &skipped_count,
+        &filesystem_skipped_count,
         &depth_exceeded_count,
         &file_count,
         &dir_count,
@@ -492,6 +501,7 @@ fn test_scan_dir_parallel_edge_cases() {
         &total_file_bytes,
         &shared_arena,
         0,
+        get_dev(root_path),
     );
     assert!(res.is_ok());
 
@@ -511,6 +521,7 @@ fn test_scan_dir_parallel_edge_cases() {
         0,
         &cancel_flag,
         &skipped_count,
+        &filesystem_skipped_count,
         &depth_exceeded_count,
         &file_count,
         &dir_count,
@@ -519,9 +530,87 @@ fn test_scan_dir_parallel_edge_cases() {
         &total_file_bytes,
         &shared_arena,
         0,
+        get_dev(root_path),
     );
     assert!(res_non_exist.is_ok());
     assert_eq!(skipped_count.load(AtomicOrdering::Relaxed), 1);
+    assert_eq!(filesystem_skipped_count.load(AtomicOrdering::Relaxed), 0);
+}
+
+#[cfg(unix)]
+#[test]
+fn test_skip_counts_distinguish_inaccessible_and_cross_device_paths() {
+    let dir = tempdir().unwrap();
+    let root_path = dir.path();
+    fs::create_dir(root_path.join("other-filesystem")).unwrap();
+
+    let cancel_flag = AtomicBool::new(false);
+    let skipped_count = AtomicUsize::new(0);
+    let filesystem_skipped_count = AtomicUsize::new(0);
+    let depth_exceeded_count = AtomicUsize::new(0);
+    let file_count = AtomicUsize::new(0);
+    let dir_count = AtomicUsize::new(0);
+    let root_file_count = AtomicUsize::new(0);
+    let root_dir_count = AtomicUsize::new(0);
+    let total_file_bytes = AtomicU64::new(0);
+    let shared_arena = Mutex::new(vec![DiskNode {
+        name: root_path.to_string_lossy().into_owned().into_boxed_str(),
+        size: 0,
+        is_dir: true,
+        modified_secs: 0,
+        parent_id: u32::MAX,
+        first_child: u32::MAX,
+        next_sibling: u32::MAX,
+        is_tombstoned: false,
+    }]);
+    let actual_dev = get_dev(root_path);
+    let different_dev = if actual_dev == u64::MAX {
+        actual_dev - 1
+    } else {
+        actual_dev + 1
+    };
+
+    let inaccessible_result = scan_dir_parallel(
+        &root_path.join("missing"),
+        0,
+        &cancel_flag,
+        &skipped_count,
+        &filesystem_skipped_count,
+        &depth_exceeded_count,
+        &file_count,
+        &dir_count,
+        &root_file_count,
+        &root_dir_count,
+        &total_file_bytes,
+        &shared_arena,
+        0,
+        actual_dev,
+    );
+
+    assert!(inaccessible_result.is_ok());
+    assert_eq!(skipped_count.load(AtomicOrdering::Relaxed), 1);
+    assert_eq!(filesystem_skipped_count.load(AtomicOrdering::Relaxed), 0);
+
+    let result = scan_dir_parallel(
+        root_path,
+        0,
+        &cancel_flag,
+        &skipped_count,
+        &filesystem_skipped_count,
+        &depth_exceeded_count,
+        &file_count,
+        &dir_count,
+        &root_file_count,
+        &root_dir_count,
+        &total_file_bytes,
+        &shared_arena,
+        0,
+        different_dev,
+    );
+
+    assert!(result.is_ok());
+    assert_eq!(skipped_count.load(AtomicOrdering::Relaxed), 1);
+    assert_eq!(filesystem_skipped_count.load(AtomicOrdering::Relaxed), 1);
 }
 
 #[test]
