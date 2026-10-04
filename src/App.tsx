@@ -428,6 +428,7 @@ export default function App() {
             fileCount={fileCount}
             currentViewSize={currentViewSize}
             scanProgress={scanProgress}
+            rootScanBytes={rootStats?.totalBytes ?? 0}
           />
 
           <Grid gap="md" align="flex-start">

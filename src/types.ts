@@ -39,7 +39,10 @@ export interface DirectoryPayload {
 
 export interface DiskInfo {
   total_bytes: number;
+  /** Free bytes available to the calling user; used for the "X GB free" display. */
   free_bytes: number;
+  /** Total free bytes on the volume regardless of quotas; used for gap calculation. */
+  free_total_bytes: number;
 }
 
 export interface ScanProgress {
