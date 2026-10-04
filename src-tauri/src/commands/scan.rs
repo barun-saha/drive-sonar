@@ -121,6 +121,9 @@ pub async fn scan_directory(
 
     init_rayon_thread_pool();
 
+    state.hardlink_filter.clear();
+    let hardlink_filter = Arc::clone(&state.hardlink_filter);
+
     let scan_res = tokio::task::spawn_blocking(move || {
         // Resolve the device ID of the scan root once
         // On Unix this is used to skip subdirectories on different filesystems (e.g. /proc, /sys)
@@ -141,6 +144,7 @@ pub async fn scan_directory(
             &shared_arena,
             0,
             root_dev,
+            &hardlink_filter,
         )?;
 
         let mut final_arena = shared_arena.into_inner().unwrap();

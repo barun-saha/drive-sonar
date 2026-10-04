@@ -19,9 +19,18 @@ pub fn list_directory(path: &Path) -> std::io::Result<Vec<DirEntry>> {
         let is_dir = file_type.is_dir();
         let is_symlink = file_type.is_symlink();
         let meta = entry.metadata().ok();
+
+        #[cfg(unix)]
+        let file_id = {
+            use std::os::unix::fs::MetadataExt;
+            meta.as_ref().map(|m| m.ino()).unwrap_or(0)
+        };
+        #[cfg(not(unix))]
+        let file_id = 0;
+
         entries.push(DirEntry {
             name: entry.file_name().to_string_lossy().into_owned(),
-            size: if is_dir {
+            size: if is_dir || is_symlink {
                 0
             } else {
                 meta.as_ref().map(|m| m.len()).unwrap_or(0)
@@ -34,6 +43,7 @@ pub fn list_directory(path: &Path) -> std::io::Result<Vec<DirEntry>> {
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|d| d.as_secs())
                 .unwrap_or(0),
+            file_id,
         });
     }
     Ok(entries)

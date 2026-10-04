@@ -80,6 +80,7 @@ pub fn scan_dir_parallel(
     shared_arena: &Mutex<Vec<DiskNode>>,
     depth: usize,
     root_dev: u64,
+    hardlink_filter: &fastbloom::AtomicBloomFilter,
 ) -> Result<(), String> {
     if cancel_flag.load(AtomicOrdering::Relaxed) {
         return Err("Scan was cancelled".to_string());
@@ -142,16 +143,20 @@ pub fn scan_dir_parallel(
             subdir_relative.push((child_path, i as u32));
         }
 
+        let is_hardlink =
+            !entry.is_dir && entry.file_id != 0 && hardlink_filter.insert(&entry.file_id);
+        let effective_size = if is_hardlink { 0 } else { entry.size };
+
         if entry.is_dir {
             local_dirs += 1;
         } else {
             local_files += 1;
-            local_bytes += entry.size;
+            local_bytes += effective_size;
         }
 
         local_nodes.push(DiskNode {
             name: entry.name.into_boxed_str(),
-            size: entry.size,
+            size: effective_size,
             is_dir: entry.is_dir,
             modified_secs: entry.modified_secs,
             parent_id,
@@ -216,6 +221,7 @@ pub fn scan_dir_parallel(
                 shared_arena,
                 depth + 1,
                 root_dev,
+                hardlink_filter,
             )
         })
 }

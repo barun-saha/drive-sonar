@@ -92,10 +92,30 @@ pub struct ScanProgress {
     pub elapsed_secs: f64,
 }
 
+pub const HARDLINK_FILTER_BITS: usize = 33_554_432; // 4 MiB (2^25 bits)
+pub const HARDLINK_FILTER_EXPECTED_ITEMS: usize = 10_000_000;
+
+pub fn create_hardlink_filter() -> fastbloom::AtomicBloomFilter {
+    fastbloom::AtomicBloomFilter::with_num_bits(HARDLINK_FILTER_BITS)
+        .expected_items(HARDLINK_FILTER_EXPECTED_ITEMS)
+}
+
 pub struct AppState {
     pub arena: Arc<RwLock<ArenaTree>>,
     pub cancel_flag: Mutex<Arc<AtomicBool>>,
     pub scan_generation: AtomicU64,
+    pub hardlink_filter: Arc<fastbloom::AtomicBloomFilter>,
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self {
+            arena: Arc::new(RwLock::new(ArenaTree::default())),
+            cancel_flag: Mutex::new(Arc::new(AtomicBool::new(false))),
+            scan_generation: AtomicU64::new(0),
+            hardlink_filter: Arc::new(create_hardlink_filter()),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -105,6 +125,7 @@ pub struct DirEntry {
     pub is_dir: bool,
     pub is_reparse_point: bool,
     pub modified_secs: u64,
+    pub file_id: u64,
 }
 
 #[derive(Eq, PartialEq)]
