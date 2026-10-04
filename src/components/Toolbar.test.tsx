@@ -88,8 +88,8 @@ describe('Toolbar', () => {
     renderWithMantine(
       <Toolbar
         {...defaultProps}
-        diskInfo={{ total_bytes: 1000000000, free_bytes: 400000000 }}
-        scanPath="C:\Users\test"
+        diskInfo={{ total_bytes: 1000000000, free_bytes: 400000000, free_total_bytes: 400000000 }}
+        scanPath="C:\\Users\\test"
       />
     );
 
@@ -105,7 +105,7 @@ describe('Toolbar', () => {
         {...defaultProps}
         scanTime={1500}
         totalItems={1234}
-        diskInfo={{ total_bytes: 1000000000, free_bytes: 400000000 }}
+        diskInfo={{ total_bytes: 1000000000, free_bytes: 400000000, free_total_bytes: 400000000 }}
         scanPath="/home/user"
         dirCount={1}
         fileCount={10}
@@ -128,7 +128,7 @@ describe('Toolbar', () => {
       <Toolbar
         {...defaultProps}
         isScanning={true}
-        diskInfo={{ total_bytes: 1000000000, free_bytes: 400000000 }}
+        diskInfo={{ total_bytes: 1000000000, free_bytes: 400000000, free_total_bytes: 400000000 }}
         scanPath="/home/user"
         scanProgress={{
           file_count: 123,
@@ -179,7 +179,8 @@ describe('Toolbar', () => {
       <Toolbar
         {...defaultProps}
         scanTime={2000}
-        diskInfo={{ total_bytes: 500_000_000_000, free_bytes: 100_000_000_000 }}
+        // total=500GB, free_caller=free_total=100GB → used=400GB, scanned=200GB → delta=200GB ≥ 1GiB
+        diskInfo={{ total_bytes: 500_000_000_000, free_bytes: 100_000_000_000, free_total_bytes: 100_000_000_000 }}
         scanPath={"C:\\"}
         dirCount={5}
         fileCount={3}
@@ -196,7 +197,7 @@ describe('Toolbar', () => {
       <Toolbar
         {...defaultProps}
         scanTime={1000}
-        diskInfo={{ total_bytes: 500_000_000_000, free_bytes: 100_000_000_000 }}
+        diskInfo={{ total_bytes: 500_000_000_000, free_bytes: 100_000_000_000, free_total_bytes: 100_000_000_000 }}
         scanPath="C:\\Users\\test"
         dirCount={3}
         fileCount={10}
@@ -213,7 +214,7 @@ describe('Toolbar', () => {
         {...defaultProps}
         scanTime={1000}
         // used = 200 GB, scanned ≈ 200 GB → delta < 1 GiB
-        diskInfo={{ total_bytes: 500_000_000_000, free_bytes: 300_000_000_000 }}
+        diskInfo={{ total_bytes: 500_000_000_000, free_bytes: 300_000_000_000, free_total_bytes: 300_000_000_000 }}
         scanPath={"C:\\"}
         dirCount={2}
         fileCount={5}

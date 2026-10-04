@@ -35,11 +35,11 @@ export function Toolbar({
     return match ? `Drive (${match[1].toUpperCase()})` : 'Disk';
   }, [scanPath]);
 
-  /** True when the scanned path is the root of a volume (C:\, /, etc.) */
+  /** True when the scanned path is the root of a volume (C:\, C:/, /, etc.) */
   const isVolumeRoot = useMemo(() => {
     if (!scanPath) return false;
-    if (/^[A-Za-z]:\\?$/.test(scanPath)) return true; // Windows: C:\ or C:
-    if (scanPath === '/') return true;                 // Unix root
+    if (/^[A-Za-z]:[/\\]?$/.test(scanPath)) return true; // Windows: C:\, C:/, or C:
+    if (scanPath === '/') return true;                    // Unix root
     return false;
   }, [scanPath]);
 
@@ -49,7 +49,9 @@ export function Toolbar({
    *  completed root-volume scan with a gap ≥ 1 GiB. */
   const systemAllocationBytes = useMemo(() => {
     if (!isVolumeRoot || !diskInfo || scanTime === null) return 0;
-    const usedByOS = diskInfo.total_bytes - diskInfo.free_bytes;
+    // Use free_total_bytes (volume-wide free) not free_bytes (per-user quota free)
+    // to avoid reporting still-free space as "unaccounted" under quota restrictions.
+    const usedByOS = diskInfo.total_bytes - diskInfo.free_total_bytes;
     const delta = usedByOS - rootScanBytes;
     return delta >= SYSTEM_ALLOC_THRESHOLD ? delta : 0;
   }, [isVolumeRoot, diskInfo, scanTime, rootScanBytes]);

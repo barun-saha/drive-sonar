@@ -74,7 +74,12 @@ pub struct UiDiskNode {
 #[derive(Debug, Serialize)]
 pub struct DiskInfo {
     pub total_bytes: u64,
+    /// Free bytes available to the calling user (may be less than `free_total_bytes` under quotas).
+    /// Used for the UI "X GB free" display.
     pub free_bytes: u64,
+    /// Total free bytes on the volume regardless of per-user quotas.
+    /// Used for the unaccounted-space gap calculation to avoid false positives.
+    pub free_total_bytes: u64,
 }
 
 #[derive(Clone, Serialize)]

@@ -43,6 +43,7 @@ pub fn get_disk_info(path: String) -> Result<DiskInfo, String> {
         Ok(DiskInfo {
             total_bytes: total,
             free_bytes: free_caller,
+            free_total_bytes: free_total,
         })
     }
 
@@ -86,6 +87,7 @@ pub fn get_disk_info(path: String) -> Result<DiskInfo, String> {
         Ok(DiskInfo {
             total_bytes,
             free_bytes,
+            free_total_bytes: free_bytes,
         })
     }
 }
