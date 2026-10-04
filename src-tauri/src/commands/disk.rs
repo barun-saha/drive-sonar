@@ -87,7 +87,7 @@ pub fn get_disk_info(path: String) -> Result<DiskInfo, String> {
         Ok(DiskInfo {
             total_bytes,
             free_bytes,
-            free_total_bytes: free_bytes,
+            free_total_bytes: (stat.f_bfree as u64).saturating_mul(block_size),
         })
     }
 }
