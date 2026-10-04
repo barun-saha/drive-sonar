@@ -20,12 +20,13 @@ interface ToolbarProps {
   fileCount: number;
   currentViewSize: number;
   scanProgress?: ScanProgress | null;
+  rootScanBytes: number;
 }
 
 export function Toolbar({
   targetPath, setTargetPath, onBrowse, onScan, onCancel, isScanning,
   scanTime, totalItems, diskInfo, scanPath, dirCount, fileCount, currentViewSize,
-  scanProgress
+  scanProgress, rootScanBytes
 }: ToolbarProps) {
 
   const driveLabel = useMemo(() => {
@@ -33,6 +34,25 @@ export function Toolbar({
     const match = scanPath.match(/^([a-zA-Z]:)/);
     return match ? `Drive (${match[1].toUpperCase()})` : 'Disk';
   }, [scanPath]);
+
+  /** True when the scanned path is the root of a volume (C:\, /, etc.) */
+  const isVolumeRoot = useMemo(() => {
+    if (!scanPath) return false;
+    if (/^[A-Za-z]:\\?$/.test(scanPath)) return true; // Windows: C:\ or C:
+    if (scanPath === '/') return true;                 // Unix root
+    return false;
+  }, [scanPath]);
+
+  const SYSTEM_ALLOC_THRESHOLD = 1_073_741_824; // 1 GiB
+
+  /** Unaccounted bytes = OS used − scanned root bytes. Only non-zero after a
+   *  completed root-volume scan with a gap ≥ 1 GiB. */
+  const systemAllocationBytes = useMemo(() => {
+    if (!isVolumeRoot || !diskInfo || scanTime === null) return 0;
+    const usedByOS = diskInfo.total_bytes - diskInfo.free_bytes;
+    const delta = usedByOS - rootScanBytes;
+    return delta >= SYSTEM_ALLOC_THRESHOLD ? delta : 0;
+  }, [isVolumeRoot, diskInfo, scanTime, rootScanBytes]);
 
   // Disk info is available as soon as the parallel call resolves
   const showDiskInfo = diskInfo !== null && scanPath !== '';
@@ -208,6 +228,17 @@ export function Toolbar({
               </Text>{' '}
               total)
             </Text>
+
+            {/* System Allocation notice — only after a completed root-volume scan with a gap ≥ 1 GiB */}
+            {systemAllocationBytes > 0 && showDirCounts && (
+              <>
+                <Text size="sm" c="dimmed">•</Text>
+                <Text size="sm" c="dimmed">
+                  ~<Text span fw={600}>{formatBytes(systemAllocationBytes)}</Text>{' '}
+                  unaccounted (filesystem metadata / inaccessible regions)
+                </Text>
+              </>
+            )}
           </Group>
         )}
       </Stack>

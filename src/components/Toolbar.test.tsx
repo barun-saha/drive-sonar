@@ -22,6 +22,7 @@ describe('Toolbar', () => {
     dirCount: 0,
     fileCount: 0,
     currentViewSize: 0,
+    rootScanBytes: 0,
   };
 
   it('renders target path and handles path typing and action buttons', () => {
@@ -171,5 +172,55 @@ describe('Toolbar', () => {
     expect(screen.getByText('2.30s')).toBeInTheDocument();
     expect(screen.getByText('Current view:')).toBeInTheDocument();
     expect(screen.queryByText('Disk:')).not.toBeInTheDocument();
+  });
+
+  it('shows system allocation notice for volume root scan with large unaccounted gap', () => {
+    renderWithMantine(
+      <Toolbar
+        {...defaultProps}
+        scanTime={2000}
+        diskInfo={{ total_bytes: 500_000_000_000, free_bytes: 100_000_000_000 }}
+        scanPath={"C:\\"}
+        dirCount={5}
+        fileCount={3}
+        currentViewSize={200_000_000_000}
+        rootScanBytes={200_000_000_000}
+      />
+    );
+    // used = 400 GB, scanned = 200 GB → delta 200 GB ≥ 1 GiB threshold
+    expect(document.body.textContent).toMatch(/unaccounted/);
+  });
+
+  it('does NOT show system allocation notice for a non-root scan path', () => {
+    renderWithMantine(
+      <Toolbar
+        {...defaultProps}
+        scanTime={1000}
+        diskInfo={{ total_bytes: 500_000_000_000, free_bytes: 100_000_000_000 }}
+        scanPath="C:\\Users\\test"
+        dirCount={3}
+        fileCount={10}
+        currentViewSize={50_000_000_000}
+        rootScanBytes={50_000_000_000}
+      />
+    );
+    expect(document.body.textContent).not.toMatch(/unaccounted/);
+  });
+
+  it('does NOT show system allocation notice when delta is below 1 GiB threshold', () => {
+    renderWithMantine(
+      <Toolbar
+        {...defaultProps}
+        scanTime={1000}
+        // used = 200 GB, scanned ≈ 200 GB → delta < 1 GiB
+        diskInfo={{ total_bytes: 500_000_000_000, free_bytes: 300_000_000_000 }}
+        scanPath={"C:\\"}
+        dirCount={2}
+        fileCount={5}
+        currentViewSize={199_900_000_000}
+        rootScanBytes={199_900_000_000}
+      />
+    );
+    expect(document.body.textContent).not.toMatch(/unaccounted/);
   });
 });
