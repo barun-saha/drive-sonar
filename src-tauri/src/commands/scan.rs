@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering as AtomicOr
 use std::sync::{mpsc, Arc, Mutex};
 use tauri::{Emitter, State};
 
-use crate::models::{AppState, DirectoryPayload, DiskNode, ScanProgress};
+use crate::models::{create_hardlink_filter, AppState, DirectoryPayload, DiskNode, ScanProgress};
 use crate::scanner::{get_dev, init_rayon_thread_pool, scan_dir_parallel};
 use crate::tree::{aggregate_node, build_directory_payload};
 
@@ -121,8 +121,8 @@ pub async fn scan_directory(
 
     init_rayon_thread_pool();
 
-    state.hardlink_filter.clear();
-    let hardlink_filter = Arc::clone(&state.hardlink_filter);
+    // A canceled blocking task may still be running when a new scan starts.
+    let hardlink_filter = create_hardlink_filter();
 
     let scan_res = tokio::task::spawn_blocking(move || {
         // Resolve the device ID of the scan root once

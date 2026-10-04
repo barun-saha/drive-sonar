@@ -2,6 +2,7 @@
 
 use serde::Serialize;
 use std::cmp::Ordering;
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -95,16 +96,36 @@ pub struct ScanProgress {
 pub const HARDLINK_FILTER_BITS: usize = 33_554_432; // 4 MiB (2^25 bits)
 pub const HARDLINK_FILTER_EXPECTED_ITEMS: usize = 10_000_000;
 
-pub fn create_hardlink_filter() -> fastbloom::AtomicBloomFilter {
-    fastbloom::AtomicBloomFilter::with_num_bits(HARDLINK_FILTER_BITS)
-        .expected_items(HARDLINK_FILTER_EXPECTED_ITEMS)
+/// Per-scan identities. Bloom hits are only hints; exact identities decide
+/// whether a file's bytes have already been counted.
+pub struct HardlinkFilter {
+    pub(crate) bloom: fastbloom::AtomicBloomFilter,
+    seen: Mutex<HashSet<u64>>,
+}
+
+impl HardlinkFilter {
+    pub fn insert(&self, file_id: &u64) -> bool {
+        // Serialize both updates so parallel visits to the same identity cannot
+        // count it twice. Record every identity, including Bloom misses.
+        let mut seen = self.seen.lock().unwrap();
+        let possibly_seen = self.bloom.insert(file_id);
+        let newly_seen = seen.insert(*file_id);
+        possibly_seen && !newly_seen
+    }
+}
+
+pub fn create_hardlink_filter() -> HardlinkFilter {
+    HardlinkFilter {
+        bloom: fastbloom::AtomicBloomFilter::with_num_bits(HARDLINK_FILTER_BITS)
+            .expected_items(HARDLINK_FILTER_EXPECTED_ITEMS),
+        seen: Mutex::new(HashSet::new()),
+    }
 }
 
 pub struct AppState {
     pub arena: Arc<RwLock<ArenaTree>>,
     pub cancel_flag: Mutex<Arc<AtomicBool>>,
     pub scan_generation: AtomicU64,
-    pub hardlink_filter: Arc<fastbloom::AtomicBloomFilter>,
 }
 
 impl Default for AppState {
@@ -113,7 +134,6 @@ impl Default for AppState {
             arena: Arc::new(RwLock::new(ArenaTree::default())),
             cancel_flag: Mutex::new(Arc::new(AtomicBool::new(false))),
             scan_generation: AtomicU64::new(0),
-            hardlink_filter: Arc::new(create_hardlink_filter()),
         }
     }
 }

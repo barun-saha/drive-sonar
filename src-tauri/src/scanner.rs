@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::Mutex;
 
-use crate::models::{DirEntry, DiskNode};
+use crate::models::{DirEntry, DiskNode, HardlinkFilter};
 
 pub mod default;
 #[cfg(target_os = "linux")]
@@ -80,7 +80,7 @@ pub fn scan_dir_parallel(
     shared_arena: &Mutex<Vec<DiskNode>>,
     depth: usize,
     root_dev: u64,
-    hardlink_filter: &fastbloom::AtomicBloomFilter,
+    hardlink_filter: &HardlinkFilter,
 ) -> Result<(), String> {
     if cancel_flag.load(AtomicOrdering::Relaxed) {
         return Err("Scan was cancelled".to_string());
