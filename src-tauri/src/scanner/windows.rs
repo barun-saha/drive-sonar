@@ -6,7 +6,7 @@ use std::io;
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::path::Path;
 use windows::core::PCWSTR;
-use windows::Wdk::Storage::FileSystem::{FileDirectoryInformation, NtQueryDirectoryFileEx};
+use windows::Wdk::Storage::FileSystem::{FileIdBothDirectoryInformation, NtQueryDirectoryFileEx};
 use windows::Win32::Foundation::{CloseHandle, HANDLE, STATUS_NO_MORE_FILES, STATUS_SUCCESS};
 use windows::Win32::Storage::FileSystem::{
     CreateFileW, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_REPARSE_POINT,
@@ -29,7 +29,7 @@ std::thread_local! {
 
 #[repr(C)]
 #[derive(Copy, Clone)]
-struct FileDirectoryInformationRaw {
+pub(crate) struct FileIdBothDirectoryInformationRaw {
     next_entry_offset: u32,
     file_index: u32,
     creation_time: i64,
@@ -40,6 +40,12 @@ struct FileDirectoryInformationRaw {
     allocation_size: i64,
     file_attributes: u32,
     file_name_length: u32,
+    ea_size: u32,
+    short_name_length: i8,
+    _reserved: u8,
+    short_name: [u16; 12],
+    _padding: [u8; 2],
+    file_id: i64,
 }
 
 struct HandleGuard(HANDLE);
@@ -99,7 +105,7 @@ pub fn list_directory(path: &Path) -> io::Result<Vec<DirEntry>> {
                     &mut iosb,
                     buffer.as_mut_ptr() as *mut c_void,
                     buffer.len() as u32,
-                    FileDirectoryInformation,
+                    FileIdBothDirectoryInformation,
                     if restart_scan { 0x00000001 } else { 0 },
                     None,
                 )
@@ -146,14 +152,15 @@ pub fn list_directory(path: &Path) -> io::Result<Vec<DirEntry>> {
 
 /// Parses raw directory header bytes from the NT system call into structured `DirEntry` items.
 fn parse_entries(buf: &[u8], out: &mut Vec<DirEntry>) -> io::Result<()> {
-    const HEADER_SIZE: usize = std::mem::size_of::<FileDirectoryInformationRaw>();
+    const HEADER_SIZE: usize = std::mem::size_of::<FileIdBothDirectoryInformationRaw>();
     let mut offset = 0usize;
 
     loop {
         if offset + HEADER_SIZE > buf.len() {
             break;
         }
-        let header_ptr = unsafe { buf.as_ptr().add(offset) as *const FileDirectoryInformationRaw };
+        let header_ptr =
+            unsafe { buf.as_ptr().add(offset) as *const FileIdBothDirectoryInformationRaw };
         let header = unsafe { std::ptr::read_unaligned(header_ptr) };
 
         let name_len = header.file_name_length as usize;
@@ -172,16 +179,25 @@ fn parse_entries(buf: &[u8], out: &mut Vec<DirEntry>) -> io::Result<()> {
 
         if native_name != "." && native_name != ".." {
             let tw = header.last_write_time as u64;
+            let is_dir = header.file_attributes & FILE_ATTRIBUTE_DIRECTORY.0 != 0;
+            let is_reparse_point =
+                header.file_attributes & FILE_ATTRIBUTE_REPARSE_POINT.0 != 0;
+            let size = if is_dir || is_reparse_point {
+                0
+            } else {
+                header.allocation_size.max(0) as u64
+            };
             out.push(DirEntry {
                 name: native_name.to_string_lossy().into_owned(),
-                size: header.end_of_file.max(0) as u64,
-                is_dir: header.file_attributes & FILE_ATTRIBUTE_DIRECTORY.0 != 0,
-                is_reparse_point: header.file_attributes & FILE_ATTRIBUTE_REPARSE_POINT.0 != 0,
+                size,
+                is_dir,
+                is_reparse_point,
                 modified_secs: if tw >= 116_444_736_000_000_000 {
                     (tw - 116_444_736_000_000_000) / 10_000_000
                 } else {
                     0
                 },
+                file_id: header.file_id as u64,
             });
         }
 

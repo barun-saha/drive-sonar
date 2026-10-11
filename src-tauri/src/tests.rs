@@ -9,8 +9,106 @@ use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering as AtomicOrdering};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::Mutex;
 use tempfile::tempdir;
+
+#[test]
+fn test_hardlink_filter_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<HardlinkFilter>();
+}
+
+#[test]
+fn test_hardlink_filter_parallel_duplicates() {
+    let filter = create_hardlink_filter();
+    let first_visits = AtomicUsize::new(0);
+    let barrier = std::sync::Barrier::new(8);
+    std::thread::scope(|scope| {
+        for _ in 0..8 {
+            scope.spawn(|| {
+                barrier.wait();
+                if !filter.insert(&123) {
+                    first_visits.fetch_add(1, AtomicOrdering::Relaxed);
+                }
+            });
+        }
+    });
+    assert_eq!(first_visits.load(AtomicOrdering::Relaxed), 1);
+}
+
+#[test]
+fn test_overlapping_scans_have_independent_hardlink_filters() {
+    let dir = tempdir().unwrap();
+    fs::write(dir.path().join("file.bin"), vec![0x42; 16384]).unwrap();
+    fs::hard_link(dir.path().join("file.bin"), dir.path().join("link.bin")).unwrap();
+    let expected_bytes = get_directory_entries(dir.path()).unwrap()[0].size;
+    let barrier = std::sync::Barrier::new(2);
+    std::thread::scope(|scope| {
+        for _ in 0..2 {
+            scope.spawn(|| {
+                let filter = create_hardlink_filter();
+                let total_bytes = AtomicU64::new(0);
+                let file_count = AtomicUsize::new(0);
+                let arena = Mutex::new(vec![DiskNode {
+                    name: "root".into(),
+                    size: 0,
+                    is_dir: true,
+                    modified_secs: 0,
+                    parent_id: u32::MAX,
+                    first_child: u32::MAX,
+                    next_sibling: u32::MAX,
+                    is_tombstoned: false,
+                }]);
+                barrier.wait();
+                scan_dir_parallel(
+                    dir.path(),
+                    0,
+                    &AtomicBool::new(false),
+                    &AtomicUsize::new(0),
+                    &AtomicUsize::new(0),
+                    &AtomicUsize::new(0),
+                    &file_count,
+                    &AtomicUsize::new(0),
+                    &AtomicUsize::new(0),
+                    &AtomicUsize::new(0),
+                    &total_bytes,
+                    &arena,
+                    0,
+                    get_dev(dir.path()),
+                    &filter,
+                )
+                .unwrap();
+                assert_eq!(file_count.load(AtomicOrdering::Relaxed), 2);
+                assert_eq!(total_bytes.load(AtomicOrdering::Relaxed), expected_bytes);
+                let mut arena = arena.into_inner().unwrap();
+                aggregate_node(0, &mut arena);
+                assert_eq!(arena[0].size, expected_bytes);
+            });
+        }
+    });
+}
+
+#[cfg(windows)]
+fn reported_allocation_size(path: &Path) -> u64 {
+    use ::windows::Win32::Foundation::HANDLE;
+    use ::windows::Win32::Storage::FileSystem::{
+        FileStandardInfo, GetFileInformationByHandleEx, FILE_STANDARD_INFO,
+    };
+    use std::os::windows::io::AsRawHandle;
+
+    let file = File::open(path).unwrap();
+    let mut info = FILE_STANDARD_INFO::default();
+    unsafe {
+        GetFileInformationByHandleEx(
+            HANDLE(file.as_raw_handle()),
+            FileStandardInfo,
+            &mut info as *mut _ as *mut std::ffi::c_void,
+            std::mem::size_of::<FILE_STANDARD_INFO>() as u32,
+        )
+        .unwrap();
+    }
+    info.AllocationSize.max(0) as u64
+}
 
 #[test]
 fn test_get_directory_entries() {
@@ -31,6 +129,9 @@ fn test_get_directory_entries() {
 
     let file_entry = entries.iter().find(|e| e.name == "test.txt").unwrap();
     assert!(!file_entry.is_dir);
+    #[cfg(windows)]
+    assert_eq!(file_entry.size, reported_allocation_size(&file_path));
+    #[cfg(not(windows))]
     assert_eq!(file_entry.size, 12);
 
     let dir_entry = entries.iter().find(|e| e.name == "subdir").unwrap();
@@ -363,6 +464,16 @@ fn test_scan_dir_parallel() {
         is_tombstoned: false,
     }]);
 
+    let filter = create_hardlink_filter();
+    // Force Bloom hits for unique files without recording their exact IDs.
+    // These false positives must retain both node sizes and progress bytes.
+    for path in [root_path, sub_dir1.as_path()] {
+        for entry in get_directory_entries(path).unwrap() {
+            if !entry.is_dir {
+                filter.bloom.insert(&entry.file_id);
+            }
+        }
+    }
     let res = scan_dir_parallel(
         root_path,
         0,
@@ -378,23 +489,47 @@ fn test_scan_dir_parallel() {
         &shared_arena,
         0,
         get_dev(root_path),
+        &filter,
     );
     assert!(res.is_ok());
     assert_eq!(file_count.load(AtomicOrdering::Relaxed), 2); // hello.txt, data.bin
     assert_eq!(dir_count.load(AtomicOrdering::Relaxed), 1); // subdir1
     assert_eq!(root_file_count.load(AtomicOrdering::Relaxed), 1); // hello.txt only at root
     assert_eq!(root_dir_count.load(AtomicOrdering::Relaxed), 1); // subdir1 at root
-    assert_eq!(total_file_bytes.load(AtomicOrdering::Relaxed), 21); // 11 + 10 bytes
+    let expected_bytes: u64 = [root_path, sub_dir1.as_path()]
+        .into_iter()
+        .flat_map(|path| get_directory_entries(path).unwrap())
+        .filter(|entry| !entry.is_dir)
+        .map(|entry| entry.size)
+        .sum();
+    assert_eq!(
+        total_file_bytes.load(AtomicOrdering::Relaxed),
+        expected_bytes
+    );
 
     let mut final_arena = shared_arena.into_inner().unwrap();
     aggregate_node(0, &mut final_arena);
 
     assert!(final_arena.len() >= 4); // root, subdir1, hello.txt, data.bin
-    assert_eq!(final_arena[0].size, 21); // 11 + 10 bytes
+    assert_eq!(final_arena[0].size, expected_bytes);
+    for path in [root_path, sub_dir1.as_path()] {
+        for entry in get_directory_entries(path)
+            .unwrap()
+            .into_iter()
+            .filter(|e| !e.is_dir)
+        {
+            let node = final_arena
+                .iter()
+                .find(|n| n.name.as_ref() == entry.name)
+                .unwrap();
+            assert_eq!(node.size, entry.size);
+        }
+    }
 
     // Test cancel flag
     let cancel_flag_true = AtomicBool::new(true);
     let shared_arena2 = Mutex::new(vec![]);
+    let filter2 = create_hardlink_filter();
     let res_cancelled = scan_dir_parallel(
         root_path,
         0,
@@ -410,12 +545,14 @@ fn test_scan_dir_parallel() {
         &shared_arena2,
         0,
         get_dev(root_path),
+        &filter2,
     );
     assert!(res_cancelled.is_err());
 
     // Test depth limit
     let depth_exceeded_count2 = AtomicUsize::new(0);
     let shared_arena3 = Mutex::new(vec![]);
+    let filter3 = create_hardlink_filter();
     let res_depth = scan_dir_parallel(
         root_path,
         0,
@@ -431,6 +568,7 @@ fn test_scan_dir_parallel() {
         &shared_arena3,
         257,
         get_dev(root_path),
+        &filter3,
     );
     assert!(res_depth.is_ok());
     assert_eq!(depth_exceeded_count2.load(AtomicOrdering::Relaxed), 1);
@@ -487,6 +625,7 @@ fn test_scan_dir_parallel_edge_cases() {
         is_tombstoned: false,
     }]);
 
+    let filter = create_hardlink_filter();
     let res = scan_dir_parallel(
         root_path,
         0,
@@ -502,6 +641,7 @@ fn test_scan_dir_parallel_edge_cases() {
         &shared_arena,
         0,
         get_dev(root_path),
+        &filter,
     );
     assert!(res.is_ok());
 
@@ -516,6 +656,7 @@ fn test_scan_dir_parallel_edge_cases() {
 
     // 3. Non-existent path causes skipped_count increment
     let non_existent = root_path.join("does_not_exist");
+    let filter2 = create_hardlink_filter();
     let res_non_exist = scan_dir_parallel(
         &non_existent,
         0,
@@ -531,6 +672,7 @@ fn test_scan_dir_parallel_edge_cases() {
         &shared_arena,
         0,
         get_dev(root_path),
+        &filter2,
     );
     assert!(res_non_exist.is_ok());
     assert_eq!(skipped_count.load(AtomicOrdering::Relaxed), 1);
@@ -570,6 +712,7 @@ fn test_skip_counts_distinguish_inaccessible_and_cross_device_paths() {
         actual_dev + 1
     };
 
+    let filter1 = create_hardlink_filter();
     let inaccessible_result = scan_dir_parallel(
         &root_path.join("missing"),
         0,
@@ -585,12 +728,14 @@ fn test_skip_counts_distinguish_inaccessible_and_cross_device_paths() {
         &shared_arena,
         0,
         actual_dev,
+        &filter1,
     );
 
     assert!(inaccessible_result.is_ok());
     assert_eq!(skipped_count.load(AtomicOrdering::Relaxed), 1);
     assert_eq!(filesystem_skipped_count.load(AtomicOrdering::Relaxed), 0);
 
+    let filter2 = create_hardlink_filter();
     let result = scan_dir_parallel(
         root_path,
         0,
@@ -606,6 +751,7 @@ fn test_skip_counts_distinguish_inaccessible_and_cross_device_paths() {
         &shared_arena,
         0,
         different_dev,
+        &filter2,
     );
 
     assert!(result.is_ok());
@@ -615,11 +761,7 @@ fn test_skip_counts_distinguish_inaccessible_and_cross_device_paths() {
 
 #[test]
 fn test_cancel_scan_logic() {
-    let state = AppState {
-        arena: Arc::new(RwLock::new(ArenaTree::default())),
-        cancel_flag: Mutex::new(Arc::new(AtomicBool::new(false))),
-        scan_generation: AtomicU64::new(0),
-    };
+    let state = AppState::default();
     let flag = state.cancel_flag.lock().unwrap().clone();
     assert!(!flag.load(AtomicOrdering::Relaxed));
 
@@ -642,4 +784,187 @@ fn test_get_disk_info() {
 
     let err_info = get_disk_info("/non/existent/path/123456789".to_string());
     assert!(err_info.is_err());
+}
+
+#[test]
+fn test_disk_node_size_unchanged() {
+    // Acceptance criteria: DiskNode struct size in models.rs remains unchanged (48 bytes)
+    assert_eq!(std::mem::size_of::<DiskNode>(), 48);
+}
+
+#[test]
+fn test_bloom_filter_memory_footprint() {
+    let filter = create_hardlink_filter();
+    let bytes = filter.bloom.num_bits() / 8;
+    // The Bloom component remains bounded; exact identity storage grows with
+    // the number of unique files to guarantee correct accounting.
+    assert!(bytes <= 4 * 1024 * 1024);
+    assert!(bytes < 5 * 1024 * 1024);
+}
+
+#[cfg(windows)]
+#[test]
+fn test_windows_struct_layout() {
+    use ::windows::Wdk::Storage::FileSystem::FILE_ID_BOTH_DIR_INFORMATION;
+    use crate::scanner::windows::FileIdBothDirectoryInformationRaw;
+    // Verify header size matches FileId offset + sizeof(FileId) = 104 bytes
+    assert_eq!(std::mem::size_of::<FileIdBothDirectoryInformationRaw>(), 104);
+    let dummy = std::mem::MaybeUninit::<FILE_ID_BOTH_DIR_INFORMATION>::uninit();
+    let ptr = dummy.as_ptr();
+    unsafe {
+        assert_eq!(std::ptr::addr_of!((*ptr).FileName) as usize - ptr as usize, 104);
+        assert_eq!(std::ptr::addr_of!((*ptr).FileId) as usize - ptr as usize, 96);
+        assert_eq!(std::ptr::addr_of!((*ptr).AllocationSize) as usize - ptr as usize, 48);
+    }
+}
+
+#[test]
+fn test_hardlink_deduplication() {
+    let dir = tempdir().unwrap();
+    let root_path = dir.path();
+    let file1 = root_path.join("file1.bin");
+    let file2 = root_path.join("file2_hardlink.bin");
+
+    // Write 16KB of data so allocation size > 0 on NTFS
+    let data = vec![0x42u8; 16384];
+    fs::write(&file1, &data).unwrap();
+
+    // Create a hard link
+    if let Err(e) = fs::hard_link(&file1, &file2) {
+        eprintln!("Skipping hard link test: filesystem does not support hard links ({})", e);
+        return;
+    }
+
+    let cancel_flag = AtomicBool::new(false);
+    let skipped_count = AtomicUsize::new(0);
+    let filesystem_skipped_count = AtomicUsize::new(0);
+    let depth_exceeded_count = AtomicUsize::new(0);
+    let file_count = AtomicUsize::new(0);
+    let dir_count = AtomicUsize::new(0);
+    let root_file_count = AtomicUsize::new(0);
+    let root_dir_count = AtomicUsize::new(0);
+    let total_file_bytes = AtomicU64::new(0);
+    let shared_arena = Mutex::new(vec![DiskNode {
+        name: root_path.to_string_lossy().into_owned().into_boxed_str(),
+        size: 0,
+        is_dir: true,
+        modified_secs: 0,
+        parent_id: u32::MAX,
+        first_child: u32::MAX,
+        next_sibling: u32::MAX,
+        is_tombstoned: false,
+    }]);
+
+    let filter = create_hardlink_filter();
+    let res = scan_dir_parallel(
+        root_path,
+        0,
+        &cancel_flag,
+        &skipped_count,
+        &filesystem_skipped_count,
+        &depth_exceeded_count,
+        &file_count,
+        &dir_count,
+        &root_file_count,
+        &root_dir_count,
+        &total_file_bytes,
+        &shared_arena,
+        0,
+        get_dev(root_path),
+        &filter,
+    );
+    assert!(res.is_ok());
+
+    // Both files must be counted in file_count
+    assert_eq!(file_count.load(AtomicOrdering::Relaxed), 2);
+
+    let mut arena = shared_arena.into_inner().unwrap();
+    aggregate_node(0, &mut arena);
+
+    // Both nodes must exist in the arena (root + 2 files)
+    assert_eq!(arena.len(), 3);
+
+    // Exactly one file must have physical size > 0, and the other (hardlink duplicate) must have size == 0
+    let n1 = &arena[1];
+    let n2 = &arena[2];
+    let (primary, hardlink) = if n1.size > 0 { (n1, n2) } else { (n2, n1) };
+
+    assert!(primary.size > 0, "Primary file must have physical size > 0");
+    assert_eq!(hardlink.size, 0, "Hardlink duplicate must have size == 0");
+
+    // Total aggregate size at root must equal the primary file's size alone (no double counting!)
+    assert_eq!(arena[0].size, primary.size);
+    assert_eq!(total_file_bytes.load(AtomicOrdering::Relaxed), primary.size);
+}
+
+#[test]
+fn test_reparse_point_not_recursed() {
+    let dir = tempdir().unwrap();
+    let root_path = dir.path();
+    let sub = root_path.join("junction_target");
+    fs::create_dir(&sub).unwrap();
+    let inner_file = sub.join("inner.bin");
+    fs::write(&inner_file, vec![0u8; 10000]).unwrap();
+
+    #[cfg(windows)]
+    {
+        let link_path = root_path.join("junction_link");
+        let link_str = link_path.to_str().unwrap();
+        let target_str = sub.to_str().unwrap();
+        let status = std::process::Command::new("cmd")
+            .args(&["/C", "mklink", "/J", link_str, target_str])
+            .output();
+        if let Ok(output) = status {
+            if output.status.success() {
+                let filter = create_hardlink_filter();
+                let cancel_flag = AtomicBool::new(false);
+                let skipped_count = AtomicUsize::new(0);
+                let filesystem_skipped_count = AtomicUsize::new(0);
+                let depth_exceeded_count = AtomicUsize::new(0);
+                let file_count = AtomicUsize::new(0);
+                let dir_count = AtomicUsize::new(0);
+                let root_file_count = AtomicUsize::new(0);
+                let root_dir_count = AtomicUsize::new(0);
+                let total_file_bytes = AtomicU64::new(0);
+                let shared_arena = Mutex::new(vec![DiskNode {
+                    name: root_path.to_string_lossy().into_owned().into_boxed_str(),
+                    size: 0,
+                    is_dir: true,
+                    modified_secs: 0,
+                    parent_id: u32::MAX,
+                    first_child: u32::MAX,
+                    next_sibling: u32::MAX,
+                    is_tombstoned: false,
+                }]);
+
+                let res = scan_dir_parallel(
+                    root_path,
+                    0,
+                    &cancel_flag,
+                    &skipped_count,
+                    &filesystem_skipped_count,
+                    &depth_exceeded_count,
+                    &file_count,
+                    &dir_count,
+                    &root_file_count,
+                    &root_dir_count,
+                    &total_file_bytes,
+                    &shared_arena,
+                    0,
+                    get_dev(root_path),
+                    &filter,
+                );
+                assert!(res.is_ok());
+
+                let arena = shared_arena.into_inner().unwrap();
+                let junction_node = arena.iter().find(|n| n.name.as_ref() == "junction_link");
+                assert!(junction_node.is_some(), "Junction must be instantiated in the tree");
+                let j_node = junction_node.unwrap();
+                assert_eq!(j_node.first_child, u32::MAX, "Junction must NOT have children (not traversed)");
+
+                // file_count should only count inner.bin ONCE (from junction_target), NOT twice!
+                assert_eq!(file_count.load(AtomicOrdering::Relaxed), 1);
+            }
+        }
+    }
 }
