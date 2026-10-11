@@ -96,7 +96,8 @@ describe('Toolbar', () => {
     expect(screen.getByText('Drive (C:):')).toBeInTheDocument();
     expect(screen.getByText('total')).toBeInTheDocument();
     expect(screen.getByText('used')).toBeInTheDocument();
-    expect(screen.getByText('free')).toBeInTheDocument();
+    expect(screen.getByText(/free/)).toBeInTheDocument();
+    expect(screen.getByText(/\(40\.0%\)/)).toBeInTheDocument();
   });
 
   it('displays scan summary and current view stats when scan completes', () => {
