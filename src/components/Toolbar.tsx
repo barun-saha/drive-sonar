@@ -159,7 +159,7 @@ export function Toolbar({
                   </Text>{' '}
                   free{' '}
                   <Text span c="dimmed" size="sm">
-                    ({((diskInfo.free_bytes / diskInfo.total_bytes) * 100).toFixed(1)}%)
+                    ({((diskInfo.free_total_bytes / diskInfo.total_bytes) * 100).toFixed(1)}%)
                   </Text>
                 </Text>
               </>
