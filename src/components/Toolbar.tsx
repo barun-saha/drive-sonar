@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Group, TextInput, Button, Text, ActionIcon, Stack, Divider } from '@mantine/core';
-import { Search, FolderOpen, Loader2, CircleX, Folder, File, HardDrive, SearchCheck, Pin } from 'lucide-react';
+import { Search, FolderOpen, Loader2, CircleX, Folder, File, HardDrive, SearchCheck, Pin, Trash2 } from 'lucide-react';
 
 import { DiskInfo, ScanProgress } from '../types';
 import { formatBytes } from '../utils/format';
@@ -21,12 +21,14 @@ interface ToolbarProps {
   currentViewSize: number;
   scanProgress?: ScanProgress | null;
   rootScanBytes: number;
+  trashedCount?: number;
+  trashedBytes?: number;
 }
 
 export function Toolbar({
   targetPath, setTargetPath, onBrowse, onScan, onCancel, isScanning,
   scanTime, totalItems, diskInfo, scanPath, dirCount, fileCount, currentViewSize,
-  scanProgress, rootScanBytes
+  scanProgress, rootScanBytes, trashedCount = 0, trashedBytes = 0
 }: ToolbarProps) {
 
   const driveLabel = useMemo(() => {
@@ -244,6 +246,32 @@ export function Toolbar({
                 </Text>
               </>
             )}
+          </Group>
+        )}
+
+        {/* ── Line 3: Trashed Items Session Stats ── */}
+        {trashedCount > 0 && (
+          <Group gap="xs" align="center" wrap="wrap">
+            <Trash2 size={15} style={{ color: 'var(--mantine-color-orange-5)' }} />
+            <Text size="sm" c="orange.5" style={{ whiteSpace: 'nowrap' }}>
+              Session:
+            </Text>
+
+            <Text size="sm" c="dimmed">
+              <Text span fw={600}>
+                {trashedCount.toLocaleString()}
+              </Text>{' '}
+              {trashedCount === 1 ? 'item' : 'items'} moved to Trash
+            </Text>
+
+            <Text size="sm" c="dimmed">•</Text>
+
+            <Text size="sm" c="dimmed">
+              <Text span fw={600}>
+                {formatBytes(trashedBytes)}
+              </Text>{' '}
+              freed
+            </Text>
           </Group>
         )}
       </Stack>

@@ -225,4 +225,43 @@ describe('Toolbar', () => {
     );
     expect(document.body.textContent).not.toMatch(/unaccounted/);
   });
+
+  it('does not render session trash info when trashedCount is 0 or omitted', () => {
+    renderWithMantine(
+      <Toolbar
+        {...defaultProps}
+        trashedCount={0}
+        trashedBytes={0}
+      />
+    );
+    expect(screen.queryByText('Session:')).not.toBeInTheDocument();
+  });
+
+  it('renders singular item and formatted bytes when trashedCount is 1', () => {
+    renderWithMantine(
+      <Toolbar
+        {...defaultProps}
+        trashedCount={1}
+        trashedBytes={1024 * 500}
+      />
+    );
+    expect(screen.getByText('Session:')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getByText(/item moved to Trash/)).toBeInTheDocument();
+    expect(screen.getByText(/freed/)).toBeInTheDocument();
+  });
+
+  it('renders plural items and formatted bytes when trashedCount is greater than 1', () => {
+    renderWithMantine(
+      <Toolbar
+        {...defaultProps}
+        trashedCount={5}
+        trashedBytes={1024 * 1024 * 25}
+      />
+    );
+    expect(screen.getByText('Session:')).toBeInTheDocument();
+    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getByText(/items moved to Trash/)).toBeInTheDocument();
+    expect(screen.getByText(/freed/)).toBeInTheDocument();
+  });
 });

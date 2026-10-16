@@ -5,6 +5,7 @@ import { ModalsProvider } from '@mantine/modals';
 import { ItemList } from './ItemList';
 import { DirectoryPayload } from '../types';
 import { invoke } from '@tauri-apps/api/core';
+import { notifications } from '@mantine/notifications';
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
@@ -119,9 +120,16 @@ describe('ItemList', () => {
   it('opens confirm modal for deletion and moves item to trash on confirm', async () => {
     vi.mocked(invoke).mockResolvedValue(undefined);
     const onNavigate = vi.fn();
+    const onItemTrashed = vi.fn();
+    const showSpy = vi.spyOn(notifications, 'show');
 
     renderWithMantine(
-      <ItemList payload={mockPayload} onNavigate={onNavigate} onRefresh={vi.fn()} />
+      <ItemList
+        payload={mockPayload}
+        onNavigate={onNavigate}
+        onRefresh={vi.fn()}
+        onItemTrashed={onItemTrashed}
+      />
     );
 
     const trashIcons = screen.getAllByTitle('Move to Trash');
@@ -134,6 +142,13 @@ describe('ItemList', () => {
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith('move_to_trash', { nodeId: 10 });
+      expect(onItemTrashed).toHaveBeenCalledWith(mockPayload.items[0]);
+      expect(showSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Success',
+          message: expect.stringMatching(/Folder A.*KB/),
+        })
+      );
       expect(onNavigate).toHaveBeenCalledWith(1);
     });
   });
