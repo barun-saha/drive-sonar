@@ -16,7 +16,7 @@ import { saveReportToTextFile } from './utils/exportReport';
 
 import '@mantine/notifications/styles.css';
 
-import { DirectoryPayload, DiskInfo, ScanProgress, KeyStats, DirNode } from './types';
+import { DirectoryPayload, DiskInfo, ScanProgress, KeyStats, DirNode, UiDiskNode } from './types';
 
 export default function App() {
   const [targetPath, setTargetPath] = useState('');
@@ -26,6 +26,8 @@ export default function App() {
   const [diskInfo, setDiskInfo] = useState<DiskInfo | null>(null);
   const [scanPath, setScanPath] = useState<string>('');
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
+  const [trashedCount, setTrashedCount] = useState(0);
+  const [trashedBytes, setTrashedBytes] = useState(0);
 
   // Store the root scan statistics and top-level structure specifically for report export
   const [rootStats, setRootStats] = useState<{
@@ -251,6 +253,11 @@ export default function App() {
     return { dirCount: dirs, fileCount: files, currentViewSize: totalSize };
   }, [payload]);
 
+  const handleItemTrashed = (item: UiDiskNode) => {
+    setTrashedCount((prev) => prev + 1);
+    setTrashedBytes((prev) => prev + item.size);
+  };
+
   // Handler for Exporting Report
   const handleExportReport = async () => {
     if (!payload || !rootStats) {
@@ -429,6 +436,8 @@ export default function App() {
             currentViewSize={currentViewSize}
             scanProgress={scanProgress}
             rootScanBytes={rootStats?.totalBytes ?? 0}
+            trashedCount={trashedCount}
+            trashedBytes={trashedBytes}
           />
 
           <Grid gap="md" align="flex-start">
@@ -437,6 +446,7 @@ export default function App() {
                 payload={payload}
                 onNavigate={handleNavigate}
                 onRefresh={handleScan}
+                onItemTrashed={handleItemTrashed}
               />
             </Grid.Col>
             <Grid.Col span={{ base: 12, md: 5 }}>

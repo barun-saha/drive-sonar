@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
@@ -585,5 +585,56 @@ describe('App', () => {
     resolveOlderScan!(payload('/Users', 'Stale result'));
     await waitFor(() => expect(screen.queryByText('Stale result')).not.toBeInTheDocument());
     expect(screen.getByText('Newer result')).toBeInTheDocument();
+  });
+
+  it('increments and prominently displays session trashed count and size in toolbar when items are moved to trash', async () => {
+    const mockDiskInfo = { total_bytes: 500000000, free_bytes: 200000000, free_total_bytes: 200000000 };
+    const mockPayload = {
+      current_id: 0,
+      current_path: '/Users/testuser',
+      parent_id: null,
+      ancestors: [{ id: 0, name: '/Users/testuser' }],
+      items: [
+        { id: 1, name: 'temp.log', is_dir: false, size: 204800, modified_secs: 100, percentage_of_parent: 100 },
+      ],
+      extension_stats: [],
+      top_files: [],
+      total_scanned_items: 1,
+    };
+
+    vi.mocked(invoke).mockImplementation(async (cmd) => {
+      if (cmd === 'get_disk_info') return mockDiskInfo;
+      if (cmd === 'scan_directory') return mockPayload;
+      if (cmd === 'move_to_trash') return false;
+      return null;
+    });
+
+    renderApp();
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Select a target directory to scan...')).toHaveValue('/Users/testuser');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run Scan' }));
+    expect(await screen.findByText('temp.log')).toBeInTheDocument();
+
+    // Verify session trash line is not visible initially
+    expect(screen.queryByText('Session:')).not.toBeInTheDocument();
+
+    // Delete temp.log
+    const trashBtn = screen.getByTitle('Move to Trash');
+    fireEvent.click(trashBtn);
+
+    expect(await screen.findByText(/Are you sure you want to move/)).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Move to Trash' }));
+
+    // Verify Session line is now displayed in toolbar
+    await waitFor(() => {
+      expect(screen.getByText('Session:')).toBeInTheDocument();
+      expect(screen.getByText('1')).toBeInTheDocument();
+      expect(screen.getByText(/item moved to Trash/)).toBeInTheDocument();
+      expect(screen.getByText(/freed/)).toBeInTheDocument();
+    });
   });
 });

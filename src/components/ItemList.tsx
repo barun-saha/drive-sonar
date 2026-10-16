@@ -13,9 +13,10 @@ interface ItemListProps {
   payload: DirectoryPayload | null;
   onNavigate: (nodeId: number) => void;
   onRefresh: (path?: string) => void;
+  onItemTrashed?: (item: UiDiskNode) => void;
 }
 
-export function ItemList({ payload, onNavigate, onRefresh }: ItemListProps) {
+export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: ItemListProps) {
   const [scrollTop, setScrollTop] = useState(0);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -61,9 +62,11 @@ export function ItemList({ payload, onNavigate, onRefresh }: ItemListProps) {
       try {
         const rescanRequired = await invoke<boolean>('move_to_trash', { nodeId: item.id });
 
+        onItemTrashed?.(item);
+
         notifications.show({
           title: 'Success',
-          message: `"${item.name}" was successfully moved to Trash.`,
+          message: `"${item.name}" (${formatBytes(item.size)}) was successfully moved to Trash.`,
           color: 'green'
         });
 
