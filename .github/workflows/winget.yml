@@ -1,0 +1,18 @@
+name: Publish to WinGet
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  winget:
+    name: Publish WinGet Package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Submit package update to WinGet
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: BarunSaha.DriveSonar
+          installers-regex: '_x64-setup\.exe$'
+          token: ${{ secrets.WINGET_TOKEN }}
