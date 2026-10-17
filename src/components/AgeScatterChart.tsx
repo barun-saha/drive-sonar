@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type MouseEvent, type KeyboardEvent } from 'react';
 import { Box, Text, Group } from '@mantine/core';
 import { ScatterChart } from '@mantine/charts';
 import { useReducedMotion } from '@mantine/hooks';
@@ -32,6 +32,12 @@ const DynamicScatterPoint = (props: any) => {
     radius = 6;
   }
 
+  const handleActivate = (event: MouseEvent<SVGCircleElement> | KeyboardEvent<SVGCircleElement>) => {
+    event.stopPropagation();
+    props.onClick?.(event);
+    onPointClick?.(payload);
+  };
+
   return (
     <circle
       cx={cx}
@@ -41,12 +47,16 @@ const DynamicScatterPoint = (props: any) => {
       fillOpacity={0.8}
       stroke="#ffffff"
       strokeWidth={1.5}
+      tabIndex={0}
+      role="button"
+      aria-label={`Open ${payload?.fileName ?? 'file'} in Files Explorer`}
       style={{ transition: 'all 0.3s ease', cursor: 'pointer' }}
-      onClick={(e) => {
-        // Issue #24: Open file in explorer on dot click
-        e.stopPropagation();
-        props.onClick?.(e);
-        onPointClick?.(payload);
+      onClick={handleActivate}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          handleActivate(event);
+        }
       }}
     >
       {/* Issue #24: Native SVG title hint for immediate hover feedback */}
@@ -100,15 +110,16 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
     return basePoints.map((p) => {
       const key = `${p.ageMonths}_${p.sizeMB}`;
       const count = coordCounts.get(key) || 1;
-      if (count <= 1) return p;
+      if (count <= 1) return { ...p, plottedAgeMonths: p.ageMonths };
 
       const idx = coordIndices.get(key) || 0;
       coordIndices.set(key, idx + 1);
 
-      const offset = (idx - (count - 1) / 2) * 0.12;
+      // Shift the whole group if centered jitter would cross zero.
+      const groupStartAge = Math.max(0, p.ageMonths - ((count - 1) / 2) * 0.12);
       return {
         ...p,
-        ageMonths: Math.max(0, Number((p.ageMonths + offset).toFixed(2))),
+        plottedAgeMonths: Number((groupStartAge + idx * 0.12).toFixed(2)),
       };
     });
   }, [files]);
@@ -146,7 +157,7 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
           <ScatterChart
             h={380}
             data={[{ color: 'var(--accent-primary, #3b82f6)', name: 'Files', data: displayPoints as any }]}
-            dataKey={{ x: 'ageMonths', y: 'sizeMB' }}
+            dataKey={{ x: 'plottedAgeMonths', y: 'sizeMB' }}
             xAxisLabel="Age (Months Since Modified)"
             yAxisLabel={getAxisLabel('Size (MB)')}
             yAxisProps={axisProps}

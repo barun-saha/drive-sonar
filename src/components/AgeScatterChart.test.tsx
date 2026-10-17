@@ -1,4 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { cloneElement } from 'react';
+import { render, screen, fireEvent, createEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MantineProvider } from '@mantine/core';
 import { AgeScatterChart } from './AgeScatterChart';
@@ -55,6 +57,8 @@ describe('AgeScatterChart', () => {
 
     expect(screen.getByText('TOP 30 LARGEST FILES: SIZE vs AGE')).toBeInTheDocument();
     expect(screen.getByTestId('mock-scatter-chart')).toBeInTheDocument();
+    const singlePoint = capturedScatterProps.data[0].data[0];
+    expect(singlePoint.plottedAgeMonths).toBe(singlePoint.ageMonths);
 
     const switchInput = screen.getByLabelText('Use semi-log scale');
     fireEvent.click(switchInput);
@@ -76,6 +80,55 @@ describe('AgeScatterChart', () => {
       expect(content({ payload: [] })).toBeNull();
       expect(content({})).toBeNull();
     }
+  });
+
+  it.each(['click', 'Enter', ' '])('activates a focusable point with %j and preserves callbacks', async (action) => {
+    vi.mocked(invoke).mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    const mockFiles: TopFileNode[] = [
+      { id: 99, name: 'archive.zip', size: 1048576 * 600, modified_secs: 0, path: '/backups/archive.zip' },
+    ];
+    renderWithMantine(<AgeScatterChart files={mockFiles} />);
+
+    const payload = capturedScatterProps.data[0].data[0];
+    const pointClick = vi.fn();
+    const parentClick = vi.fn();
+    const parentKeyDown = vi.fn();
+    renderWithMantine(
+      <svg>
+        <g onClick={parentClick} onKeyDown={parentKeyDown}>
+          {cloneElement(capturedScatterProps.scatterProps.shape, {
+            cx: 10, cy: 10, payload, onClick: pointClick,
+          })}
+        </g>
+      </svg>
+    );
+
+    const point = screen.getByRole('button', { name: 'Open archive.zip in Files Explorer' });
+    await user.tab(); // Scale switch
+    await user.tab(); // Scatter point
+    expect(point).toHaveFocus();
+
+    const unrelatedKey = createEvent.keyDown(point, { key: 'ArrowRight' });
+    fireEvent(point, unrelatedKey);
+    expect(unrelatedKey.defaultPrevented).toBe(false);
+    expect(parentKeyDown).toHaveBeenCalledTimes(1);
+    expect(pointClick).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+    parentKeyDown.mockClear();
+
+    const event = action === 'click'
+      ? createEvent.click(point)
+      : createEvent.keyDown(point, { key: action });
+    fireEvent(point, event);
+
+    expect(event.defaultPrevented).toBe(action !== 'click');
+    expect(parentClick).not.toHaveBeenCalled();
+    expect(parentKeyDown).not.toHaveBeenCalled();
+    expect(pointClick).toHaveBeenCalledTimes(1);
+    expect(pointClick.mock.calls[0][0].nativeEvent).toBe(event);
+    expect(invoke).toHaveBeenCalledExactlyOnceWith('open_in_explorer', { nodeId: 99 });
+    expect(pointClick.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(invoke).mock.invocationCallOrder[0]);
   });
 
   // Issue #24: Test point click opening file in explorer
@@ -132,8 +185,31 @@ describe('AgeScatterChart', () => {
 
     const points = capturedScatterProps.data[0].data;
     expect(points.length).toBe(2);
-    // ageMonths should be slightly different due to jitter
-    expect(points[0].ageMonths).not.toEqual(points[1].ageMonths);
+    expect(capturedScatterProps.dataKey.x).toBe('plottedAgeMonths');
+    expect(points.map((point: any) => point.plottedAgeMonths)).toEqual([0.94, 1.06]);
+    expect(points.map((point: any) => point.ageMonths)).toEqual([1, 1]);
     expect(points[0].rawBytes).toEqual(points[1].rawBytes);
+
+    renderWithMantine(capturedScatterProps.tooltipProps.content({ payload: [{ payload: points[0] }] }));
+    expect(screen.getByText('Modified: 1 months ago')).toBeInTheDocument();
+  });
+
+  it.each([
+    { ageMonths: 0, count: 3, expected: [0, 0.12, 0.24] },
+    { ageMonths: 0, count: 4, expected: [0, 0.12, 0.24, 0.36] },
+    { ageMonths: 0.1, count: 3, expected: [0, 0.12, 0.24] },
+  ])('keeps $count overlapping points at age $ageMonths distinct and nonnegative', ({ ageMonths, count, expected }) => {
+    const modifiedSecs = Math.floor(Date.now() / 1000) - ageMonths * 86400 * 30.4375;
+    const mockFiles: TopFileNode[] = Array.from({ length: count }, (_, id) => ({
+      id, name: `file${id}.zip`, size: 1048576 * 100, modified_secs: modifiedSecs, path: `/file${id}.zip`,
+    }));
+    renderWithMantine(<AgeScatterChart files={mockFiles} />);
+
+    const points = capturedScatterProps.data[0].data;
+    expect(points.map((point: any) => point.plottedAgeMonths)).toEqual(expected);
+    expect(points.map((point: any) => point.ageMonths)).toEqual(Array(count).fill(ageMonths));
+
+    renderWithMantine(capturedScatterProps.tooltipProps.content({ payload: [{ payload: points[count - 1] }] }));
+    expect(screen.getByText(`Modified: ${ageMonths} months ago`)).toBeInTheDocument();
   });
 });
