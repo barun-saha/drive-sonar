@@ -1,0 +1,27 @@
+name: Publish to WinGet
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: 'Tag of the published GitHub release to submit to WinGet'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  winget:
+    name: Publish WinGet Package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Submit package update to WinGet
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: BarunSaha.DriveSonar
+          release-tag: ${{ github.event.release.tag_name || inputs.release-tag }}
+          installers-regex: '_x64-setup\.exe$'
+          token: ${{ secrets.WINGET_TOKEN }}
