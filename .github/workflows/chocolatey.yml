@@ -25,11 +25,18 @@ jobs:
       - name: Resolve release tag
         id: tag
         shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_RELEASE_TAG: ${{ inputs.release-tag }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          $tag = if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
-            '${{ inputs.release-tag }}'
+          $tag = if ($env:EVENT_NAME -eq 'workflow_dispatch') {
+            $env:INPUT_RELEASE_TAG
           } else {
-            '${{ github.event.release.tag_name }}'
+            $env:RELEASE_TAG
+          }
+          if ($tag -cnotmatch '\Av?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?\z') {
+            throw 'Release tag must be a semantic version with an optional leading v (e.g. v1.2.0).'
           }
           # Strip leading 'v' to get bare version (e.g. "1.2.0")
           $version = $tag -replace '^v', ''
@@ -40,11 +47,15 @@ jobs:
       - name: Download Windows installer and compute SHA256
         id: asset
         shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.tag.outputs.VERSION }}
+          RELEASE_TAG: ${{ steps.tag.outputs.TAG }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          $version  = '${{ steps.tag.outputs.VERSION }}'
-          $tag      = '${{ steps.tag.outputs.TAG }}'
+          $version  = $env:RELEASE_VERSION
+          $tag      = $env:RELEASE_TAG
           $fileName = "Drive.Sonar_${version}_x64-setup.exe"
-          $url      = "https://github.com/${{ github.repository }}/releases/download/${tag}/${fileName}"
+          $url      = "https://github.com/${env:REPOSITORY}/releases/download/${tag}/${fileName}"
 
           Write-Host "Downloading: $url"
           Invoke-WebRequest -Uri $url -OutFile $fileName -UseBasicParsing
@@ -58,9 +69,12 @@ jobs:
 
       - name: Patch nuspec — version and iconUrl
         shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.tag.outputs.VERSION }}
+          RELEASE_TAG: ${{ steps.tag.outputs.TAG }}
         run: |
-          $version     = '${{ steps.tag.outputs.VERSION }}'
-          $tag         = '${{ steps.tag.outputs.TAG }}'
+          $version     = $env:RELEASE_VERSION
+          $tag         = $env:RELEASE_TAG
           $nuspecPath  = 'choco\drivesonar.nuspec'
 
           [xml]$nuspec = Get-Content $nuspecPath -Encoding UTF8
@@ -75,9 +89,12 @@ jobs:
 
       - name: Patch chocolateyinstall.ps1 — url64Bit and checksum64
         shell: pwsh
+        env:
+          DOWNLOAD_URL: ${{ steps.asset.outputs.DOWNLOAD_URL }}
+          CHECKSUM: ${{ steps.asset.outputs.CHECKSUM }}
         run: |
-          $url         = '${{ steps.asset.outputs.DOWNLOAD_URL }}'
-          $sha256      = '${{ steps.asset.outputs.CHECKSUM }}'
+          $url         = $env:DOWNLOAD_URL
+          $sha256      = $env:CHECKSUM
           $scriptPath  = 'choco\tools\chocolateyinstall.ps1'
 
           $content = Get-Content $scriptPath -Raw -Encoding UTF8
