@@ -1,0 +1,121 @@
+name: Publish to Chocolatey
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: 'Tag of the published GitHub release (e.g. v1.2.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  chocolatey:
+    name: Publish Chocolatey Package
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: tag
+        shell: pwsh
+        run: |
+          $tag = if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            '${{ inputs.release-tag }}'
+          } else {
+            '${{ github.event.release.tag_name }}'
+          }
+          # Strip leading 'v' to get bare version (e.g. "1.2.0")
+          $version = $tag -replace '^v', ''
+          echo "TAG=$tag" >> $env:GITHUB_OUTPUT
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Tag: $tag  |  Version: $version"
+
+      - name: Download Windows installer and compute SHA256
+        id: asset
+        shell: pwsh
+        run: |
+          $version  = '${{ steps.tag.outputs.VERSION }}'
+          $tag      = '${{ steps.tag.outputs.TAG }}'
+          $fileName = "Drive.Sonar_${version}_x64-setup.exe"
+          $url      = "https://github.com/${{ github.repository }}/releases/download/${tag}/${fileName}"
+
+          Write-Host "Downloading: $url"
+          Invoke-WebRequest -Uri $url -OutFile $fileName -UseBasicParsing
+
+          # Chocolatey expects lowercase SHA256
+          $sha256 = (Get-FileHash -Path $fileName -Algorithm SHA256).Hash.ToLower()
+          Write-Host "SHA256: $sha256"
+
+          echo "DOWNLOAD_URL=$url" >> $env:GITHUB_OUTPUT
+          echo "CHECKSUM=$sha256"  >> $env:GITHUB_OUTPUT
+
+      - name: Patch nuspec — version and iconUrl
+        shell: pwsh
+        run: |
+          $version     = '${{ steps.tag.outputs.VERSION }}'
+          $tag         = '${{ steps.tag.outputs.TAG }}'
+          $nuspecPath  = 'choco\drivesonar.nuspec'
+
+          [xml]$nuspec = Get-Content $nuspecPath -Encoding UTF8
+          $nuspec.package.metadata.version = $version
+
+          # Keep iconUrl pointing at the correct release tag
+          $nuspec.package.metadata.iconUrl = `
+            "https://cdn.jsdelivr.net/gh/barun-saha/drive-sonar@${tag}/src-tauri/icons/Square310x310Logo.png"
+
+          $nuspec.Save((Resolve-Path $nuspecPath))
+          Write-Host "Patched nuspec: version=$version, iconUrl tag=$tag"
+
+      - name: Patch chocolateyinstall.ps1 — url64Bit and checksum64
+        shell: pwsh
+        run: |
+          $url         = '${{ steps.asset.outputs.DOWNLOAD_URL }}'
+          $sha256      = '${{ steps.asset.outputs.CHECKSUM }}'
+          $scriptPath  = 'choco\tools\chocolateyinstall.ps1'
+
+          $content = Get-Content $scriptPath -Raw -Encoding UTF8
+
+          # Replace the url64Bit value (handles single-quoted string in the hashtable)
+          $content = $content -replace `
+            "(?m)(^\s*url64Bit\s*=\s*')[^']*(')", `
+            "`${1}${url}`${2}"
+
+          # Replace the checksum64 value
+          $content = $content -replace `
+            "(?m)(^\s*checksum64\s*=\s*')[^']*(')", `
+            "`${1}${sha256}`${2}"
+
+          # Write back without adding a trailing newline that would diff on every run
+          [System.IO.File]::WriteAllText(
+            (Resolve-Path $scriptPath),
+            $content,
+            [System.Text.UTF8Encoding]::new($false)
+          )
+          Write-Host "Patched install script: url=$url  sha256=$sha256"
+
+      - name: Pack Chocolatey package
+        shell: pwsh
+        run: |
+          # choco pack must run from the directory containing the nuspec
+          # so the relative tools\ path inside the nuspec resolves correctly
+          choco pack choco\drivesonar.nuspec --outputdirectory choco\
+          Get-ChildItem choco\ -Filter '*.nupkg'
+
+      - name: Push to Chocolatey Community Repository
+        shell: pwsh
+        run: |
+          $nupkg = Get-ChildItem -Path choco\ -Filter 'drivesonar.*.nupkg' |
+                   Sort-Object LastWriteTime -Descending |
+                   Select-Object -First 1
+          if (-not $nupkg) { throw 'No .nupkg file found — pack step may have failed.' }
+          Write-Host "Pushing: $($nupkg.Name)"
+          choco push $nupkg.FullName `
+            --source https://push.chocolatey.org/ `
+            --api-key '${{ secrets.CHOCOLATEY_API_KEY }}'

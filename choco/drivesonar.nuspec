@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package>
+  <metadata>
+    <id>drivesonar</id>
+    <version>0.9.0</version>
+    <title>Drive Sonar</title>
+    <authors>Barun Saha</authors>
+    <owners>Barun Saha</owners>
+    <copyright>Copyright (c) 2026 Barun Saha</copyright>
+    <projectUrl>https://drivesonar.download</projectUrl>
+    <iconUrl>https://cdn.jsdelivr.net/gh/barun-saha/drive-sonar@v0.9.0/src-tauri/icons/Square310x310Logo.png</iconUrl>
+    <licenseUrl>https://github.com/barun-saha/drive-sonar/blob/main/LICENSE</licenseUrl>
+    <bugTrackerUrl>https://github.com/barun-saha/drive-sonar/issues</bugTrackerUrl>
+    <packageSourceUrl>https://github.com/barun-saha/drive-sonar</packageSourceUrl>
+    <releaseNotes>https://github.com/barun-saha/drive-sonar/releases/latest</releaseNotes>
+    <tags>drivesonar disk-analyzer storage tauri rust disk-space storage-analyzer desktop-app treemap disk-utility drive-space</tags>
+    <summary>Fast, cross-platform disk space analyzer.</summary>
+    <description>Drive Sonar is a fast, lightweight cross-platform disk space analyzer built with Rust and Tauri, and it runs without admin elevation.</description>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>
