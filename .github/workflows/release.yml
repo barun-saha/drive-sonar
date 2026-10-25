@@ -29,6 +29,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
+      - name: Verify release tag matches app version
+        shell: bash
+        run: |
+          node <<'NODE'
+          const { version } = require('./src-tauri/tauri.conf.json');
+          if (process.env.GITHUB_REF_NAME !== `v${version}`) {
+            throw new Error(`Release tag must be v${version} to match src-tauri/tauri.conf.json`);
+          }
+          NODE
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:

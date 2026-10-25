@@ -130,19 +130,20 @@ cargo tarpaulin --manifest-path src-tauri/Cargo.toml --ignore-tests
 
 To create a new release:
 
-1. **Bump Version:** Update the version number (e.g., `0.4.0` -> `0.5.0`) in:
+1. **Bump Version:** Set the same version number (e.g., `0.4.0` -> `0.5.0`) in:
    - [`package.json`](package.json) (`"version"`)
    - [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json) (`"version"`)
    - [`src-tauri/Cargo.toml`](src-tauri/Cargo.toml) (`version` under `[package]`)
-2. **Merge to `main`:** Commit changes, raise a PR, and merge into `main`.
-3. **Tag & Push:** Checkout the latest `main` and push the Git tag:
+   Update `package-lock.json` with `npm install --package-lock-only` after changing `package.json`.
+2. **Merge to `main`:** Commit changes, raise a PR, and merge into `main`. Release Drafter uses the version in `src-tauri/tauri.conf.json` for the draft's name, tag, and changelog link.
+3. **Tag & Push:** Checkout the latest `main`, confirm the version files and draft agree, and push `v<version>` matching `src-tauri/tauri.conf.json`:
    ```bash
    git checkout main
    git pull origin main
    git tag v0.5.0
    git push origin v0.5.0
    ```
-4. **Publish Release:** Pushing the `v*` tag triggers the GitHub Actions workflow, building binaries across platforms and creating a draft release on GitHub. Review and publish the draft.
+4. **Publish Release:** Pushing the `v*` tag triggers the GitHub Actions workflow, which checks that the tag matches the Tauri version before building binaries across platforms and attaching them to the same draft release. Review the notes and binaries, then publish the draft.
 
 
 ## Blogs and Videos
