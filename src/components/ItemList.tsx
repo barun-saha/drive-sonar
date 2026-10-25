@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useElementSize, useMergedRef } from '@mantine/hooks';
 import { Box, Stack, Group, Text, Progress, Tooltip, ActionIcon } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
@@ -20,9 +21,10 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
   const [scrollTop, setScrollTop] = useState(0);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const { ref: sizeRef, height: viewportHeight } = useElementSize();
+  const mergedViewportRef = useMergedRef(viewportRef, sizeRef);
 
   const ROW_HEIGHT = 38;
-  const VIEWPORT_HEIGHT = 440;
   const BUFFER_ITEMS = 5;
 
   const items = payload?.items ?? [];
@@ -40,7 +42,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
 
   const totalHeight = sortedItems.length * ROW_HEIGHT;
   const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ITEMS);
-  const endIndex = Math.min(sortedItems.length, Math.floor((scrollTop + VIEWPORT_HEIGHT) / ROW_HEIGHT) + BUFFER_ITEMS);
+  const endIndex = Math.min(sortedItems.length, Math.floor((scrollTop + viewportHeight) / ROW_HEIGHT) + BUFFER_ITEMS);
 
   const displayItems = sortedItems.slice(startIndex, endIndex);
   const offsetY = startIndex * ROW_HEIGHT;
@@ -123,7 +125,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
         padding: '16px',
         borderRadius: '8px',
         border: '1px solid var(--border-color)',
-        height: 500,
+        minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
         boxSizing: 'border-box'
@@ -140,7 +142,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
       </Group>
 
       <div
-        ref={viewportRef}
+        ref={mergedViewportRef}
         onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
         style={{
           flex: 1,

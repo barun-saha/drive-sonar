@@ -152,10 +152,11 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
         onChange={setUseLogScale}
       />
 
-      <div style={{ flex: 1, minHeight: 0, width: '100%' }}>
+      <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative' }}>
         {displayPoints.length > 0 ? (
           <ScatterChart
-            h={380}
+            h="100%"
+            style={{ position: 'absolute', inset: 0 }}
             data={[{ color: 'var(--accent-primary, #3b82f6)', name: 'Files', data: displayPoints as any }]}
             dataKey={{ x: 'plottedAgeMonths', y: 'sizeMB' }}
             xAxisLabel="Age (Months Since Modified)"

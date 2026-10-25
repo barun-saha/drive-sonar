@@ -7,6 +7,12 @@ import { DirectoryPayload } from '../types';
 import { invoke } from '@tauri-apps/api/core';
 import { notifications } from '@mantine/notifications';
 
+const sizeMock = vi.hoisted(() => ({ height: 0 }));
+vi.mock('@mantine/hooks', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@mantine/hooks')>()),
+  useElementSize: () => ({ ref: () => {}, width: 0, height: sizeMock.height }),
+}));
+
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
 }));
@@ -205,5 +211,52 @@ describe('ItemList', () => {
     if (scrollContainer) {
       fireEvent.scroll(scrollContainer, { target: { scrollTop: 100 } });
     }
+  });
+
+  describe('virtualization viewport', () => {
+    const manyItems: DirectoryPayload = {
+      ...mockPayload,
+      items: Array.from({ length: 100 }, (_, i) => ({
+        id: 100 + i,
+        name: `file-${String(i).padStart(3, '0')}`,
+        is_dir: false,
+        size: 100000 - i, // distinct, so sort order is file-000, file-001, ...
+        modified_secs: 1000,
+        percentage_of_parent: 1,
+      })),
+      total_scanned_items: 100,
+    };
+
+    const renderedCount = () => screen.queryAllByText(/^file-\d{3}$/).length;
+
+    it.each([
+      // rows = floor(height / 38) + 5 buffer rows
+      [190, 10],
+      [440, 16],
+      [760, 25],
+    ])('renders the rows that fit a %ipx viewport', (height, expected) => {
+      sizeMock.height = height;
+      renderWithMantine(<ItemList payload={manyItems} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
+      expect(renderedCount()).toBe(expected);
+      expect(screen.getByText('file-000')).toBeInTheDocument();
+    });
+
+    it('renders more rows after the viewport grows', () => {
+      sizeMock.height = 190;
+      const { rerender } = renderWithMantine(
+        <ItemList payload={manyItems} onNavigate={vi.fn()} onRefresh={vi.fn()} />
+      );
+      expect(renderedCount()).toBe(10);
+
+      sizeMock.height = 760;
+      rerender(
+        <MantineProvider>
+          <ModalsProvider>
+            <ItemList payload={manyItems} onNavigate={vi.fn()} onRefresh={vi.fn()} />
+          </ModalsProvider>
+        </MantineProvider>
+      );
+      expect(renderedCount()).toBe(25);
+    });
   });
 });

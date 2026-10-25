@@ -53,10 +53,11 @@ export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
         onChange={setUseLogScale}
       />
 
-      <div style={{ flex: 1, minHeight: 0, width: '100%' }}>
+      <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative' }}>
         {displayData.length > 0 ? (
           <BarChart
-            h={380}
+            h="100%"
+            style={{ position: 'absolute', inset: 0 }}
             data={displayData}
             dataKey="extension"
             orientation="vertical"

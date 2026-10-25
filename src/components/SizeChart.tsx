@@ -44,12 +44,14 @@ export function SizeChart({ items, onNavigate }: SizeChartProps) {
         Top 12 Space Distribution Map
       </Text>
 
-      <div style={{ flex: 1, minHeight: 0, width: '100%' }}>
+      <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative' }}>
         {chartData.length > 0 ? (
           <Treemap
             data={chartData}
             dataKey="value"
-            height={380}
+            // Mantine types height as number, but forwards it to ResponsiveContainer, which accepts a percentage
+            height={'100%' as unknown as number}
+            style={{ position: 'absolute', inset: 0 }}
             treemapProps={{
               isAnimationActive: !reduceMotion,
               animationDuration: 1000,
