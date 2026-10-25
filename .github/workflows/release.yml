@@ -48,7 +48,6 @@ jobs:
         with:
           tagName: v__VERSION__ # Uses version specified in src-tauri/tauri.conf.json
           releaseName: 'Drive Sonar v__VERSION__'
-          releaseBody: 'See below for platform installation binaries.'
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
