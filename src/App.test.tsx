@@ -451,6 +451,10 @@ describe('App', () => {
     fireEvent.click(aboutMenuItem);
 
     expect(await screen.findByText(/A fast, lightweight disk space explorer powered by Rust and Tauri/)).toBeInTheDocument();
+    expect(screen.getByText(/If you like Drive Sonar, please consider starring the project on GitHub!/)).toBeInTheDocument();
+    const starBtn = screen.getByRole('link', { name: /Star on GitHub/i });
+    expect(starBtn).toBeInTheDocument();
+    expect(starBtn).toHaveAttribute('href', 'https://github.com/barun-saha/drive-sonar');
   });
 
   it('toggles color scheme between light and dark mode', async () => {
