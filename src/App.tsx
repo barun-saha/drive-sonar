@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { ActionIcon, Grid, Group, Stack, Container, Text, Title, Menu, Modal } from '@mantine/core';
+import { ActionIcon, Anchor, Button, Grid, Group, Stack, Container, Text, Title, Menu, Modal } from '@mantine/core';
 import { useMantineColorScheme, useComputedColorScheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { Notifications, notifications } from '@mantine/notifications';
-import { Menu as MenuIcon, HelpCircle, Info, Sun, Moon, Save } from 'lucide-react';
+import { Menu as MenuIcon, HelpCircle, Info, Sun, Moon, Save, Star } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { homeDir } from '@tauri-apps/api/path';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
@@ -348,27 +348,32 @@ export default function App() {
               <br />
               <Text size="md">
                 Website:{' '}
-                <a
+                <Anchor
                   href="https://drivesonar.download/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-500 hover:underline"
                 >
                   https://drivesonar.download/
-                </a>
+                </Anchor>
               </Text>
 
               <Text size="md">
-                Source Code:{' '}
-                <a
-                  href="https://github.com/barun-saha/drive-sonar"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-500 hover:underline"
-                >
-                  https://github.com/barun-saha/drive-sonar
-                </a>
+                If you like Drive Sonar, please consider starring the project on GitHub!
               </Text>
+
+              <Button
+                component="a"
+                href="https://github.com/barun-saha/drive-sonar"
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="light"
+                color="yellow"
+                size="sm"
+                leftSection={<Star size={16} fill="currentColor" />}
+                style={{ alignSelf: 'flex-start' }}
+              >
+                Star on GitHub
+              </Button>
             </Stack>
           </Modal.Body>
         </Modal.Content>
