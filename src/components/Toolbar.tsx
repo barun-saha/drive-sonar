@@ -50,7 +50,7 @@ export function Toolbar({
 
   // Amber below 20% free, red below 10% free
   const freePercent = diskInfo && diskInfo.total_bytes > 0
-    ? (diskInfo.free_total_bytes / diskInfo.total_bytes) * 100
+    ? (diskInfo.free_bytes / diskInfo.total_bytes) * 100
     : 100;
   const diskBarColor = freePercent < 10 ? 'red' : freePercent < 20 ? 'yellow' : 'blue';
 

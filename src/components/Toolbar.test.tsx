@@ -105,11 +105,13 @@ describe('Toolbar', () => {
     renderWithMantine(
       <Toolbar
         {...defaultProps}
-        diskInfo={{ total_bytes: 100, free_bytes: freePercent, free_total_bytes: freePercent }}
+        diskInfo={{ total_bytes: 100, free_bytes: freePercent, free_total_bytes: 80 }}
         scanPath="/home/user"
       />
     );
 
+    expect(screen.getByText(`100 Bytes total · ${freePercent.toFixed(1)}% free`)).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', String(100 - freePercent));
     expect(screen.getByRole('progressbar').getAttribute('style')).toContain(`-${color}-`);
   });
 
