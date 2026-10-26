@@ -65,19 +65,6 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
     }
   };
 
-  // Opens the menu next to the selected row; false when nothing is selected
-  const openMenuForSelected = (viewport: HTMLElement) => {
-    const index = sortedItems.findIndex((item) => item.id === selectedId);
-    if (index < 0) return false;
-    const box = viewport.getBoundingClientRect();
-    setMenu({
-      x: box.left + 48,
-      y: box.top + (index + 1) * ROW_HEIGHT - viewport.scrollTop,
-      item: sortedItems[index]
-    });
-    return true;
-  };
-
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) {
       // On a row action button: Escape returns to the list, any other key is left to the button
@@ -105,13 +92,6 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
         if (!selected) return;
         handleDelete(selected);
         break;
-      case 'ContextMenu':
-      case 'F10': {
-        // Shift+F10 is the other standard shortcut for the context menu
-        if (e.key === 'F10' && !e.shiftKey) return;
-        if (!openMenuForSelected(e.currentTarget)) return;
-        break;
-      }
       default: return;
     }
     e.preventDefault();
@@ -224,11 +204,6 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
         aria-label="Files and folders"
         tabIndex={0}
         onKeyDown={handleKeyDown}
-        // A key-triggered context menu event is delivered to the list itself (rows handle right-clicks)
-        onContextMenu={(e) => {
-          e.preventDefault();
-          if (e.target === e.currentTarget) openMenuForSelected(e.currentTarget);
-        }}
         onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
         style={{
           flex: 1,
@@ -251,6 +226,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
             {displayItems.map((item) => {
               const itemPercentage = item.percentage_of_parent;
 
+              const isSelected = item.id === selectedId;
               const itemColor = categoryColor(categoryOfItem(item.name, item.is_dir));
 
               return (
@@ -258,7 +234,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
                   key={item.id}
                   className="item-row"
                   role="listitem"
-                  data-selected={item.id === selectedId || undefined}
+                  data-selected={isSelected || undefined}
                   justify="space-between"
                   wrap="nowrap"
                   onClick={() => {
@@ -297,6 +273,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
                       color="gray"
                       size="sm"
                       style={{ color: 'var(--text-muted)' }}
+                      tabIndex={isSelected ? 0 : -1}
                       title="Open in Files Explorer"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -309,6 +286,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
                       variant="subtle"
                       color="red.5"
                       size="sm"
+                      tabIndex={isSelected ? 0 : -1}
                       title="Move to Trash"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -372,7 +350,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
         <Menu.Target>
           <div style={{ position: 'fixed', left: menu?.x ?? 0, top: menu?.y ?? 0, width: 0, height: 0 }} />
         </Menu.Target>
-        <Menu.Dropdown onContextMenu={(e) => e.preventDefault()}>
+        <Menu.Dropdown>
           {menu?.item.is_dir && (
             <Menu.Item leftSection={<Folder />} onClick={() => onNavigate(menu.item.id)}>
               Open folder

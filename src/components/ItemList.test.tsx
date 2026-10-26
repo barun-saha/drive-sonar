@@ -275,16 +275,17 @@ describe('ItemList', () => {
       expect(invoke).not.toHaveBeenCalled();
     });
 
-    it('opens the menu when the browser sends a key-triggered context menu event to the list', async () => {
+    it('makes only the selected row buttons tabbable', () => {
       renderWithMantine(<ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
+      const tabbable = () =>
+        screen.getAllByTitle(/Open in Files Explorer|Move to Trash/).filter((b) => b.tabIndex === 0);
 
-      fireEvent.contextMenu(list()); // nothing selected: no menu
-      expect(menuLabels()).toEqual([]);
+      expect(tabbable()).toHaveLength(0);
 
       fireEvent.keyDown(list(), { key: 'ArrowDown' });
-      fireEvent.contextMenu(list());
-      await screen.findByText('Move to Trash');
-      expect(menuLabels()).toContain('Open folder');
+      fireEvent.keyDown(list(), { key: 'ArrowDown' }); // File B.txt
+      expect(tabbable()).toHaveLength(2);
+      expect(rows()[1]).toContainElement(tabbable()[0]);
     });
 
     it('returns focus to the list when Escape is pressed on a row action button', () => {
@@ -296,15 +297,6 @@ describe('ItemList', () => {
 
       fireEvent.keyDown(button, { key: 'Escape' });
       expect(list()).toHaveFocus();
-    });
-
-    it('opens the menu from the keyboard for the selected row', async () => {
-      renderWithMantine(<ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
-
-      fireEvent.keyDown(list(), { key: 'ArrowDown' });
-      fireEvent.keyDown(list(), { key: 'F10', shiftKey: true });
-      await screen.findByText('Move to Trash');
-      expect(menuLabels()).toContain('Open folder');
     });
   });
 
