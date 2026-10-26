@@ -72,10 +72,18 @@ body {
   }
 }
 
+/* Window frame: the status bar stays pinned at the bottom, the app shell scrolls above it */
+.app-frame {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 /* Page layout: header + toolbar keep natural height, workspace takes the rest */
 .app-shell {
   box-sizing: border-box;
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
   padding: 16px;
   display: flex;
   flex-direction: column;

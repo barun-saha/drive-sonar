@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { ActionIcon, Anchor, Button, Group, Stack, Text, Title, Menu, Modal } from '@mantine/core';
+import { ActionIcon, Anchor, Button, Group, Stack, Text, Menu, Modal } from '@mantine/core';
 import { useMantineColorScheme, useComputedColorScheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { Notifications, notifications } from '@mantine/notifications';
@@ -11,6 +11,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { listen } from '@tauri-apps/api/event';
 import { Toolbar } from './components/Toolbar';
 import { Workspace } from './components/Workspace';
+import { StatusBar } from './components/StatusBar';
 import { saveReportToTextFile } from './utils/exportReport';
 
 import '@mantine/notifications/styles.css';
@@ -27,6 +28,7 @@ export default function App() {
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
   const [trashedCount, setTrashedCount] = useState(0);
   const [trashedBytes, setTrashedBytes] = useState(0);
+  const [warningCount, setWarningCount] = useState(0);
 
   // Store the root scan statistics and top-level structure specifically for report export
   const [rootStats, setRootStats] = useState<{
@@ -56,6 +58,7 @@ export default function App() {
     let disposed = false;
 
     listen<string>('scan-warning', (event) => {
+      setWarningCount((count) => count + 1);
       notifications.show({
         title: 'Scan Warning',
         message: event.payload,
@@ -146,6 +149,7 @@ export default function App() {
       setScanPath('');
       setScanProgress(null);
       setRootStats(null);
+      setWarningCount(0);
 
       try {
         const di = await invoke<DiskInfo>('get_disk_info', { path });
@@ -298,7 +302,7 @@ export default function App() {
   };
 
   return (
-    <>
+    <div className="app-frame">
       <Modal.Root opened={helpOpened} onClose={closeHelp} centered radius="md">
         <Modal.Overlay backgroundOpacity={0.6} blur={4} />
         <Modal.Content>
@@ -380,11 +384,23 @@ export default function App() {
 
       <div className="app-shell">
         <Notifications position="top-right" zIndex={1000} autoClose={6000} />
-        <Group justify="space-between" align="center" gap="xs">
-          <Title order={2} style={{ color: 'var(--text-main)', letterSpacing: '-0.5px' }}>
-            ⚡ Drive Sonar — insights on your disk usage
-          </Title>
-
+        <Toolbar
+          targetPath={targetPath}
+          setTargetPath={setTargetPath}
+          onBrowse={handleBrowse}
+          onScan={handleScan}
+          onCancel={cancelScan}
+          isScanning={isScanning}
+          scanTime={scanTime}
+          diskInfo={diskInfo}
+          scanPath={scanPath}
+          dirCount={dirCount}
+          fileCount={fileCount}
+          currentViewSize={currentViewSize}
+          scanProgress={scanProgress}
+          trashedCount={trashedCount}
+          trashedBytes={trashedBytes}
+        >
           <Menu shadow="md" width={200} position="bottom-end">
             <Menu.Target>
               <ActionIcon variant="subtle" size="lg" aria-label="Menu" color="gray">
@@ -421,27 +437,7 @@ export default function App() {
               </Menu.Item>
             </Menu.Dropdown>
           </Menu>
-        </Group>
-
-        <Toolbar
-          targetPath={targetPath}
-          setTargetPath={setTargetPath}
-          onBrowse={handleBrowse}
-          onScan={handleScan}
-          onCancel={cancelScan}
-          isScanning={isScanning}
-          scanTime={scanTime}
-          totalItems={payload?.total_scanned_items ?? 0}
-          diskInfo={diskInfo}
-          scanPath={scanPath}
-          dirCount={dirCount}
-          fileCount={fileCount}
-          currentViewSize={currentViewSize}
-          scanProgress={scanProgress}
-          rootScanBytes={rootStats?.totalBytes ?? 0}
-          trashedCount={trashedCount}
-          trashedBytes={trashedBytes}
-        />
+        </Toolbar>
 
         <Workspace
           payload={payload}
@@ -450,6 +446,17 @@ export default function App() {
           onItemTrashed={handleItemTrashed}
         />
       </div>
-    </>
+
+      <StatusBar
+        isScanning={isScanning}
+        scanTime={scanTime}
+        totalItems={payload?.total_scanned_items ?? 0}
+        scanProgress={scanProgress}
+        diskInfo={diskInfo}
+        scanPath={scanPath}
+        rootScanBytes={rootStats?.totalBytes ?? 0}
+        warningCount={warningCount}
+      />
+    </div>
   );
 }

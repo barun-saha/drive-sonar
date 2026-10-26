@@ -16,13 +16,11 @@ describe('Toolbar', () => {
     onCancel: vi.fn(),
     isScanning: false,
     scanTime: null,
-    totalItems: 0,
     diskInfo: null,
     scanPath: '',
     dirCount: 0,
     fileCount: 0,
     currentViewSize: 0,
-    rootScanBytes: 0,
   };
 
   it('renders target path and handles path typing and action buttons', () => {
@@ -84,7 +82,7 @@ describe('Toolbar', () => {
     expect(onCancel).toHaveBeenCalled();
   });
 
-  it('displays disk information and drive label correctly', () => {
+  it('displays the disk card with free space headline and total capacity', () => {
     renderWithMantine(
       <Toolbar
         {...defaultProps}
@@ -93,19 +91,48 @@ describe('Toolbar', () => {
       />
     );
 
-    expect(screen.getByText('Drive (C:):')).toBeInTheDocument();
-    expect(screen.getByText('total')).toBeInTheDocument();
-    expect(screen.getByText('used')).toBeInTheDocument();
-    expect(screen.getByText(/free/)).toBeInTheDocument();
-    expect(screen.getByText(/\(40\.0%\)/)).toBeInTheDocument();
+    expect(screen.getByText('Drive (C:)')).toBeInTheDocument();
+    expect(screen.getByText('381.47 MB free')).toBeInTheDocument();
+    expect(screen.getByText(/953\.67 MB total · 40\.0% free/)).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '60');
   });
 
-  it('displays scan summary and current view stats when scan completes', () => {
+  it.each([
+    [25, 'blue'],
+    [15, 'yellow'],
+    [5, 'red'],
+  ])('colors the disk bar for %i%% free as %s', (freePercent, color) => {
+    renderWithMantine(
+      <Toolbar
+        {...defaultProps}
+        diskInfo={{ total_bytes: 100, free_bytes: freePercent, free_total_bytes: 80 }}
+        scanPath="/home/user"
+      />
+    );
+
+    expect(screen.getByText(`100 Bytes total · ${freePercent.toFixed(1)}% free`)).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', String(100 - freePercent));
+    expect(screen.getByRole('progressbar').getAttribute('style')).toContain(`-${color}-`);
+  });
+
+  it('does not break when total disk size is zero', () => {
+    renderWithMantine(
+      <Toolbar
+        {...defaultProps}
+        diskInfo={{ total_bytes: 0, free_bytes: 0, free_total_bytes: 0 }}
+        scanPath="/home/user"
+      />
+    );
+
+    expect(screen.getByText('0 Bytes free')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0');
+  });
+
+  it('displays current folder stats when scan completes', () => {
     renderWithMantine(
       <Toolbar
         {...defaultProps}
         scanTime={1500}
-        totalItems={1234}
         diskInfo={{ total_bytes: 1000000000, free_bytes: 400000000, free_total_bytes: 400000000 }}
         scanPath="/home/user"
         dirCount={1}
@@ -114,17 +141,15 @@ describe('Toolbar', () => {
       />
     );
 
-    expect(screen.getByText('Disk:')).toBeInTheDocument();
-    expect(screen.getByText('1,234')).toBeInTheDocument();
-    expect(screen.getByText('1.50s')).toBeInTheDocument();
-    expect(screen.getByText('Current view:')).toBeInTheDocument();
-    expect(screen.getByText('1')).toBeInTheDocument();
-    expect(screen.getByText('folder')).toBeInTheDocument();
-    expect(screen.getByText('10')).toBeInTheDocument();
-    expect(screen.getByText('files')).toBeInTheDocument();
+    expect(screen.getByText('Disk')).toBeInTheDocument();
+    expect(screen.getByText('Current folder')).toBeInTheDocument();
+    expect(screen.getByText('4.77 MB')).toBeInTheDocument();
+    expect(screen.getByText(/1 folder · 10 files/)).toBeInTheDocument();
+    expect(screen.queryByText(/scanned in/)).not.toBeInTheDocument();
+    expect(screen.queryByText('1.50s')).not.toBeInTheDocument();
   });
 
-  it('displays live scanning progress when isScanning and scanProgress is provided in consistent format', () => {
+  it('displays live root folder stats while scanning', () => {
     renderWithMantine(
       <Toolbar
         {...defaultProps}
@@ -142,18 +167,13 @@ describe('Toolbar', () => {
       />
     );
 
-    expect(screen.getByText('Disk:')).toBeInTheDocument();
-    expect(screen.getByText('168')).toBeInTheDocument(); // 123 files + 45 dirs
-    expect(screen.getByText('2.30s')).toBeInTheDocument();
-    expect(screen.getByText('Current view:')).toBeInTheDocument();
-    expect(screen.getByText('3')).toBeInTheDocument();
-    expect(screen.getByText('folders')).toBeInTheDocument();
-    expect(screen.getByText('10')).toBeInTheDocument();
-    expect(screen.getByText('files')).toBeInTheDocument();
-    expect(screen.queryByText('Scanning progress:')).not.toBeInTheDocument();
+    expect(screen.getByText('Disk')).toBeInTheDocument();
+    expect(screen.getByText('Current folder')).toBeInTheDocument();
+    expect(screen.getByText('6.47 MB')).toBeInTheDocument();
+    expect(screen.getByText(/3 folders · 10 files/)).toBeInTheDocument();
   });
 
-  it('displays live scanning progress when disk information is unavailable', () => {
+  it('displays live root folder stats while scanning when disk information is unavailable', () => {
     renderWithMantine(
       <Toolbar
         {...defaultProps}
@@ -169,64 +189,20 @@ describe('Toolbar', () => {
       />
     );
 
-    expect(screen.getByText('168')).toBeInTheDocument();
-    expect(screen.getByText('2.30s')).toBeInTheDocument();
-    expect(screen.getByText('Current view:')).toBeInTheDocument();
-    expect(screen.queryByText('Disk:')).not.toBeInTheDocument();
+    expect(screen.getByText('Current folder')).toBeInTheDocument();
+    expect(screen.getByText(/3 folders · 10 files/)).toBeInTheDocument();
+    expect(screen.queryByText('Disk')).not.toBeInTheDocument();
   });
 
-  it('shows system allocation notice for volume root scan with large unaccounted gap', () => {
-    renderWithMantine(
-      <Toolbar
-        {...defaultProps}
-        scanTime={2000}
-        // total=500GB, free_caller=free_total=100GB → used=400GB, scanned=200GB → delta=200GB ≥ 1GiB
-        diskInfo={{ total_bytes: 500_000_000_000, free_bytes: 100_000_000_000, free_total_bytes: 100_000_000_000 }}
-        scanPath={"C:\\"}
-        dirCount={5}
-        fileCount={3}
-        currentViewSize={200_000_000_000}
-        rootScanBytes={200_000_000_000}
-      />
-    );
-    // used = 400 GB, scanned = 200 GB → delta 200 GB ≥ 1 GiB threshold
-    expect(document.body.textContent).toMatch(/unaccounted/);
+  it('shows no cards before the first scan', () => {
+    renderWithMantine(<Toolbar {...defaultProps} />);
+
+    expect(screen.queryByText('Current folder')).not.toBeInTheDocument();
+    expect(screen.queryByText('This session')).not.toBeInTheDocument();
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
-  it('does NOT show system allocation notice for a non-root scan path', () => {
-    renderWithMantine(
-      <Toolbar
-        {...defaultProps}
-        scanTime={1000}
-        diskInfo={{ total_bytes: 500_000_000_000, free_bytes: 100_000_000_000, free_total_bytes: 100_000_000_000 }}
-        scanPath="C:\\Users\\test"
-        dirCount={3}
-        fileCount={10}
-        currentViewSize={50_000_000_000}
-        rootScanBytes={50_000_000_000}
-      />
-    );
-    expect(document.body.textContent).not.toMatch(/unaccounted/);
-  });
-
-  it('does NOT show system allocation notice when delta is below 1 GiB threshold', () => {
-    renderWithMantine(
-      <Toolbar
-        {...defaultProps}
-        scanTime={1000}
-        // used = 200 GB, scanned ≈ 200 GB → delta < 1 GiB
-        diskInfo={{ total_bytes: 500_000_000_000, free_bytes: 300_000_000_000, free_total_bytes: 300_000_000_000 }}
-        scanPath={"C:\\"}
-        dirCount={2}
-        fileCount={5}
-        currentViewSize={199_900_000_000}
-        rootScanBytes={199_900_000_000}
-      />
-    );
-    expect(document.body.textContent).not.toMatch(/unaccounted/);
-  });
-
-  it('does not render session trash info when trashedCount is 0 or omitted', () => {
+  it('does not render the session card when trashedCount is 0 or omitted', () => {
     renderWithMantine(
       <Toolbar
         {...defaultProps}
@@ -234,7 +210,7 @@ describe('Toolbar', () => {
         trashedBytes={0}
       />
     );
-    expect(screen.queryByText('Session:')).not.toBeInTheDocument();
+    expect(screen.queryByText('This session')).not.toBeInTheDocument();
   });
 
   it('renders singular item and formatted bytes when trashedCount is 1', () => {
@@ -245,10 +221,11 @@ describe('Toolbar', () => {
         trashedBytes={1024 * 500}
       />
     );
-    expect(screen.getByText('Session:')).toBeInTheDocument();
-    expect(screen.getByText('1')).toBeInTheDocument();
-    expect(screen.getByText(/item moved to Trash/)).toBeInTheDocument();
-    expect(screen.getByText(/freed/)).toBeInTheDocument();
+    expect(screen.getByText('This session')).toBeInTheDocument();
+    expect(screen.getByText(/1 item moved to Trash/)).toBeInTheDocument();
+    expect(screen.getByText(/500\.00 KB/)).toBeInTheDocument();
+    expect(screen.getByText(/Space is released once the Trash is emptied/)).toBeInTheDocument();
+    expect(screen.queryByText(/freed/)).not.toBeInTheDocument();
   });
 
   it('renders plural items and formatted bytes when trashedCount is greater than 1', () => {
@@ -259,9 +236,9 @@ describe('Toolbar', () => {
         trashedBytes={1024 * 1024 * 25}
       />
     );
-    expect(screen.getByText('Session:')).toBeInTheDocument();
-    expect(screen.getByText('5')).toBeInTheDocument();
-    expect(screen.getByText(/items moved to Trash/)).toBeInTheDocument();
-    expect(screen.getByText(/freed/)).toBeInTheDocument();
+    expect(screen.getByText('This session')).toBeInTheDocument();
+    expect(screen.getByText(/5 items moved to Trash/)).toBeInTheDocument();
+    expect(screen.getByText(/25\.00 MB/)).toBeInTheDocument();
+    expect(screen.queryByText(/freed/)).not.toBeInTheDocument();
   });
 });

@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
-import { Group, TextInput, Button, Text, ActionIcon, Stack, Divider } from '@mantine/core';
-import { Search, FolderOpen, Loader2, CircleX, Folder, File, HardDrive, SearchCheck, Pin, Trash2 } from 'lucide-react';
+import { ReactNode, useMemo } from 'react';
+import { Group, TextInput, Button, Text, ActionIcon, Stack, SimpleGrid, Paper, Progress, Tooltip } from '@mantine/core';
+import { Search, FolderOpen, Loader2, CircleX } from 'lucide-react';
 
 import { DiskInfo, ScanProgress } from '../types';
 import { formatBytes } from '../utils/format';
@@ -13,22 +13,24 @@ interface ToolbarProps {
   onCancel: () => void;
   isScanning: boolean;
   scanTime: number | null;
-  totalItems: number;
   diskInfo: DiskInfo | null;
   scanPath: string;
   dirCount: number;
   fileCount: number;
   currentViewSize: number;
   scanProgress?: ScanProgress | null;
-  rootScanBytes: number;
   trashedCount?: number;
   trashedBytes?: number;
+  /** Extra controls shown at the end of the path row (e.g. the application menu) */
+  children?: ReactNode;
 }
+
+const cardStyle = { background: 'var(--bg-main)', borderColor: 'var(--border-color)' };
 
 export function Toolbar({
   targetPath, setTargetPath, onBrowse, onScan, onCancel, isScanning,
-  scanTime, totalItems, diskInfo, scanPath, dirCount, fileCount, currentViewSize,
-  scanProgress, rootScanBytes, trashedCount = 0, trashedBytes = 0
+  scanTime, diskInfo, scanPath, dirCount, fileCount, currentViewSize,
+  scanProgress, trashedCount = 0, trashedBytes = 0, children
 }: ToolbarProps) {
 
   const driveLabel = useMemo(() => {
@@ -37,34 +39,20 @@ export function Toolbar({
     return match ? `Drive (${match[1].toUpperCase()})` : 'Disk';
   }, [scanPath]);
 
-  /** True when the scanned path is the root of a volume (C:\, C:/, /, etc.) */
-  const isVolumeRoot = useMemo(() => {
-    if (!scanPath) return false;
-    if (/^[A-Za-z]:[/\\]?$/.test(scanPath)) return true; // Windows: C:\, C:/, or C:
-    if (scanPath === '/') return true;                    // Unix root
-    return false;
-  }, [scanPath]);
-
-  const SYSTEM_ALLOC_THRESHOLD = 1_073_741_824; // 1 GiB
-
-  /** Unaccounted bytes = OS used − scanned root bytes. Only non-zero after a
-   *  completed root-volume scan with a gap ≥ 1 GiB. */
-  const systemAllocationBytes = useMemo(() => {
-    if (!isVolumeRoot || !diskInfo || scanTime === null) return 0;
-    // Use free_total_bytes (volume-wide free) not free_bytes (per-user quota free)
-    // to avoid reporting still-free space as "unaccounted" under quota restrictions.
-    const usedByOS = diskInfo.total_bytes - diskInfo.free_total_bytes;
-    const delta = usedByOS - rootScanBytes;
-    return delta >= SYSTEM_ALLOC_THRESHOLD ? delta : 0;
-  }, [isVolumeRoot, diskInfo, scanTime, rootScanBytes]);
-
   // Disk info is available as soon as the parallel call resolves
   const showDiskInfo = diskInfo !== null && scanPath !== '';
-  // Scan-specific stats only available after scan completes
-  const showScanStats = scanTime !== null;
-  const showScanSummary = showScanStats || (isScanning && scanProgress !== null);
-  // Dynamic dir counts shown once scan is done
-  const showDirCounts = showScanStats;
+  // Final folder stats are available once the scan completes; live root stats during a scan
+  const scanDone = scanTime !== null;
+  const showCurrentFolder = scanDone || (isScanning && !!scanProgress);
+  const folderCount = scanDone ? dirCount : scanProgress?.root_dir_count ?? 0;
+  const filesInFolder = scanDone ? fileCount : scanProgress?.root_file_count ?? 0;
+  const folderBytes = scanDone ? currentViewSize : scanProgress?.total_file_bytes ?? 0;
+
+  // Amber below 20% free, red below 10% free
+  const freePercent = diskInfo && diskInfo.total_bytes > 0
+    ? (diskInfo.free_bytes / diskInfo.total_bytes) * 100
+    : 100;
+  const diskBarColor = freePercent < 10 ? 'red' : freePercent < 20 ? 'yellow' : 'blue';
 
   return (
     <div style={{ background: 'var(--bg-panel)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
@@ -121,158 +109,46 @@ export function Toolbar({
               Cancel Scan
             </Button>
           </Group>
+          {children}
         </Group>
 
-        {/* ── Line 1: Disk Capacity + Scan Performance ── */}
-        {(showDiskInfo || showScanSummary) && (
-          <Group gap="xs" align="center" wrap="wrap" pt={2}>
+        {(showDiskInfo || showCurrentFolder || trashedCount > 0) && (
+          <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm" pt={2}>
             {showDiskInfo && diskInfo && (
-              <>
-                {/* Drive Label */}
-                <HardDrive size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
-                <Text size="sm" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
-                  {driveLabel}:
-                </Text>
-
-                {/* Total Capacity */}
-                <Text size="sm" c="dimmed">
-                  <Text span fw={600}>
-                    {formatBytes(diskInfo.total_bytes)}
-                  </Text>{' '}
-                  total
-                </Text>
-
-                <Text size="sm" c="dimmed">•</Text>
-
-                {/* Used Capacity */}
-                <Text size="sm" c="dimmed">
-                  <Text span fw={600}>
-                    {formatBytes(diskInfo.total_bytes - diskInfo.free_bytes)}
-                  </Text>{' '}
-                  used
-                </Text>
-
-                <Text size="sm" c="dimmed">•</Text>
-
-                {/* Free Capacity */}
-                <Text size="sm" c="dimmed">
-                  <Text span fw={600}>
-                    {formatBytes(diskInfo.free_bytes)}
-                  </Text>{' '}
-                  free{' '}
-                  <Text span c="dimmed" size="sm">
-                    ({((diskInfo.free_total_bytes / diskInfo.total_bytes) * 100).toFixed(1)}%)
-                  </Text>
-                </Text>
-              </>
+              <Paper withBorder p="xs" radius="md" style={cardStyle}>
+                <Text size="xs" tt="uppercase" fw={600} c="dimmed">{driveLabel}</Text>
+                <Text fz="lg" fw={700}>{formatBytes(diskInfo.free_bytes)} free</Text>
+                <Tooltip label="Many SSDs perform best with roughly 10–20% free space.">
+                  <Progress value={100 - freePercent} color={diskBarColor} size="sm" my={4} />
+                </Tooltip>
+                <Text size="xs" c="dimmed">{formatBytes(diskInfo.total_bytes)} total · {freePercent.toFixed(1)}% free</Text>
+              </Paper>
             )}
 
-            {/* Vertical divider + Scan Summary (live during scan, final when done) */}
-            {showScanSummary && (
-              <>
-                {showDiskInfo && (
-                  <Divider orientation="vertical" h={14} my="auto" mx={4} style={{ borderColor: 'var(--border-color)' }} />
-                )}
-
-                <SearchCheck size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
-                <Text size="sm" c="dimmed">
-                  Found{' '}
-                  <Text span fw={600}>
-                    {(showScanStats
-                      ? totalItems
-                      : (scanProgress ? scanProgress.file_count + scanProgress.dir_count : 0)
-                    ).toLocaleString()}
-                  </Text>{' '}
-                  items in{' '}
-                  <Text span fw={600}>
-                    {showScanStats
-                      ? `${(scanTime! / 1000).toFixed(2)}s`
-                      : `${scanProgress?.elapsed_secs.toFixed(2)}s`}
-                  </Text>
+            {showCurrentFolder && (
+              <Paper withBorder p="xs" radius="md" style={cardStyle}>
+                <Text size="xs" tt="uppercase" fw={600} c="dimmed">Current folder</Text>
+                <Text fz="lg" fw={700}>{formatBytes(folderBytes)}</Text>
+                <Text size="xs" c="dimmed">
+                  {folderCount.toLocaleString()} {folderCount === 1 ? 'folder' : 'folders'}
+                  {' · '}
+                  {filesInFolder.toLocaleString()} {filesInFolder === 1 ? 'file' : 'files'}
                 </Text>
-              </>
+              </Paper>
             )}
-          </Group>
-        )}
 
-        {/* ── Line 2: Folder / File counts for current path (uses root counts during scan) ── */}
-        {(showDirCounts || (isScanning && scanProgress)) && (
-          <Group gap="xs" align="center" wrap="wrap">
-            <Pin size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
-            <Text size="sm" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
-              Current view:
-            </Text>
-
-            {/* Folder Stat */}
-            <Group gap={4} align="center">
-              <Folder size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
-              <Text size="sm" fw={600} c="dimmed">
-                {(showDirCounts ? dirCount : scanProgress?.root_dir_count ?? 0).toLocaleString()}
-              </Text>
-              <Text c="dimmed" size="sm">
-                {(showDirCounts ? dirCount : scanProgress?.root_dir_count ?? 0) === 1 ? 'folder' : 'folders'}
-              </Text>
-            </Group>
-
-            <Text size="sm" c="dimmed">•</Text>
-
-            {/* File Stat */}
-            <Group gap={4} align="center">
-              <File size={15} style={{ color: 'var(--mantine-color-dimmed)' }} />
-              <Text size="sm" fw={600} c="dimmed">
-                {(showDirCounts ? fileCount : scanProgress?.root_file_count ?? 0).toLocaleString()}
-              </Text>
-              <Text c="dimmed" size="sm">
-                {(showDirCounts ? fileCount : scanProgress?.root_file_count ?? 0) === 1 ? 'file' : 'files'}
-              </Text>
-            </Group>
-
-            {/* Current View Total Size */}
-            <Text size="sm" c="dimmed">
-              (
-              <Text span fw={600}>
-                {formatBytes(showDirCounts ? currentViewSize : scanProgress?.total_file_bytes ?? 0)}
-              </Text>{' '}
-              total)
-            </Text>
-
-            {/* System Allocation notice — only after a completed root-volume scan with a gap ≥ 1 GiB */}
-            {systemAllocationBytes > 0 && showDirCounts && (
-              <>
-                <Text size="sm" c="dimmed">•</Text>
-                <Text size="sm" c="dimmed">
-                  ~<Text span fw={600}>{formatBytes(systemAllocationBytes)}</Text>{' '}
-                  unaccounted (filesystem metadata / inaccessible regions)
+            {trashedCount > 0 && (
+              <Paper withBorder p="xs" radius="md" style={cardStyle}>
+                <Text size="xs" tt="uppercase" fw={600} c="dimmed">This session</Text>
+                <Text fz="lg" fw={700}>
+                  {trashedCount.toLocaleString()} {trashedCount === 1 ? 'item' : 'items'} moved to Trash
                 </Text>
-              </>
+                <Text size="xs" c="dimmed">
+                  {formatBytes(trashedBytes)} · Space is released once the Trash is emptied
+                </Text>
+              </Paper>
             )}
-          </Group>
-        )}
-
-        {/* ── Line 3: Trashed Items Session Stats ── */}
-        {trashedCount > 0 && (
-          <Group gap="xs" align="center" wrap="wrap">
-            <Trash2 size={15} style={{ color: 'var(--mantine-color-orange-5)' }} />
-            <Text size="sm" c="orange.5" style={{ whiteSpace: 'nowrap' }}>
-              Session:
-            </Text>
-
-            <Text size="sm" c="dimmed">
-              <Text span fw={600}>
-                {trashedCount.toLocaleString()}
-              </Text>{' '}
-              {trashedCount === 1 ? 'item' : 'items'} moved to Trash
-            </Text>
-
-            <Text size="sm" c="dimmed">•</Text>
-
-            <Text size="sm" c="dimmed">
-              <Text span fw={600}>
-                {formatBytes(trashedBytes)}
-              </Text>{' '}
-              freed
-            </Text>
-          </Group>
+          </SimpleGrid>
         )}
       </Stack>
     </div>
