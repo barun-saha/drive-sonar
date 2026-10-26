@@ -8,6 +8,7 @@ import { useLogScale } from '../hooks/useLogScale';
 import { formatBytes } from '../utils/format';
 import { categoryColor, categoryOfExtension } from '../utils/fileCategory';
 import { CategoryLegend } from './CategoryLegend';
+import { ChartTooltip } from './ChartTooltip';
 
 interface ExtensionChartProps {
   stats?: ExtensionStat[];
@@ -86,14 +87,7 @@ export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
                 const item = payload[0].payload;
 
                 return (
-                  <Box
-                    p="sm"
-                    style={{
-                      background: 'var(--bg-panel)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: 6,
-                    }}
-                  >
+                  <ChartTooltip>
                     <Text size="sm" fw={700}>
                       {item.extension}
                     </Text>
@@ -103,7 +97,7 @@ export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
                     <Text size="xs" c="dimmed">
                       Files: {item.fileCount.toLocaleString()}
                     </Text>
-                  </Box>
+                  </ChartTooltip>
                 );
               },
             }}

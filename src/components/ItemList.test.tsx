@@ -195,6 +195,111 @@ describe('ItemList', () => {
     });
   });
 
+  describe('keyboard and context menu', () => {
+    const list = () => screen.getByRole('list', { name: 'Files and folders' });
+    const rows = () => screen.getAllByRole('listitem');
+
+    it('moves the selection with the arrow keys and stays within the list', () => {
+      renderWithMantine(<ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
+
+      fireEvent.keyDown(list(), { key: 'ArrowDown' });
+      expect(rows()[0]).toHaveAttribute('data-selected');
+
+      fireEvent.keyDown(list(), { key: 'ArrowDown' });
+      fireEvent.keyDown(list(), { key: 'ArrowDown' });
+      expect(rows()[1]).toHaveAttribute('data-selected');
+
+      fireEvent.keyDown(list(), { key: 'Home' });
+      expect(rows()[0]).toHaveAttribute('data-selected');
+    });
+
+    it('opens the selected folder with Enter but ignores files', () => {
+      const onNavigate = vi.fn();
+      renderWithMantine(<ItemList payload={mockPayload} onNavigate={onNavigate} onRefresh={vi.fn()} />);
+
+      fireEvent.keyDown(list(), { key: 'End' }); // File B.txt
+      fireEvent.keyDown(list(), { key: 'Enter' });
+      expect(onNavigate).not.toHaveBeenCalled();
+
+      fireEvent.keyDown(list(), { key: 'Home' }); // Folder A
+      fireEvent.keyDown(list(), { key: 'Enter' });
+      expect(onNavigate).toHaveBeenCalledWith(10);
+    });
+
+    it('asks for confirmation when Delete is pressed', async () => {
+      renderWithMantine(<ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
+
+      fireEvent.keyDown(list(), { key: 'Delete' }); // nothing selected yet
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+      fireEvent.keyDown(list(), { key: 'ArrowDown' });
+      fireEvent.keyDown(list(), { key: 'Delete' });
+      expect(await screen.findByText(/Are you sure you want to move/)).toBeInTheDocument();
+      expect(invoke).not.toHaveBeenCalled();
+    });
+
+    it('ignores keys pressed on the row action buttons', () => {
+      const onNavigate = vi.fn();
+      renderWithMantine(<ItemList payload={mockPayload} onNavigate={onNavigate} onRefresh={vi.fn()} />);
+
+      fireEvent.keyDown(list(), { key: 'Home' });
+      fireEvent.keyDown(screen.getAllByTitle('Open in Files Explorer')[0], { key: 'Enter' });
+      expect(onNavigate).not.toHaveBeenCalled();
+    });
+
+    const menuLabels = () =>
+      Array.from(document.querySelectorAll('[role="menuitem"]')).map((item) => item.textContent);
+
+    it('offers Open folder only for folders in the context menu', async () => {
+      renderWithMantine(<ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
+
+      fireEvent.contextMenu(screen.getByText('Folder A'));
+      await screen.findByText('Move to Trash');
+      expect(menuLabels()).toEqual(['Open folder', 'Open in Files Explorer', 'Move to Trash']);
+
+      fireEvent.keyDown(screen.getByText('Move to Trash'), { key: 'Escape' });
+      await waitFor(() => expect(menuLabels()).toEqual([]));
+
+      fireEvent.contextMenu(screen.getByText('File B.txt'));
+      await screen.findByText('Move to Trash');
+      expect(menuLabels()).toEqual(['Open in Files Explorer', 'Move to Trash']);
+    });
+
+    it('sends the context menu Trash action through the confirmation modal', async () => {
+      renderWithMantine(<ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
+
+      fireEvent.contextMenu(screen.getByText('File B.txt'));
+      fireEvent.click(await screen.findByText('Move to Trash'));
+
+      expect(await screen.findByText(/Are you sure you want to move/)).toBeInTheDocument();
+      expect(invoke).not.toHaveBeenCalled();
+    });
+
+    it('makes only the selected row buttons tabbable', () => {
+      renderWithMantine(<ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
+      const tabbable = () =>
+        screen.getAllByTitle(/Open in Files Explorer|Move to Trash/).filter((b) => b.tabIndex === 0);
+
+      expect(tabbable()).toHaveLength(0);
+
+      fireEvent.keyDown(list(), { key: 'ArrowDown' });
+      fireEvent.keyDown(list(), { key: 'ArrowDown' }); // File B.txt
+      expect(tabbable()).toHaveLength(2);
+      expect(rows()[1]).toContainElement(tabbable()[0]);
+    });
+
+    it('returns focus to the list when Escape is pressed on a row action button', () => {
+      renderWithMantine(<ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
+
+      const button = screen.getAllByTitle('Move to Trash')[0];
+      button.focus();
+      expect(button).toHaveFocus();
+
+      fireEvent.keyDown(button, { key: 'Escape' });
+      expect(list()).toHaveFocus();
+    });
+  });
+
   it('handles move_to_trash error on deletion confirm', async () => {
     vi.mocked(invoke).mockRejectedValue(new Error('Permission denied'));
 

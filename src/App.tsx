@@ -69,6 +69,15 @@ export default function App() {
   const scanGenerationRef = useRef(0);
   const activeScanGenerationRef = useRef<number | null>(null);
 
+  // Hide the webview's built-in context menu (Back, Refresh, ...), except in text fields where Paste is useful
+  useEffect(() => {
+    const hideNativeMenu = (e: MouseEvent) => {
+      if (!(e.target as Element).closest('input, textarea')) e.preventDefault();
+    };
+    document.addEventListener('contextmenu', hideNativeMenu);
+    return () => document.removeEventListener('contextmenu', hideNativeMenu);
+  }, []);
+
   const [helpOpened, { open: openHelp, close: closeHelp }] = useDisclosure(false);
   const [aboutOpened, { open: openAbout, close: closeAbout }] = useDisclosure(false);
   const [noticesOpened, { toggle: toggleNotices }] = useDisclosure(false);
@@ -352,6 +361,12 @@ export default function App() {
             <Text size="lg">
               To cancel an ongoing scan, click on the "Cancel Scan" button.
             </Text>
+            <br />
+            <Text size="lg">
+              In the file list, use the arrow keys to select an item, Enter to open a folder, and Delete to move it
+              to the Trash. Tab moves to the selected item's buttons and Shift+Tab back; press Escape to return to
+              the list.
+            </Text>
           </Modal.Body>
         </Modal.Content>
       </Modal.Root>
@@ -401,7 +416,7 @@ export default function App() {
                 variant="light"
                 color="yellow"
                 size="sm"
-                leftSection={<Star size={16} fill="currentColor" />}
+                leftSection={<Star fill="currentColor" />}
                 style={{ alignSelf: 'flex-start' }}
               >
                 Star on GitHub
@@ -476,7 +491,7 @@ export default function App() {
             <Menu.Dropdown>
               <Menu.Label>Application</Menu.Label>
               <Menu.Item
-                leftSection={computedColorScheme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+                leftSection={computedColorScheme === 'dark' ? <Sun /> : <Moon />}
                 onClick={toggleColorScheme}
               >
                 {computedColorScheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
@@ -484,7 +499,7 @@ export default function App() {
               <Menu.Divider />
 
               <Menu.Item
-                leftSection={<Save size={14} />}
+                leftSection={<Save />}
                 onClick={handleExportReport}
                 disabled={!payload || isScanning}
               >
@@ -492,12 +507,12 @@ export default function App() {
               </Menu.Item>
               <Menu.Divider />
 
-              <Menu.Item leftSection={<HelpCircle size={14} />} onClick={openHelp}>
+              <Menu.Item leftSection={<HelpCircle />} onClick={openHelp}>
                 Help
               </Menu.Item>
               <Menu.Divider />
 
-              <Menu.Item leftSection={<Info size={14} />} onClick={openAbout}>
+              <Menu.Item leftSection={<Info />} onClick={openAbout}>
                 About Drive Sonar
               </Menu.Item>
             </Menu.Dropdown>

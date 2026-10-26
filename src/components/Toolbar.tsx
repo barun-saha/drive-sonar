@@ -59,19 +59,6 @@ export function Toolbar({
 
   return (
     <div style={{ background: 'var(--bg-panel)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-      {/* Self-contained animation styles */}
-      <style>{`
-        @keyframes ui-bridge-spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        .force-spin {
-          animation: ui-bridge-spin 1s linear infinite !important;
-          transform-origin: center !important;
-          display: inline-block !important;
-        }
-      `}</style>
-
       <Stack gap="xs">
         <Group justify="space-between" align="center">
           <Group style={{ flex: 1 }}>
@@ -96,14 +83,14 @@ export function Toolbar({
                   disabled={isScanning}
                   title="Browse folder"
                 >
-                  <FolderOpen size={16} />
+                  <FolderOpen />
                 </ActionIcon>
               }
             />
             <Button
               onClick={() => onScan()}
               disabled={isScanning || !targetPath.trim()}
-              leftSection={isScanning ? <Loader2 size={16} className="force-spin" /> : <Search size={16} />}
+              leftSection={isScanning ? <Loader2 className="spin" /> : <Search />}
             >
               {isScanning ? 'Scanning...' : 'Run Scan'}
             </Button>
@@ -112,7 +99,7 @@ export function Toolbar({
               variant="light"
               onClick={onCancel}
               disabled={!isScanning}
-              leftSection={<CircleX size={16} />}
+              leftSection={<CircleX />}
             >
               Cancel Scan
             </Button>

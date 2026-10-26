@@ -94,6 +94,19 @@ describe('App', () => {
     expect(mockUnlisten).toHaveBeenCalled();
   });
 
+  it('hides the webview context menu except in text fields', async () => {
+    renderApp();
+    const input = await screen.findByPlaceholderText(/Select a target directory/);
+
+    const onPage = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    document.body.dispatchEvent(onPage);
+    expect(onPage.defaultPrevented).toBe(true);
+
+    const inField = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    input.dispatchEvent(inField);
+    expect(inField.defaultPrevented).toBe(false);
+  });
+
   it('handles homeDir failure and getVersion failure gracefully on init', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.mocked(homeDir).mockRejectedValue(new Error('Home path error'));

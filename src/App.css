@@ -31,11 +31,29 @@ body {
   background-color: var(--border-color);
 }
 
-.file-row-hover:hover .row-action-buttons {
-  opacity: 1 !important;
+/* Item list rows: actions show on hover, keyboard focus within the row, and for the selected row */
+.item-list:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
 }
 
-.spin-animation {
+.item-row:hover,
+.item-row[data-selected] {
+  background-color: var(--mantine-color-default-hover);
+}
+
+.item-row .row-actions {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.item-row:hover .row-actions,
+.item-row:focus-within .row-actions,
+.item-row[data-selected] .row-actions {
+  opacity: 1;
+}
+
+.spin {
   animation: spin 1s linear infinite;
   display: inline-block; /* Ensures the element rotates cleanly around its center */
 }
@@ -46,6 +64,28 @@ body {
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Thin, theme-aware scrollbars. The -webkit- rules are only a fallback for engines without the standard properties. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-muted) 45%, transparent) transparent;
+}
+
+@supports not (scrollbar-width: thin) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--text-muted) 45%, transparent);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
   }
 }
 
