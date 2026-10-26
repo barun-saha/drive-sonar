@@ -51,6 +51,7 @@ describe('App', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     scanWarningCallback = null;
     scanProgressCallback = null;
 
@@ -638,6 +639,60 @@ describe('App', () => {
       expect(screen.getByText(/Space is released once the Trash is emptied/)).toBeInTheDocument();
       expect(screen.queryByText(/freed/)).not.toBeInTheDocument();
     });
+    expect(JSON.parse(localStorage.getItem('drive-sonar-lifetime-trashed')!)).toEqual({ count: 1, bytes: 204800 });
+  });
+
+  it('does not show the session card at startup even if a lifetime total was saved', async () => {
+    localStorage.setItem('drive-sonar-lifetime-trashed', JSON.stringify({ count: 12, bytes: 5 * 1024 * 1024 }));
+
+    renderApp();
+
+    expect(await screen.findByRole('button', { name: 'Run Scan' })).toBeInTheDocument();
+    expect(screen.queryByText('This session')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Lifetime: 12 items/)).not.toBeInTheDocument();
+  });
+
+  it('resets the lifetime trashed total from the About dialog', async () => {
+    localStorage.setItem('drive-sonar-lifetime-trashed', JSON.stringify({ count: 12, bytes: 5 * 1024 * 1024 }));
+
+    renderApp();
+    fireEvent.click(screen.getByLabelText('Menu'));
+    fireEvent.click(await screen.findByText('About Drive Sonar'));
+    expect(await screen.findByText(/Lifetime: 5\.00 MB moved to Trash/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Lifetime:/)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Reset' })).not.toBeInTheDocument();
+    });
+    expect(JSON.parse(localStorage.getItem('drive-sonar-lifetime-trashed')!)).toEqual({ count: 0, bytes: 0 });
+  });
+  it.each([
+    ['invalid JSON', 'not json{'],
+    ['null', 'null'],
+    ['the wrong shape', JSON.stringify({ count: 'many', bytes: -1 })],
+  ])('starts normally when the stored lifetime total is %s', async (_label, stored) => {
+    localStorage.setItem('drive-sonar-lifetime-trashed', stored);
+
+    renderApp();
+
+    expect(await screen.findByRole('button', { name: 'Run Scan' })).toBeInTheDocument();
+    expect(screen.queryByText('This session')).not.toBeInTheDocument();
+  });
+
+  it('still works when local storage is unavailable', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
+
+    renderApp();
+
+    expect(await screen.findByRole('button', { name: 'Run Scan' })).toBeInTheDocument();
+    expect(screen.queryByText('This session')).not.toBeInTheDocument();
+
+    getItem.mockRestore();
+    setItem.mockRestore();
+    warn.mockRestore();
   });
 
   it('counts scan warnings in the status bar', async () => {

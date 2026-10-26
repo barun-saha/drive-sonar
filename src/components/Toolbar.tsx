@@ -2,7 +2,7 @@ import { ReactNode, useMemo } from 'react';
 import { Group, TextInput, Button, Text, ActionIcon, Stack, SimpleGrid, Paper, Progress, Tooltip } from '@mantine/core';
 import { Search, FolderOpen, Loader2, CircleX } from 'lucide-react';
 
-import { DiskInfo, ScanProgress } from '../types';
+import { DiskInfo, ScanProgress, TrashedTotals } from '../types';
 import { formatBytes } from '../utils/format';
 
 interface ToolbarProps {
@@ -21,6 +21,7 @@ interface ToolbarProps {
   scanProgress?: ScanProgress | null;
   trashedCount?: number;
   trashedBytes?: number;
+  lifetimeTrashed?: TrashedTotals;
   /** Extra controls shown at the end of the path row (e.g. the application menu) */
   children?: ReactNode;
 }
@@ -30,7 +31,7 @@ const cardStyle = { background: 'var(--bg-main)', borderColor: 'var(--border-col
 export function Toolbar({
   targetPath, setTargetPath, onBrowse, onScan, onCancel, isScanning,
   scanTime, diskInfo, scanPath, dirCount, fileCount, currentViewSize,
-  scanProgress, trashedCount = 0, trashedBytes = 0, children
+  scanProgress, trashedCount = 0, trashedBytes = 0, lifetimeTrashed, children
 }: ToolbarProps) {
 
   const driveLabel = useMemo(() => {
@@ -146,6 +147,11 @@ export function Toolbar({
                 <Text size="xs" c="dimmed">
                   {formatBytes(trashedBytes)} · Space is released once the Trash is emptied
                 </Text>
+                {lifetimeTrashed && lifetimeTrashed.count > 0 && (
+                  <Text size="xs" c="dimmed">
+                    Lifetime: {lifetimeTrashed.count.toLocaleString()} {lifetimeTrashed.count === 1 ? 'item' : 'items'} · {formatBytes(lifetimeTrashed.bytes)} moved to Trash
+                  </Text>
+                )}
               </Paper>
             )}
           </SimpleGrid>

@@ -241,4 +241,24 @@ describe('Toolbar', () => {
     expect(screen.getByText(/25\.00 MB/)).toBeInTheDocument();
     expect(screen.queryByText(/freed/)).not.toBeInTheDocument();
   });
+
+  it('shows the lifetime total on the session card', () => {
+    renderWithMantine(
+      <Toolbar
+        {...defaultProps}
+        trashedCount={1}
+        trashedBytes={1024 * 500}
+        lifetimeTrashed={{ count: 12, bytes: 5 * 1024 * 1024 }}
+      />
+    );
+    expect(screen.getByText(/Lifetime: 12 items · 5\.00 MB moved to Trash/)).toBeInTheDocument();
+  });
+
+  it('does not render the session card from the lifetime total alone', () => {
+    renderWithMantine(
+      <Toolbar {...defaultProps} lifetimeTrashed={{ count: 1, bytes: 1024 }} />
+    );
+    expect(screen.queryByText('This session')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Lifetime:/)).not.toBeInTheDocument();
+  });
 });
