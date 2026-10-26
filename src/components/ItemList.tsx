@@ -235,6 +235,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
                   className="item-row"
                   role="listitem"
                   data-selected={isSelected || undefined}
+                  aria-current={isSelected ? true : undefined}
                   justify="space-between"
                   wrap="nowrap"
                   onClick={() => {
