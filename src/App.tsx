@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { ActionIcon, Anchor, Button, Grid, Group, Stack, Container, Text, Title, Menu, Modal } from '@mantine/core';
+import { ActionIcon, Anchor, Button, Group, Stack, Text, Title, Menu, Modal } from '@mantine/core';
 import { useMantineColorScheme, useComputedColorScheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { Notifications, notifications } from '@mantine/notifications';
@@ -10,8 +10,7 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { getVersion } from '@tauri-apps/api/app';
 import { listen } from '@tauri-apps/api/event';
 import { Toolbar } from './components/Toolbar';
-import { ItemList } from './components/ItemList';
-import { VisualizationPanel } from './components/VisualizationPanel';
+import { Workspace } from './components/Workspace';
 import { saveReportToTextFile } from './utils/exportReport';
 
 import '@mantine/notifications/styles.css';
@@ -379,87 +378,78 @@ export default function App() {
         </Modal.Content>
       </Modal.Root>
 
-      <Container size="xl" py="xl">
+      <div className="app-shell">
         <Notifications position="top-right" zIndex={1000} autoClose={6000} />
-        <Stack gap="lg">
-          <Group justify="space-between" align="center" gap="xs">
-            <Title order={2} style={{ color: 'var(--text-main)', letterSpacing: '-0.5px' }}>
-              ⚡ Drive Sonar — insights on your disk usage
-            </Title>
+        <Group justify="space-between" align="center" gap="xs">
+          <Title order={2} style={{ color: 'var(--text-main)', letterSpacing: '-0.5px' }}>
+            ⚡ Drive Sonar — insights on your disk usage
+          </Title>
 
-            <Menu shadow="md" width={200} position="bottom-end">
-              <Menu.Target>
-                <ActionIcon variant="subtle" size="lg" aria-label="Menu" color="gray">
-                  <MenuIcon size={20} />
-                </ActionIcon>
-              </Menu.Target>
+          <Menu shadow="md" width={200} position="bottom-end">
+            <Menu.Target>
+              <ActionIcon variant="subtle" size="lg" aria-label="Menu" color="gray">
+                <MenuIcon size={20} />
+              </ActionIcon>
+            </Menu.Target>
 
-              <Menu.Dropdown>
-                <Menu.Label>Application</Menu.Label>
-                <Menu.Item
-                  leftSection={computedColorScheme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-                  onClick={toggleColorScheme}
-                >
-                  {computedColorScheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-                </Menu.Item>
-                <Menu.Divider />
+            <Menu.Dropdown>
+              <Menu.Label>Application</Menu.Label>
+              <Menu.Item
+                leftSection={computedColorScheme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+                onClick={toggleColorScheme}
+              >
+                {computedColorScheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              </Menu.Item>
+              <Menu.Divider />
 
-                <Menu.Item
-                  leftSection={<Save size={14} />}
-                  onClick={handleExportReport}
-                  disabled={!payload || isScanning}
-                >
-                  Save Report
-                </Menu.Item>
-                <Menu.Divider />
+              <Menu.Item
+                leftSection={<Save size={14} />}
+                onClick={handleExportReport}
+                disabled={!payload || isScanning}
+              >
+                Save Report
+              </Menu.Item>
+              <Menu.Divider />
 
-                <Menu.Item leftSection={<HelpCircle size={14} />} onClick={openHelp}>
-                  Help
-                </Menu.Item>
-                <Menu.Divider />
+              <Menu.Item leftSection={<HelpCircle size={14} />} onClick={openHelp}>
+                Help
+              </Menu.Item>
+              <Menu.Divider />
 
-                <Menu.Item leftSection={<Info size={14} />} onClick={openAbout}>
-                  About Drive Sonar
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-          </Group>
+              <Menu.Item leftSection={<Info size={14} />} onClick={openAbout}>
+                About Drive Sonar
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
+        </Group>
 
-          <Toolbar
-            targetPath={targetPath}
-            setTargetPath={setTargetPath}
-            onBrowse={handleBrowse}
-            onScan={handleScan}
-            onCancel={cancelScan}
-            isScanning={isScanning}
-            scanTime={scanTime}
-            totalItems={payload?.total_scanned_items ?? 0}
-            diskInfo={diskInfo}
-            scanPath={scanPath}
-            dirCount={dirCount}
-            fileCount={fileCount}
-            currentViewSize={currentViewSize}
-            scanProgress={scanProgress}
-            rootScanBytes={rootStats?.totalBytes ?? 0}
-            trashedCount={trashedCount}
-            trashedBytes={trashedBytes}
-          />
+        <Toolbar
+          targetPath={targetPath}
+          setTargetPath={setTargetPath}
+          onBrowse={handleBrowse}
+          onScan={handleScan}
+          onCancel={cancelScan}
+          isScanning={isScanning}
+          scanTime={scanTime}
+          totalItems={payload?.total_scanned_items ?? 0}
+          diskInfo={diskInfo}
+          scanPath={scanPath}
+          dirCount={dirCount}
+          fileCount={fileCount}
+          currentViewSize={currentViewSize}
+          scanProgress={scanProgress}
+          rootScanBytes={rootStats?.totalBytes ?? 0}
+          trashedCount={trashedCount}
+          trashedBytes={trashedBytes}
+        />
 
-          <Grid gap="md" align="flex-start">
-            <Grid.Col span={{ base: 12, md: 7 }}>
-              <ItemList
-                payload={payload}
-                onNavigate={handleNavigate}
-                onRefresh={handleScan}
-                onItemTrashed={handleItemTrashed}
-              />
-            </Grid.Col>
-            <Grid.Col span={{ base: 12, md: 5 }}>
-              <VisualizationPanel payload={payload} onNavigate={handleNavigate} />
-            </Grid.Col>
-          </Grid>
-        </Stack>
-      </Container>
+        <Workspace
+          payload={payload}
+          onNavigate={handleNavigate}
+          onRefresh={handleScan}
+          onItemTrashed={handleItemTrashed}
+        />
+      </div>
     </>
   );
 }

@@ -20,7 +20,7 @@ export function VisualizationPanel({ payload, onNavigate }: VisualizationPanelPr
       radius="md"
       withBorder
       style={{
-        height: 500,
+        minHeight: 0,
         backgroundColor: 'var(--bg-panel)',
         display: 'flex',
         flexDirection: 'column',
