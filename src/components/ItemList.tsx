@@ -1,10 +1,11 @@
 import { invoke } from '@tauri-apps/api/core';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useElementSize, useMergedRef } from '@mantine/hooks';
-import { Box, Stack, Group, Text, Progress, Tooltip, ActionIcon } from '@mantine/core';
+import { Box, Stack, Group, Text, Progress, Tooltip, ActionIcon, Menu } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { Folder, File, FolderOpen, Trash2 } from 'lucide-react';
+import type { KeyboardEvent, MouseEvent } from 'react';
 
 import { DirectoryPayload, UiDiskNode } from '../types';
 import { formatBytes, formatPercent } from '../utils/format';
@@ -20,7 +21,8 @@ interface ItemListProps {
 
 export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: ItemListProps) {
   const [scrollTop, setScrollTop] = useState(0);
-  const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; item: UiDiskNode } | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const { ref: sizeRef, height: viewportHeight } = useElementSize();
   const mergedViewportRef = useMergedRef(viewportRef, sizeRef);
@@ -32,6 +34,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
 
   useEffect(() => {
     setScrollTop(0);
+    setSelectedId(null);
     if (viewportRef.current) {
       viewportRef.current.scrollTop = 0;
     }
@@ -47,6 +50,66 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
 
   const displayItems = sortedItems.slice(startIndex, endIndex);
   const offsetY = startIndex * ROW_HEIGHT;
+
+  // Selects a row and scrolls it into view (rows outside the window are not rendered, so focus can't do this)
+  const selectIndex = (index: number) => {
+    const i = Math.max(0, Math.min(sortedItems.length - 1, index));
+    setSelectedId(sortedItems[i].id);
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const top = i * ROW_HEIGHT;
+    if (top < viewport.scrollTop) {
+      viewport.scrollTop = top;
+    } else if (top + ROW_HEIGHT > viewport.scrollTop + viewportHeight) {
+      viewport.scrollTop = top + ROW_HEIGHT - viewportHeight;
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    // Ignore keys pressed on the row action buttons
+    if (e.target !== e.currentTarget || sortedItems.length === 0) return;
+
+    const current = sortedItems.findIndex((item) => item.id === selectedId);
+    const selected = current >= 0 ? sortedItems[current] : null;
+    const page = Math.max(1, Math.floor(viewportHeight / ROW_HEIGHT));
+
+    switch (e.key) {
+      case 'ArrowDown': selectIndex(current + 1); break;
+      case 'ArrowUp': selectIndex(current < 0 ? 0 : current - 1); break;
+      case 'PageDown': selectIndex(current + page); break;
+      case 'PageUp': selectIndex(current - page); break;
+      case 'Home': selectIndex(0); break;
+      case 'End': selectIndex(sortedItems.length - 1); break;
+      case 'Enter':
+        if (!selected?.is_dir) return;
+        onNavigate(selected.id);
+        break;
+      case 'Delete':
+        if (!selected) return;
+        handleDelete(selected);
+        break;
+      case 'ContextMenu':
+      case 'F10': {
+        // Shift+F10 is the other standard shortcut for the context menu
+        if (!selected || (e.key === 'F10' && !e.shiftKey)) return;
+        const box = e.currentTarget.getBoundingClientRect();
+        setMenu({
+          x: box.left + 48,
+          y: box.top + (current + 1) * ROW_HEIGHT - e.currentTarget.scrollTop,
+          item: selected
+        });
+        break;
+      }
+      default: return;
+    }
+    e.preventDefault();
+  };
+
+  const openContextMenu = (e: MouseEvent, item: UiDiskNode) => {
+    e.preventDefault();
+    setSelectedId(item.id);
+    setMenu({ x: e.clientX, y: e.clientY, item });
+  };
 
   const handleOpenInExplorer = async (item: UiDiskNode) => {
     try {
@@ -144,6 +207,11 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
 
       <div
         ref={mergedViewportRef}
+        className="item-list"
+        role="list"
+        aria-label="Files and folders"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
         onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
         style={{
           flex: 1,
@@ -165,34 +233,35 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
           <Stack gap={0}>
             {displayItems.map((item) => {
               const itemPercentage = item.percentage_of_parent;
-              const isHovered = hoveredId === item.id;
 
               const itemColor = categoryColor(categoryOfItem(item.name, item.is_dir));
 
               return (
                 <Group
                   key={item.id}
+                  className="item-row"
+                  role="listitem"
+                  data-selected={item.id === selectedId || undefined}
                   justify="space-between"
                   wrap="nowrap"
-                  onMouseEnter={() => setHoveredId(item.id)}
-                  onMouseLeave={() => setHoveredId(null)}
                   onClick={() => {
+                    setSelectedId(item.id);
                     if (item.is_dir) onNavigate(item.id);
                   }}
+                  onContextMenu={(e) => openContextMenu(e, item)}
                   style={{
                     height: `${ROW_HEIGHT}px`,
                     padding: '0 12px',
                     borderBottom: '1px solid var(--border-color)',
                     cursor: item.is_dir ? 'pointer' : 'default',
-                    userSelect: 'none',
-                    backgroundColor: isHovered ? 'var(--mantine-color-default-hover)' : 'transparent'
+                    userSelect: 'none'
                   }}
                 >
                   <Group gap="sm" wrap="nowrap" style={{ flex: 2, minWidth: 0 }}>
                     {
                       item.is_dir
-                        ? <Folder size={16} color={itemColor} style={{ flexShrink: 0 }} />
-                        : <File size={16} color={itemColor} style={{ flexShrink: 0 }} />
+                        ? <Folder color={itemColor} style={{ flexShrink: 0 }} />
+                        : <File color={itemColor} style={{ flexShrink: 0 }} />
                     }
                     <Tooltip label="Click to open" disabled={!item.is_dir} openDelay={200}>
                       <Text size="sm" style={{ color: 'var(--text-main)' }} truncate>
@@ -203,27 +272,21 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
 
                   {/* Actions column */}
                   <div
-                    style={{
-                      flex: '0 0 10px',
-                      display: 'flex',
-                      gap: '12px',
-                      justifyContent: 'flex-end',
-                      opacity: isHovered ? 1 : 0,
-                      transition: 'opacity 0.12s ease',
-                      pointerEvents: isHovered ? 'auto' : 'none'
-                    }}
+                    className="row-actions"
+                    style={{ flex: '0 0 60px', display: 'flex', gap: '4px', justifyContent: 'flex-end' }}
                   >
                     <ActionIcon
                       variant="subtle"
                       color="gray"
                       size="sm"
+                      style={{ color: 'var(--text-muted)' }}
                       title="Open in Files Explorer"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenInExplorer(item);
                       }}
                     >
-                      <FolderOpen size={14} />
+                      <FolderOpen />
                     </ActionIcon>
                     <ActionIcon
                       variant="subtle"
@@ -235,7 +298,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
                         handleDelete(item);
                       }}
                     >
-                      <Trash2 size={14} />
+                      <Trash2 />
                     </ActionIcon>
                   </div>
 
@@ -277,6 +340,35 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
           </Stack>
         </div>
       </div>
+
+      {/* Outside the translated rows, so the fixed position is relative to the window */}
+      <Menu
+        opened={menu !== null}
+        onClose={() => {
+          setMenu(null);
+          viewportRef.current?.focus();
+        }}
+        position="bottom-start"
+        shadow="md"
+        transitionProps={{ duration: 0 }}
+      >
+        <Menu.Target>
+          <div style={{ position: 'fixed', left: menu?.x ?? 0, top: menu?.y ?? 0, width: 0, height: 0 }} />
+        </Menu.Target>
+        <Menu.Dropdown>
+          {menu?.item.is_dir && (
+            <Menu.Item leftSection={<Folder />} onClick={() => onNavigate(menu.item.id)}>
+              Open folder
+            </Menu.Item>
+          )}
+          <Menu.Item leftSection={<FolderOpen />} onClick={() => handleOpenInExplorer(menu!.item)}>
+            Open in Files Explorer
+          </Menu.Item>
+          <Menu.Item color="red" leftSection={<Trash2 />} onClick={() => handleDelete(menu!.item)}>
+            Move to Trash
+          </Menu.Item>
+        </Menu.Dropdown>
+      </Menu>
     </div>
   );
 }
