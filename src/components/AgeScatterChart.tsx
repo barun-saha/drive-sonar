@@ -1,5 +1,5 @@
-import { useMemo, type MouseEvent, type KeyboardEvent } from 'react';
-import { Box, Text, Group } from '@mantine/core';
+import { useMemo, useState, type MouseEvent, type KeyboardEvent } from 'react';
+import { Box, Button, Text, Group } from '@mantine/core';
 import { ScatterChart } from '@mantine/charts';
 import { useReducedMotion } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -8,29 +8,32 @@ import { TopFileNode } from '../types';
 import { ChartHeader } from './ChartHeader';
 import { useLogScale } from '../hooks/useLogScale';
 import { formatBytes } from '../utils/format';
+import {
+  AGE_GROUPS, AGING_MAX_MONTHS, RECENT_MAX_MONTHS, ageColor, getAgeGroup, type AgeGroup,
+} from '../utils/ageGroup';
 
 interface AgeScatterChartProps {
   files?: TopFileNode[];
 }
 
+// Faint vertical lines at the age thresholds. `extendDomain` keeps them visible even when no file is that old.
+const AGE_REFERENCE_LINES = [RECENT_MAX_MONTHS, AGING_MAX_MONTHS].map((months) => ({
+  x: months,
+  label: `${months} mo`,
+  strokeDasharray: '4 4',
+  ifOverflow: 'extendDomain' as const,
+}));
+
 // Issue #24: Custom Dot Component with click handler, pointer cursor, and native title hint
 const DynamicScatterPoint = (props: any) => {
   const { cx, cy, payload, onPointClick } = props;
 
-  // Use sizeMB from payload
+  // Color shows age; the radius still grows with size. The oldest group also gets a heavier outline,
+  // so the groups can be told apart without relying on color.
   const sizeMB = payload?.sizeMB ?? 0;
-
-  // Corrected Color Thresholds
-  let color = '#ef4444'; // Red (big: >= 1500 MB)
-  let radius = 8;
-  if (sizeMB < 500) {
-    color = '#22c55e'; // Green (small: < 500 MB)
-    radius = 4;
-  }
-  else if (sizeMB < 1500) {
-    color = '#f59e0b'; // Amber/Yellow (medium: 500-1499 MB)
-    radius = 6;
-  }
+  const color = ageColor(payload?.ageGroup);
+  const isOld = payload?.ageGroup === 'old';
+  const radius = sizeMB < 500 ? 4 : sizeMB < 1500 ? 6 : 8;
 
   const handleActivate = (event: MouseEvent<SVGCircleElement> | KeyboardEvent<SVGCircleElement>) => {
     event.stopPropagation();
@@ -45,8 +48,8 @@ const DynamicScatterPoint = (props: any) => {
       r={radius}
       fill={color}
       fillOpacity={0.8}
-      stroke="#ffffff"
-      strokeWidth={1.5}
+      stroke={isOld ? 'var(--text-main)' : 'var(--bg-panel)'}
+      strokeWidth={isOld ? 2 : 1.5}
       tabIndex={0}
       role="button"
       aria-label={`Open ${payload?.fileName ?? 'file'} in Files Explorer`}
@@ -88,16 +91,20 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
     const nowSecs = Math.floor(Date.now() / 1000);
     const SECONDS_PER_MONTH = 86400 * 30.4375;
 
-    const basePoints = files.map((file) => ({
-      ageMonths: file.modified_secs
+    const basePoints = files.map((file) => {
+      const ageMonths = file.modified_secs
         ? Math.max(0, Number(((nowSecs - file.modified_secs) / SECONDS_PER_MONTH).toFixed(1)))
-        : 0,
-      sizeMB: Number((file.size / (1024 * 1024)).toFixed(2)),
-      rawBytes: file.size,
-      fileName: file.name,
-      filePath: file.path || file.name, // Issue #24: Full file path
-      fileId: file.id, // Issue #24: Arena node ID for explorer reveal
-    }));
+        : 0;
+      return {
+        ageMonths,
+        ageGroup: getAgeGroup(ageMonths),
+        sizeMB: Number((file.size / (1024 * 1024)).toFixed(2)),
+        rawBytes: file.size,
+        fileName: file.name,
+        filePath: file.path || file.name, // Issue #24: Full file path
+        fileId: file.id, // Issue #24: Arena node ID for explorer reveal
+      };
+    });
 
     // Issue #24: Slight jitter for identical coordinates so points don't fully occlude each other
     const coordCounts = new Map<string, number>();
@@ -139,10 +146,31 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
 
   const { useLogScale: isLog, setUseLogScale, axisProps, getAxisLabel } = useLogScale(minMB, maxMB);
 
-  const displayPoints = useMemo(() => {
+  const [hiddenGroups, setHiddenGroups] = useState<Set<AgeGroup>>(new Set());
+
+  const toggleGroup = (group: AgeGroup) => {
+    setHiddenGroups((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(group)) next.add(group);
+      return next;
+    });
+  };
+
+  const plottablePoints = useMemo(() => {
     if (!isLog) return points;
     return points.filter((p) => p.sizeMB > 0);
   }, [points, isLog]);
+
+  const groupCounts = useMemo(() => {
+    const counts: Record<AgeGroup, number> = { recent: 0, aging: 0, old: 0 };
+    plottablePoints.forEach((p) => counts[p.ageGroup]++);
+    return counts;
+  }, [plottablePoints]);
+
+  const displayPoints = useMemo(
+    () => plottablePoints.filter((p) => !hiddenGroups.has(p.ageGroup)),
+    [plottablePoints, hiddenGroups]
+  );
 
   return (
     <Box p="xs" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -152,16 +180,49 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
         onChange={setUseLogScale}
       />
 
+      {points.length > 0 && (
+        <Group gap="xs" mb="xs" role="group" aria-label="Age groups">
+          {AGE_GROUPS.map(({ group, label }) => {
+            const visible = !hiddenGroups.has(group);
+            return (
+              <Button
+                key={group}
+                size="compact-xs"
+                variant={visible ? 'light' : 'subtle'}
+                color="gray"
+                aria-pressed={visible}
+                onClick={() => toggleGroup(group)}
+                leftSection={
+                  <Box
+                    w={10}
+                    h={10}
+                    style={{
+                      borderRadius: '50%',
+                      background: ageColor(group),
+                      border: group === 'old' ? '2px solid var(--text-main)' : undefined,
+                      opacity: visible ? 1 : 0.4,
+                    }}
+                  />
+                }
+              >
+                {label} · {groupCounts[group]}
+              </Button>
+            );
+          })}
+        </Group>
+      )}
+
       <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative' }}>
         {displayPoints.length > 0 ? (
           <ScatterChart
             h="100%"
             style={{ position: 'absolute', inset: 0 }}
-            data={[{ color: 'var(--accent-primary, #3b82f6)', name: 'Files', data: displayPoints as any }]}
+            data={[{ color: 'brand', name: 'Files', data: displayPoints as any }]}
             dataKey={{ x: 'plottedAgeMonths', y: 'sizeMB' }}
             xAxisLabel="Age (Months Since Modified)"
             yAxisLabel={getAxisLabel('Size (MB)')}
             yAxisProps={axisProps}
+            referenceLines={AGE_REFERENCE_LINES}
             scatterProps={{
               shape: <DynamicScatterPoint onPointClick={(data: any) => handleOpenInExplorer(data?.fileId)} />, // Issue #24
               onClick: (entry: any) => {
@@ -183,8 +244,8 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
                   <Box
                     p="sm"
                     style={{
-                      background: 'var(--bg-panel, #1e1e1e)',
-                      border: '1px solid var(--border-color, #333)',
+                      background: 'var(--bg-panel)',
+                      border: '1px solid var(--border-color)',
                       borderRadius: 6,
                       maxWidth: 360,
                     }}
@@ -196,10 +257,10 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
                     <Text
                       size="sm"
                       c="dimmed"
+                      ff="monospace"
                       title={data.filePath}
                       style={{
                         wordBreak: 'break-all',
-                        fontFamily: 'monospace',
                         marginTop: 2,
                         marginBottom: 6,
                       }}

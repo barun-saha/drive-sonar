@@ -322,7 +322,8 @@ describe('App', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Run Scan' }));
-    expect(await screen.findByText('Documents')).toBeInTheDocument();
+    // The chart legend also has a "Documents" category label, the list row comes first
+    expect((await screen.findAllByText('Documents'))[0]).toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText('Menu'));
     fireEvent.click(await screen.findByText('Save Report'));
@@ -340,7 +341,7 @@ describe('App', () => {
     });
 
     // Navigate into Documents subfolder
-    fireEvent.click(screen.getByText('Documents'));
+    fireEvent.click(screen.getAllByText('Documents')[0]);
     expect(await screen.findByText('notes.txt')).toBeInTheDocument();
 
     // Verify report export still targets original root scan path stats
@@ -456,6 +457,25 @@ describe('App', () => {
     const starBtn = screen.getByRole('link', { name: /Star on GitHub/i });
     expect(starBtn).toBeInTheDocument();
     expect(starBtn).toHaveAttribute('href', 'https://github.com/barun-saha/drive-sonar');
+  });
+
+  it('shows the bundled font notices in the About dialog, offline and online', async () => {
+    renderApp();
+    fireEvent.click(screen.getByLabelText('Menu'));
+    fireEvent.click(await screen.findByText('About Drive Sonar'));
+
+    expect(await screen.findByText(/Bundled fonts: Inter and JetBrains Mono/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Third-party notices' })).toHaveAttribute(
+      'href',
+      'https://github.com/barun-saha/drive-sonar/blob/main/THIRD_PARTY_NOTICES.md'
+    );
+
+    const toggle = screen.getByRole('button', { name: 'Show license text' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(toggle);
+    expect(screen.getByRole('button', { name: 'Hide license text' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText(/SIL OPEN FONT LICENSE Version 1\.1/)).toBeInTheDocument();
+    expect(screen.getByText(/Copyright 2016 The Inter Project Authors/)).toBeInTheDocument();
   });
 
   it('toggles color scheme between light and dark mode', async () => {

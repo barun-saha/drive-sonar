@@ -53,7 +53,9 @@ export function Toolbar({
   const freePercent = diskInfo && diskInfo.total_bytes > 0
     ? (diskInfo.free_bytes / diskInfo.total_bytes) * 100
     : 100;
-  const diskBarColor = freePercent < 10 ? 'red' : freePercent < 20 ? 'yellow' : 'blue';
+  const diskBarColor = freePercent < 10
+    ? 'var(--status-danger)'
+    : freePercent < 20 ? 'var(--status-warning)' : 'var(--status-ok)';
 
   return (
     <div style={{ background: 'var(--bg-panel)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
@@ -79,7 +81,12 @@ export function Toolbar({
               onChange={(e) => setTargetPath(e.target.value)}
               style={{ flex: 1 }}
               styles={{
-                input: { backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', borderColor: 'var(--border-color)' }
+                input: {
+                  backgroundColor: 'var(--bg-main)',
+                  color: 'var(--text-main)',
+                  borderColor: 'var(--border-color)',
+                  fontFamily: 'var(--mantine-font-family-monospace)',
+                }
               }}
               rightSection={
                 <ActionIcon

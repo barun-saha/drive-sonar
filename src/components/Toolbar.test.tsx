@@ -98,10 +98,10 @@ describe('Toolbar', () => {
   });
 
   it.each([
-    [25, 'blue'],
-    [15, 'yellow'],
-    [5, 'red'],
-  ])('colors the disk bar for %i%% free as %s', (freePercent, color) => {
+    [25, 'ok'],
+    [15, 'warning'],
+    [5, 'danger'],
+  ])('colors the disk bar for %i%% free as %s', (freePercent, status) => {
     renderWithMantine(
       <Toolbar
         {...defaultProps}
@@ -112,7 +112,7 @@ describe('Toolbar', () => {
 
     expect(screen.getByText(`100 Bytes total · ${freePercent.toFixed(1)}% free`)).toBeInTheDocument();
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', String(100 - freePercent));
-    expect(screen.getByRole('progressbar').getAttribute('style')).toContain(`-${color}-`);
+    expect(screen.getByRole('progressbar').getAttribute('style')).toContain(`var(--status-${status})`);
   });
 
   it('does not break when total disk size is zero', () => {
