@@ -69,6 +69,15 @@ export default function App() {
   const scanGenerationRef = useRef(0);
   const activeScanGenerationRef = useRef<number | null>(null);
 
+  // Hide the webview's built-in context menu (Back, Refresh, ...), except in text fields where Paste is useful
+  useEffect(() => {
+    const hideNativeMenu = (e: MouseEvent) => {
+      if (!(e.target as Element).closest('input, textarea')) e.preventDefault();
+    };
+    document.addEventListener('contextmenu', hideNativeMenu);
+    return () => document.removeEventListener('contextmenu', hideNativeMenu);
+  }, []);
+
   const [helpOpened, { open: openHelp, close: closeHelp }] = useDisclosure(false);
   const [aboutOpened, { open: openAbout, close: closeAbout }] = useDisclosure(false);
   const [noticesOpened, { toggle: toggleNotices }] = useDisclosure(false);
