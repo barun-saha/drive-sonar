@@ -54,6 +54,11 @@ export interface ScanProgress {
   elapsed_secs: number;
 }
 
+export interface TrashedTotals {
+  count: number;
+  bytes: number;
+}
+
 export interface KeyStats {
   scanPath: string;
   totalDriveBytes?: number;

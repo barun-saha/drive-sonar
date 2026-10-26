@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { ActionIcon, Anchor, Button, Group, Stack, Text, Menu, Modal } from '@mantine/core';
 import { useMantineColorScheme, useComputedColorScheme } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useLocalStorage } from '@mantine/hooks';
 import { Notifications, notifications } from '@mantine/notifications';
 import { Menu as MenuIcon, HelpCircle, Info, Sun, Moon, Save, Star } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
@@ -13,10 +13,30 @@ import { Toolbar } from './components/Toolbar';
 import { Workspace } from './components/Workspace';
 import { StatusBar } from './components/StatusBar';
 import { saveReportToTextFile } from './utils/exportReport';
+import { formatBytes } from './utils/format';
 
 import '@mantine/notifications/styles.css';
 
-import { DirectoryPayload, DiskInfo, ScanProgress, KeyStats, DirNode, UiDiskNode } from './types';
+import { DirectoryPayload, DiskInfo, ScanProgress, KeyStats, DirNode, UiDiskNode, TrashedTotals } from './types';
+
+const NO_TRASHED: TrashedTotals = { count: 0, bytes: 0 };
+
+/** Falls back to zero totals if the stored value is missing, malformed or hand-edited. */
+function parseTrashedTotals(stored?: string): TrashedTotals {
+  try {
+    const parsed = JSON.parse(stored ?? '');
+    if (
+      Number.isInteger(parsed?.count) && parsed.count >= 0 &&
+      Number.isFinite(parsed?.bytes) && parsed.bytes >= 0 &&
+      (parsed.count > 0 || parsed.bytes === 0)
+    ) {
+      return { count: parsed.count, bytes: parsed.bytes };
+    }
+  } catch {
+    // Invalid JSON, treated the same as a wrong shape
+  }
+  return NO_TRASHED;
+}
 
 export default function App() {
   const [targetPath, setTargetPath] = useState('');
@@ -28,6 +48,12 @@ export default function App() {
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
   const [trashedCount, setTrashedCount] = useState(0);
   const [trashedBytes, setTrashedBytes] = useState(0);
+  const [lifetimeTrashed, setLifetimeTrashed] = useLocalStorage({
+    key: 'drive-sonar-lifetime-trashed',
+    defaultValue: NO_TRASHED,
+    deserialize: parseTrashedTotals,
+    getInitialValueInEffect: false,
+  });
   const [warningCount, setWarningCount] = useState(0);
 
   // Store the root scan statistics and top-level structure specifically for report export
@@ -259,6 +285,7 @@ export default function App() {
   const handleItemTrashed = (item: UiDiskNode) => {
     setTrashedCount((prev) => prev + 1);
     setTrashedBytes((prev) => prev + item.size);
+    setLifetimeTrashed((prev) => ({ count: prev.count + 1, bytes: prev.bytes + item.size }));
   };
 
   // Handler for Exporting Report
@@ -377,6 +404,17 @@ export default function App() {
               >
                 Star on GitHub
               </Button>
+
+              {lifetimeTrashed.count > 0 && (
+                <Group gap="xs" mt="xs">
+                  <Text size="sm" c="dimmed">
+                    Lifetime: {formatBytes(lifetimeTrashed.bytes)} moved to Trash (stored on this device only)
+                  </Text>
+                  <Button variant="subtle" color="gray" size="compact-xs" onClick={() => setLifetimeTrashed(NO_TRASHED)}>
+                    Reset
+                  </Button>
+                </Group>
+              )}
             </Stack>
           </Modal.Body>
         </Modal.Content>
@@ -400,6 +438,7 @@ export default function App() {
           scanProgress={scanProgress}
           trashedCount={trashedCount}
           trashedBytes={trashedBytes}
+          lifetimeTrashed={lifetimeTrashed}
         >
           <Menu shadow="md" width={200} position="bottom-end">
             <Menu.Target>
