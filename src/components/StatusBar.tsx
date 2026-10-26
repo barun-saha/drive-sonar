@@ -75,7 +75,7 @@ export function StatusBar({
             </Text>
           )}
           {warningCount > 0 && (
-            <Text size="xs" c="yellow" style={{ whiteSpace: 'nowrap' }}>
+            <Text size="xs" c="var(--status-warning)" style={{ whiteSpace: 'nowrap' }}>
               {warningCount.toLocaleString()} {warningCount === 1 ? 'warning' : 'warnings'}
             </Text>
           )}

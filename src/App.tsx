@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { ActionIcon, Anchor, Button, Group, Stack, Text, Menu, Modal } from '@mantine/core';
+import { ActionIcon, Anchor, Button, Code, Collapse, Group, Stack, Text, Menu, Modal } from '@mantine/core';
 import { useMantineColorScheme, useComputedColorScheme } from '@mantine/core';
 import { useDisclosure, useLocalStorage } from '@mantine/hooks';
 import { Notifications, notifications } from '@mantine/notifications';
@@ -14,6 +14,7 @@ import { Workspace } from './components/Workspace';
 import { StatusBar } from './components/StatusBar';
 import { saveReportToTextFile } from './utils/exportReport';
 import { formatBytes } from './utils/format';
+import thirdPartyNotices from '../THIRD_PARTY_NOTICES.md?raw';
 
 import '@mantine/notifications/styles.css';
 
@@ -70,6 +71,7 @@ export default function App() {
 
   const [helpOpened, { open: openHelp, close: closeHelp }] = useDisclosure(false);
   const [aboutOpened, { open: openAbout, close: closeAbout }] = useDisclosure(false);
+  const [noticesOpened, { toggle: toggleNotices }] = useDisclosure(false);
 
   const { setColorScheme } = useMantineColorScheme();
   const computedColorScheme = useComputedColorScheme('dark');
@@ -333,7 +335,7 @@ export default function App() {
       <Modal.Root opened={helpOpened} onClose={closeHelp} centered radius="md">
         <Modal.Overlay backgroundOpacity={0.6} blur={4} />
         <Modal.Content>
-          <Modal.Header style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+          <Modal.Header style={{ borderBottom: '1px solid var(--border-color)' }}>
             <Modal.Title>
               <Group gap="xs">
                 <HelpCircle size={20} color="var(--mantine-color-dimmed)" />
@@ -357,10 +359,10 @@ export default function App() {
       <Modal.Root opened={aboutOpened} onClose={closeAbout} centered radius="md">
         <Modal.Overlay backgroundOpacity={0.6} blur={4} />
         <Modal.Content>
-          <Modal.Header style={{ borderBottom: '1px solid var(--mantine-color-dimmed)' }}>
+          <Modal.Header style={{ borderBottom: '1px solid var(--border-color)' }}>
             <Modal.Title>
               <Group gap="xs">
-                <Info size={20} color="var(--mantine-color-cyan-4)" />
+                <Info size={20} color="var(--mantine-color-dimmed)" />
                 <Text fw={600} size="lg" c="dimmed">About Drive Sonar</Text>
               </Group>
             </Modal.Title>
@@ -415,6 +417,30 @@ export default function App() {
                   </Button>
                 </Group>
               )}
+
+              <Text size="sm" c="dimmed" mt="xs">
+                Bundled fonts: Inter and JetBrains Mono, licensed under the SIL Open Font License 1.1.{' '}
+                <Anchor
+                  href="https://github.com/barun-saha/drive-sonar/blob/main/THIRD_PARTY_NOTICES.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Third-party notices
+                </Anchor>
+              </Text>
+              <Button
+                variant="subtle"
+                color="gray"
+                size="compact-xs"
+                onClick={toggleNotices}
+                aria-expanded={noticesOpened}
+                style={{ alignSelf: 'flex-start' }}
+              >
+                {noticesOpened ? 'Hide' : 'Show'} license text
+              </Button>
+              <Collapse expanded={noticesOpened}>
+                <Code block mah={240} style={{ overflow: 'auto' }}>{thirdPartyNotices}</Code>
+              </Collapse>
             </Stack>
           </Modal.Body>
         </Modal.Content>
