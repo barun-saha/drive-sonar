@@ -192,8 +192,8 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
                   <Group gap="sm" wrap="nowrap" style={{ flex: 2, minWidth: 0 }}>
                     {
                       item.is_dir
-                        ? <Folder size={16} color="var(--color-dir)" />
-                        : <File size={16} color="var(--color-file)" />
+                        ? <Folder size={16} color="var(--color-dir)" style={{ flexShrink: 0 }} />
+                        : <File size={16} color="var(--color-file)" style={{ flexShrink: 0 }} />
                     }
                     <Tooltip label="Click to open" disabled={!item.is_dir} openDelay={200}>
                       <Text size="sm" style={{ color: 'var(--text-main)' }} truncate>

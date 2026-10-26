@@ -101,17 +101,11 @@ body {
   min-height: 0;
 }
 
-/* Side by side from Mantine's `sm` breakpoint (48em): 7/5, then 6/6 from `lg` (75em) */
+/* Side by side from Mantine's `sm` breakpoint (48em), split 50/50 so the three chart tabs fit on one row */
 @media (min-width: 48em) {
   .workspace {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
     grid-auto-rows: auto;
-  }
-}
-
-@media (min-width: 75em) {
-  .workspace {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
