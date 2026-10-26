@@ -106,6 +106,9 @@ describe('AgeScatterChart', () => {
 
     const point = screen.getByRole('button', { name: 'Open archive.zip in Files Explorer' });
     await user.tab(); // Scale switch
+    await user.tab(); // Recent legend chip
+    await user.tab(); // Aging legend chip
+    await user.tab(); // Old legend chip
     await user.tab(); // Scatter point
     expect(point).toHaveFocus();
 
@@ -211,5 +214,101 @@ describe('AgeScatterChart', () => {
 
     renderWithMantine(capturedScatterProps.tooltipProps.content({ payload: [{ payload: points[count - 1] }] }));
     expect(screen.getByText(`Modified: ${ageMonths} months ago`)).toBeInTheDocument();
+  });
+
+  describe('age groups', () => {
+    const monthsAgo = (months: number) => Math.floor(Date.now() / 1000) - months * 86400 * 30.4375;
+    const MB = 1048576;
+    const mixedFiles: TopFileNode[] = [
+      { id: 1, name: 'recent.zip', size: MB * 100, modified_secs: monthsAgo(1), path: '/recent.zip' },
+      { id: 2, name: 'aging.zip', size: MB * 200, modified_secs: monthsAgo(12), path: '/aging.zip' },
+      { id: 3, name: 'old1.zip', size: MB * 300, modified_secs: monthsAgo(36), path: '/old1.zip' },
+      { id: 4, name: 'old2.zip', size: MB * 400, modified_secs: monthsAgo(60), path: '/old2.zip' },
+      { id: 5, name: 'empty.bin', size: 0, modified_secs: monthsAgo(2), path: '/empty.bin' },
+    ];
+
+    const chip = (name: RegExp) => screen.getByRole('button', { name });
+    const plottedNames = () => capturedScatterProps.data[0].data.map((p: any) => p.fileName);
+
+    it('assigns each point to an age group using the 6 and 24 month thresholds', () => {
+      renderWithMantine(<AgeScatterChart files={mixedFiles} />);
+
+      const groups = capturedScatterProps.data[0].data.map((p: any) => [p.fileName, p.ageGroup]);
+      expect(groups).toEqual([
+        ['recent.zip', 'recent'],
+        ['aging.zip', 'aging'],
+        ['old1.zip', 'old'],
+        ['old2.zip', 'old'],
+        ['empty.bin', 'recent'],
+      ]);
+    });
+
+    it('shows the thresholds as reference lines on the chart', () => {
+      renderWithMantine(<AgeScatterChart files={mixedFiles} />);
+
+      expect(capturedScatterProps.referenceLines.map((line: any) => [line.x, line.label])).toEqual([
+        [6, '6 mo'],
+        [24, '24 mo'],
+      ]);
+    });
+
+    it('shows a legend with the thresholds and a count per group', () => {
+      renderWithMantine(<AgeScatterChart files={mixedFiles} />);
+
+      expect(chip(/^Recent \(≤ 6 mo\)/)).toHaveTextContent('Recent (≤ 6 mo) · 2');
+      expect(chip(/^Aging/)).toHaveTextContent('Aging (6–24 mo) · 1');
+      expect(chip(/^Old/)).toHaveTextContent('Old (> 24 mo) · 2');
+    });
+
+    it('does not count zero-size files in log mode', () => {
+      renderWithMantine(<AgeScatterChart files={mixedFiles} />);
+
+      fireEvent.click(screen.getByLabelText('Use semi-log scale'));
+
+      expect(chip(/^Recent/)).toHaveTextContent('· 1');
+      expect(plottedNames()).not.toContain('empty.bin');
+    });
+
+    it('hides and shows a group when its legend chip is toggled', () => {
+      renderWithMantine(<AgeScatterChart files={mixedFiles} />);
+
+      fireEvent.click(chip(/^Old/));
+      expect(chip(/^Old/)).toHaveAttribute('aria-pressed', 'false');
+      expect(plottedNames()).toEqual(['recent.zip', 'aging.zip', 'empty.bin']);
+      expect(chip(/^Old/)).toHaveTextContent('· 2');
+
+      fireEvent.click(chip(/^Old/));
+      expect(chip(/^Old/)).toHaveAttribute('aria-pressed', 'true');
+      expect(plottedNames()).toHaveLength(5);
+    });
+
+    it('keeps the legend available when every group is hidden', () => {
+      renderWithMantine(<AgeScatterChart files={mixedFiles} />);
+
+      fireEvent.click(chip(/^Recent/));
+      fireEvent.click(chip(/^Aging/));
+      fireEvent.click(chip(/^Old/));
+
+      expect(screen.getByText('No files to analyze in this scope.')).toBeInTheDocument();
+      fireEvent.click(chip(/^Old/));
+      expect(screen.getByTestId('mock-scatter-chart')).toBeInTheDocument();
+    });
+
+    it('colors points by age and gives the oldest group a heavier outline', () => {
+      renderWithMantine(<AgeScatterChart files={mixedFiles} />);
+      const [recent, , old] = capturedScatterProps.data[0].data;
+
+      const renderPoint = (payload: any) => render(
+        <svg>{cloneElement(capturedScatterProps.scatterProps.shape, { cx: 1, cy: 1, payload })}</svg>
+      ).container.querySelector('circle')!;
+
+      const recentDot = renderPoint(recent);
+      expect(recentDot).toHaveAttribute('fill', 'var(--age-recent)');
+      expect(recentDot).toHaveAttribute('stroke-width', '1.5');
+
+      const oldDot = renderPoint(old);
+      expect(oldDot).toHaveAttribute('fill', 'var(--age-old)');
+      expect(oldDot).toHaveAttribute('stroke-width', '2');
+    });
   });
 });
