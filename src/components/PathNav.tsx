@@ -120,7 +120,7 @@ export function PathNav({ ancestors, onNavigate, onRescan, isWindows }: PathNavP
 
   return (
     <Breadcrumbs
-      separator={<ChevronRight size={12} style={{ color: 'var(--mantine-color-dimmed)' }} />}
+      separator={<ChevronRight style={{ color: 'var(--mantine-color-dimmed)' }} />}
       style={{ flexWrap: 'wrap', rowGap: 4 }}
     >
       {items.map((item) => {

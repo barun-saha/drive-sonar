@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
+import { LucideProvider } from 'lucide-react';
 import App from "./App";
 import { theme, cssVariablesResolver } from './theme';
 
@@ -15,7 +16,10 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <MantineProvider theme={theme} cssVariablesResolver={cssVariablesResolver} defaultColorScheme="dark">
       <ModalsProvider>
-        <App />
+        {/* One default icon size and stroke for the whole app */}
+        <LucideProvider size={16} strokeWidth={1.75}>
+          <App />
+        </LucideProvider>
       </ModalsProvider>
     </MantineProvider>
   </React.StrictMode>

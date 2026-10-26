@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Treemap } from '@mantine/charts';
-import { Text, Group, Box, Badge } from '@mantine/core';
+import { Box, Text, Group, Badge } from '@mantine/core';
 import { useReducedMotion } from '@mantine/hooks';
 import type { TreemapNode } from 'recharts';
 
@@ -8,6 +8,7 @@ import { UiDiskNode } from '../types';
 import { formatBytes } from '../utils/format';
 import { categoryColor, categoryOfItem } from '../utils/fileCategory';
 import { CategoryLegend } from './CategoryLegend';
+import { ChartTooltip } from './ChartTooltip';
 
 interface SizeChartProps {
   items: UiDiskNode[];
@@ -72,14 +73,7 @@ export function SizeChart({ items, onNavigate }: SizeChartProps) {
                 if (active && payload && payload.length) {
                   const data = payload[0].payload;
                   return (
-                    <Box
-                      p="sm"
-                      style={{
-                        background: 'var(--bg-panel)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: 6,
-                      }}
-                    >
+                    <ChartTooltip>
                       <Group gap={6} mb={4}>
                         <Text size="sm" fw={700}>{data.name}</Text>
                         {data.isDir && <Badge size="xs" variant="light">Folder</Badge>}
@@ -92,7 +86,7 @@ export function SizeChart({ items, onNavigate }: SizeChartProps) {
                           Click block to open folder
                         </Text>
                       )}
-                    </Box>
+                    </ChartTooltip>
                   );
                 }
                 return null;

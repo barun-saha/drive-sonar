@@ -401,7 +401,7 @@ export default function App() {
                 variant="light"
                 color="yellow"
                 size="sm"
-                leftSection={<Star size={16} fill="currentColor" />}
+                leftSection={<Star fill="currentColor" />}
                 style={{ alignSelf: 'flex-start' }}
               >
                 Star on GitHub
@@ -476,7 +476,7 @@ export default function App() {
             <Menu.Dropdown>
               <Menu.Label>Application</Menu.Label>
               <Menu.Item
-                leftSection={computedColorScheme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+                leftSection={computedColorScheme === 'dark' ? <Sun /> : <Moon />}
                 onClick={toggleColorScheme}
               >
                 {computedColorScheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
@@ -484,7 +484,7 @@ export default function App() {
               <Menu.Divider />
 
               <Menu.Item
-                leftSection={<Save size={14} />}
+                leftSection={<Save />}
                 onClick={handleExportReport}
                 disabled={!payload || isScanning}
               >
@@ -492,12 +492,12 @@ export default function App() {
               </Menu.Item>
               <Menu.Divider />
 
-              <Menu.Item leftSection={<HelpCircle size={14} />} onClick={openHelp}>
+              <Menu.Item leftSection={<HelpCircle />} onClick={openHelp}>
                 Help
               </Menu.Item>
               <Menu.Divider />
 
-              <Menu.Item leftSection={<Info size={14} />} onClick={openAbout}>
+              <Menu.Item leftSection={<Info />} onClick={openAbout}>
                 About Drive Sonar
               </Menu.Item>
             </Menu.Dropdown>

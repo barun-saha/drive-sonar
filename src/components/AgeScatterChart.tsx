@@ -6,6 +6,7 @@ import { notifications } from '@mantine/notifications';
 import { invoke } from '@tauri-apps/api/core';
 import { TopFileNode } from '../types';
 import { ChartHeader } from './ChartHeader';
+import { ChartTooltip } from './ChartTooltip';
 import { useLogScale } from '../hooks/useLogScale';
 import { formatBytes } from '../utils/format';
 import {
@@ -241,15 +242,7 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
                 const data = payload[0].payload;
 
                 return (
-                  <Box
-                    p="sm"
-                    style={{
-                      background: 'var(--bg-panel)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: 6,
-                      maxWidth: 360,
-                    }}
-                  >
+                  <ChartTooltip maxWidth={360}>
                     <Text size="sm" fw={700} style={{ wordBreak: 'break-all' }}>
                       {data.fileName}
                     </Text>
@@ -277,7 +270,7 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
                     <Text size="xs" c="dimmed" mt={4} style={{ fontStyle: 'italic' }}>
                       Click point to open in Files Explorer
                     </Text>
-                  </Box>
+                  </ChartTooltip>
                 );
               },
             }}

@@ -31,11 +31,7 @@ body {
   background-color: var(--border-color);
 }
 
-.file-row-hover:hover .row-action-buttons {
-  opacity: 1 !important;
-}
-
-.spin-animation {
+.spin {
   animation: spin 1s linear infinite;
   display: inline-block; /* Ensures the element rotates cleanly around its center */
 }
@@ -46,6 +42,28 @@ body {
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Thin, theme-aware scrollbars. The -webkit- rules are only a fallback for engines without the standard properties. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-muted) 45%, transparent) transparent;
+}
+
+@supports not (scrollbar-width: thin) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--text-muted) 45%, transparent);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
   }
 }
 
