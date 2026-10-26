@@ -671,6 +671,9 @@ describe('App', () => {
     ['invalid JSON', 'not json{'],
     ['null', 'null'],
     ['the wrong shape', JSON.stringify({ count: 'many', bytes: -1 })],
+    ['a fractional count', JSON.stringify({ count: 1.5, bytes: 1024 })],
+    ['a negative count', JSON.stringify({ count: -1, bytes: 1024 })],
+    ['zero count with nonzero bytes', JSON.stringify({ count: 0, bytes: 1024 })],
   ])('starts normally when the stored lifetime total is %s', async (_label, stored) => {
     localStorage.setItem('drive-sonar-lifetime-trashed', stored);
 
@@ -678,6 +681,25 @@ describe('App', () => {
 
     expect(await screen.findByRole('button', { name: 'Run Scan' })).toBeInTheDocument();
     expect(screen.queryByText('This session')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem('drive-sonar-lifetime-trashed')!)).toEqual({ count: 0, bytes: 0 });
+    });
+  });
+
+  it.each([
+    { count: 0, bytes: 0 },
+    { count: 1, bytes: 0 },
+    { count: 12, bytes: 5 * 1024 * 1024 },
+    { count: 1, bytes: 1.5 },
+  ])('preserves valid stored lifetime totals %j', async (totals) => {
+    localStorage.setItem('drive-sonar-lifetime-trashed', JSON.stringify(totals));
+
+    renderApp();
+
+    expect(await screen.findByRole('button', { name: 'Run Scan' })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem('drive-sonar-lifetime-trashed')!)).toEqual(totals);
+    });
   });
 
   it('still works when local storage is unavailable', async () => {

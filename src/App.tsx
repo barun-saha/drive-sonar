@@ -25,7 +25,11 @@ const NO_TRASHED: TrashedTotals = { count: 0, bytes: 0 };
 function parseTrashedTotals(stored?: string): TrashedTotals {
   try {
     const parsed = JSON.parse(stored ?? '');
-    if (Number.isFinite(parsed?.count) && parsed.count >= 0 && Number.isFinite(parsed?.bytes) && parsed.bytes >= 0) {
+    if (
+      Number.isInteger(parsed?.count) && parsed.count >= 0 &&
+      Number.isFinite(parsed?.bytes) && parsed.bytes >= 0 &&
+      (parsed.count > 0 || parsed.bytes === 0)
+    ) {
       return { count: parsed.count, bytes: parsed.bytes };
     }
   } catch {
