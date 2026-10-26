@@ -81,6 +81,42 @@ describe('ItemList', () => {
     expect(screen.getByText('This directory is empty.')).toBeInTheDocument();
   });
 
+  it('shows the percentage of the current folder next to the size', () => {
+    const payload: DirectoryPayload = {
+      ...mockPayload,
+      items: [
+        ...mockPayload.items,
+        { id: 12, name: 'tiny.zip', is_dir: false, size: 10, modified_secs: 1, percentage_of_parent: 0.04 },
+      ],
+    };
+    renderWithMantine(<ItemList payload={payload} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
+
+    expect(screen.getByText('80.0%')).toBeInTheDocument();
+    expect(screen.getByText('20.0%')).toBeInTheDocument();
+    expect(screen.getByText('<0.1%')).toBeInTheDocument();
+  });
+
+  it('colors the size bars by category regardless of how large the share is', () => {
+    const payload: DirectoryPayload = {
+      ...mockPayload,
+      items: [
+        ...mockPayload.items,
+        { id: 12, name: 'tiny.zip', is_dir: false, size: 10, modified_secs: 1, percentage_of_parent: 0.04 },
+      ],
+    };
+    const { container } = renderWithMantine(
+      <ItemList payload={payload} onNavigate={vi.fn()} onRefresh={vi.fn()} />
+    );
+
+    // Rows are sorted by size: Folder A (80%), File B.txt (20%), tiny.zip
+    const bars = Array.from(container.querySelectorAll('.mantine-Progress-section'));
+    expect(bars.map((bar) => bar.getAttribute('style'))).toEqual([
+      expect.stringContaining('var(--cat-folder)'),
+      expect.stringContaining('var(--cat-documents)'),
+      expect.stringContaining('var(--cat-archives)'),
+    ]);
+  });
+
   it('navigates when clicking a directory item', () => {
     const onNavigate = vi.fn();
     renderWithMantine(

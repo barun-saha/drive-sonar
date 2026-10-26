@@ -1,5 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { formatBytes } from './format';
+import { formatBytes, formatPercent } from './format';
+
+describe('formatPercent', () => {
+  it('shows one decimal place', () => {
+    expect(formatPercent(0)).toBe('0.0%');
+    expect(formatPercent(13.44)).toBe('13.4%');
+    expect(formatPercent(100)).toBe('100.0%');
+  });
+
+  it('shows <0.1% for tiny non-zero values', () => {
+    expect(formatPercent(0.04)).toBe('<0.1%');
+    expect(formatPercent(0.1)).toBe('0.1%');
+  });
+});
 
 describe('formatBytes', () => {
   it('handles invalid, zero, or negative numbers correctly', () => {

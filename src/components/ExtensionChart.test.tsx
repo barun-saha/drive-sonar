@@ -39,6 +39,16 @@ describe('ExtensionChart', () => {
     expect(screen.getByText('TOP 15 FILE EXTENSIONS BY STORAGE')).toBeInTheDocument();
     expect(screen.getByTestId('mock-bar-chart')).toBeInTheDocument();
 
+    // Bars use the category color of their extension, and the legend lists the categories in use
+    expect(capturedBarProps.data.map((d: any) => [d.extension, d.color])).toEqual([
+      ['.mp4', 'var(--cat-media)'],
+      ['.txt', 'var(--cat-documents)'],
+    ]);
+    const legend = screen.getByLabelText('Color legend');
+    expect(legend).toHaveTextContent('Media');
+    expect(legend).toHaveTextContent('Documents');
+    expect(legend).not.toHaveTextContent('Code');
+
     const switchInput = screen.getByLabelText('Use semi-log scale');
     fireEvent.click(switchInput);
     expect(switchInput).toBeChecked();

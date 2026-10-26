@@ -6,6 +6,8 @@ import type { TreemapNode } from 'recharts';
 
 import { UiDiskNode } from '../types';
 import { formatBytes } from '../utils/format';
+import { categoryColor, categoryOfItem } from '../utils/fileCategory';
+import { CategoryLegend } from './CategoryLegend';
 
 interface SizeChartProps {
   items: UiDiskNode[];
@@ -19,21 +21,21 @@ export function SizeChart({ items, onNavigate }: SizeChartProps) {
     return [...items].sort((a, b) => b.size - a.size);
   }, [items]);
 
-  const colorPalette = ['teal.6', 'indigo.6', 'pink.6', 'cyan.6', 'grape.6', 'orange.6'];
-
   const chartData = useMemo(() => {
     return sortedItems
       .filter((item) => item.size > 0)
       .slice(0, 12)
-      .map((item, index) => {
+      .map((item) => {
         const mbValue = item.size / (1024 * 1024);
+        const category = categoryOfItem(item.name, item.is_dir);
         return {
           id: item.id,
           name: item.name,
           isDir: item.is_dir,
           value: mbValue > 0.05 ? Number(mbValue.toFixed(2)) : 0.05,
           realSize: item.size,
-          color: colorPalette[index % colorPalette.length],
+          category,
+          color: categoryColor(category),
         };
       });
   }, [sortedItems]);
@@ -73,20 +75,20 @@ export function SizeChart({ items, onNavigate }: SizeChartProps) {
                     <Box
                       p="sm"
                       style={{
-                        background: 'var(--bg-panel, #1e1e1e)',
-                        border: '1px solid var(--border-color, #333)',
+                        background: 'var(--bg-panel)',
+                        border: '1px solid var(--border-color)',
                         borderRadius: 6,
                       }}
                     >
                       <Group gap={6} mb={4}>
                         <Text size="sm" fw={700}>{data.name}</Text>
-                        {data.isDir && <Badge size="xs" variant="light" color="blue">Folder</Badge>}
+                        {data.isDir && <Badge size="xs" variant="light">Folder</Badge>}
                       </Group>
                       <Text size="sm" fw={500} c="dimmed">
                         Size: {formatBytes(data.realSize)}
                       </Text>
                       {data.isDir && onNavigate && (
-                        <Text size="xs" c="blue" mt={4}>
+                        <Text size="xs" c="brand" mt={4}>
                           Click block to open folder
                         </Text>
                       )}
@@ -103,6 +105,8 @@ export function SizeChart({ items, onNavigate }: SizeChartProps) {
           </Group>
         )}
       </div>
+
+      {chartData.length > 0 && <CategoryLegend categories={chartData.map((d) => d.category)} />}
     </Box>
   );
 }

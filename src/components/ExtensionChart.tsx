@@ -6,6 +6,8 @@ import { ExtensionStat } from '../types';
 import { ChartHeader } from './ChartHeader';
 import { useLogScale } from '../hooks/useLogScale';
 import { formatBytes } from '../utils/format';
+import { categoryColor, categoryOfExtension } from '../utils/fileCategory';
+import { CategoryLegend } from './CategoryLegend';
 
 interface ExtensionChartProps {
   stats?: ExtensionStat[];
@@ -17,12 +19,17 @@ export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
   const data = useMemo(() => {
     if (!stats.length) return [];
 
-    return stats.map((stat) => ({
-      extension: stat.extension,
-      sizeMB: Number((stat.total_bytes / (1024 * 1024)).toFixed(2)),
-      rawBytes: stat.total_bytes,
-      fileCount: stat.file_count,
-    }));
+    return stats.map((stat) => {
+      const category = categoryOfExtension(stat.extension);
+      return {
+        extension: stat.extension,
+        sizeMB: Number((stat.total_bytes / (1024 * 1024)).toFixed(2)),
+        rawBytes: stat.total_bytes,
+        fileCount: stat.file_count,
+        category,
+        color: categoryColor(category),
+      };
+    });
   }, [stats]);
 
   const { minMB, maxMB } = useMemo(() => {
@@ -61,7 +68,7 @@ export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
             data={displayData}
             dataKey="extension"
             orientation="vertical"
-            series={[{ name: 'sizeMB', color: 'var(--accent-primary, #3b82f6)' }]}
+            series={[{ name: 'sizeMB', color: 'brand' }]}
             xAxisProps={axisProps}
             yAxisProps={{ width: 80 }}
             xAxisLabel={getAxisLabel('Size (MB)')}
@@ -82,8 +89,8 @@ export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
                   <Box
                     p="sm"
                     style={{
-                      background: 'var(--bg-panel, #1e1e1e)',
-                      border: '1px solid var(--border-color, #333)',
+                      background: 'var(--bg-panel)',
+                      border: '1px solid var(--border-color)',
                       borderRadius: 6,
                     }}
                   >
@@ -109,6 +116,8 @@ export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
           </Group>
         )}
       </div>
+
+      {displayData.length > 0 && <CategoryLegend categories={displayData.map((d) => d.category)} />}
     </Box>
   );
 }

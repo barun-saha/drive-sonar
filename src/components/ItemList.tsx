@@ -7,7 +7,8 @@ import { notifications } from '@mantine/notifications';
 import { Folder, File, FolderOpen, Trash2 } from 'lucide-react';
 
 import { DirectoryPayload, UiDiskNode } from '../types';
-import { formatBytes } from '../utils/format';
+import { formatBytes, formatPercent } from '../utils/format';
+import { categoryColor, categoryOfItem } from '../utils/fileCategory';
 import { PathNav } from '../components/PathNav';
 
 interface ItemListProps {
@@ -166,9 +167,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
               const itemPercentage = item.percentage_of_parent;
               const isHovered = hoveredId === item.id;
 
-              let barColor = 'green.5';
-              if (itemPercentage > 75) barColor = 'red.6';
-              else if (itemPercentage > 40) barColor = 'yellow.5';
+              const itemColor = categoryColor(categoryOfItem(item.name, item.is_dir));
 
               return (
                 <Group
@@ -192,8 +191,8 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
                   <Group gap="sm" wrap="nowrap" style={{ flex: 2, minWidth: 0 }}>
                     {
                       item.is_dir
-                        ? <Folder size={16} color="var(--color-dir)" style={{ flexShrink: 0 }} />
-                        : <File size={16} color="var(--color-file)" style={{ flexShrink: 0 }} />
+                        ? <Folder size={16} color={itemColor} style={{ flexShrink: 0 }} />
+                        : <File size={16} color={itemColor} style={{ flexShrink: 0 }} />
                     }
                     <Tooltip label="Click to open" disabled={!item.is_dir} openDelay={200}>
                       <Text size="sm" style={{ color: 'var(--text-main)' }} truncate>
@@ -242,18 +241,25 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
 
                   <div style={{ flex: 1, padding: '0 16px', minWidth: '80px' }}>
                     <Progress.Root size="md" style={{ borderRadius: '4px' }}>
-                      <Tooltip label={`${itemPercentage.toFixed(2)}%`}>
-                        <div style={{ width: '100%', height: '100%' }}>
-                          <Progress.Section value={itemPercentage} color={barColor} />
-                        </div>
-                      </Tooltip>
+                      <Progress.Section value={itemPercentage} color={itemColor} />
                     </Progress.Root>
                   </div>
+
+                  <Tooltip label="% of current folder" openDelay={200}>
+                    <Text
+                      size="sm"
+                      ff="monospace"
+                      style={{ flex: '0 0 56px', textAlign: 'right', color: 'var(--text-muted)' }}
+                    >
+                      {formatPercent(itemPercentage)}
+                    </Text>
+                  </Tooltip>
 
                   {/* File size column */}
                   <Text
                     size="sm"
-                    style={{ flex: '0 0 90px', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-muted)' }}
+                    ff="monospace"
+                    style={{ flex: '0 0 90px', textAlign: 'right', color: 'var(--text-muted)' }}
                   >
                     {formatBytes(item.size)}
                   </Text>
