@@ -352,6 +352,12 @@ export default function App() {
             <Text size="lg">
               To cancel an ongoing scan, click on the "Cancel Scan" button.
             </Text>
+            <br />
+            <Text size="lg">
+              In the file list, use the arrow keys to select an item, Enter to open a folder, Delete to move it to
+              the Trash, and Shift+F10 (or the Menu key) for more actions. Tab and Shift+Tab move between the row
+              buttons; press Escape to return to the list.
+            </Text>
           </Modal.Body>
         </Modal.Content>
       </Modal.Root>

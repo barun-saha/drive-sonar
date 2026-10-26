@@ -65,9 +65,26 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
     }
   };
 
+  // Opens the menu next to the selected row; false when nothing is selected
+  const openMenuForSelected = (viewport: HTMLElement) => {
+    const index = sortedItems.findIndex((item) => item.id === selectedId);
+    if (index < 0) return false;
+    const box = viewport.getBoundingClientRect();
+    setMenu({
+      x: box.left + 48,
+      y: box.top + (index + 1) * ROW_HEIGHT - viewport.scrollTop,
+      item: sortedItems[index]
+    });
+    return true;
+  };
+
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    // Ignore keys pressed on the row action buttons
-    if (e.target !== e.currentTarget || sortedItems.length === 0) return;
+    if (e.target !== e.currentTarget) {
+      // On a row action button: Escape returns to the list, any other key is left to the button
+      if (e.key === 'Escape') e.currentTarget.focus();
+      return;
+    }
+    if (sortedItems.length === 0) return;
 
     const current = sortedItems.findIndex((item) => item.id === selectedId);
     const selected = current >= 0 ? sortedItems[current] : null;
@@ -91,13 +108,8 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
       case 'ContextMenu':
       case 'F10': {
         // Shift+F10 is the other standard shortcut for the context menu
-        if (!selected || (e.key === 'F10' && !e.shiftKey)) return;
-        const box = e.currentTarget.getBoundingClientRect();
-        setMenu({
-          x: box.left + 48,
-          y: box.top + (current + 1) * ROW_HEIGHT - e.currentTarget.scrollTop,
-          item: selected
-        });
+        if (e.key === 'F10' && !e.shiftKey) return;
+        if (!openMenuForSelected(e.currentTarget)) return;
         break;
       }
       default: return;
@@ -212,6 +224,11 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
         aria-label="Files and folders"
         tabIndex={0}
         onKeyDown={handleKeyDown}
+        // A key-triggered context menu event is delivered to the list itself (rows handle right-clicks)
+        onContextMenu={(e) => {
+          e.preventDefault();
+          if (e.target === e.currentTarget) openMenuForSelected(e.currentTarget);
+        }}
         onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
         style={{
           flex: 1,
@@ -355,7 +372,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
         <Menu.Target>
           <div style={{ position: 'fixed', left: menu?.x ?? 0, top: menu?.y ?? 0, width: 0, height: 0 }} />
         </Menu.Target>
-        <Menu.Dropdown>
+        <Menu.Dropdown onContextMenu={(e) => e.preventDefault()}>
           {menu?.item.is_dir && (
             <Menu.Item leftSection={<Folder />} onClick={() => onNavigate(menu.item.id)}>
               Open folder

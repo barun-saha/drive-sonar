@@ -275,6 +275,29 @@ describe('ItemList', () => {
       expect(invoke).not.toHaveBeenCalled();
     });
 
+    it('opens the menu when the browser sends a key-triggered context menu event to the list', async () => {
+      renderWithMantine(<ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
+
+      fireEvent.contextMenu(list()); // nothing selected: no menu
+      expect(menuLabels()).toEqual([]);
+
+      fireEvent.keyDown(list(), { key: 'ArrowDown' });
+      fireEvent.contextMenu(list());
+      await screen.findByText('Move to Trash');
+      expect(menuLabels()).toContain('Open folder');
+    });
+
+    it('returns focus to the list when Escape is pressed on a row action button', () => {
+      renderWithMantine(<ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
+
+      const button = screen.getAllByTitle('Move to Trash')[0];
+      button.focus();
+      expect(button).toHaveFocus();
+
+      fireEvent.keyDown(button, { key: 'Escape' });
+      expect(list()).toHaveFocus();
+    });
+
     it('opens the menu from the keyboard for the selected row', async () => {
       renderWithMantine(<ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
 
