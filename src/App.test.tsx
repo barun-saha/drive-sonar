@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
@@ -510,13 +510,11 @@ describe('App', () => {
       });
     }
 
-    expect(await screen.findByText('Current view:')).toBeInTheDocument();
+    expect(await screen.findByText('Current folder')).toBeInTheDocument();
+    expect(screen.getByText(/4 folders · 15 files/)).toBeInTheDocument();
+    // Scan totals are shown in the status bar
     expect(screen.getByText('597')).toBeInTheDocument(); // 555 files + 42 dirs
-    expect(screen.getByText('1.50s')).toBeInTheDocument();
-    expect(screen.getByText('4')).toBeInTheDocument();
-    expect(screen.getByText('folders')).toBeInTheDocument();
-    expect(screen.getByText('15')).toBeInTheDocument();
-    expect(screen.getByText('files')).toBeInTheDocument();
+    expect(screen.getByText('1.50 s')).toBeInTheDocument();
 
     // Resolve the scan
     resolveScan!({
@@ -623,7 +621,7 @@ describe('App', () => {
     expect(await screen.findByText('temp.log')).toBeInTheDocument();
 
     // Verify session trash line is not visible initially
-    expect(screen.queryByText('Session:')).not.toBeInTheDocument();
+    expect(screen.queryByText('This session')).not.toBeInTheDocument();
 
     // Delete temp.log
     const trashBtn = screen.getByTitle('Move to Trash');
@@ -633,12 +631,26 @@ describe('App', () => {
     const dialog = screen.getByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Move to Trash' }));
 
-    // Verify Session line is now displayed in toolbar
+    // Verify the session card is now displayed in the toolbar
     await waitFor(() => {
-      expect(screen.getByText('Session:')).toBeInTheDocument();
-      expect(screen.getByText('1')).toBeInTheDocument();
-      expect(screen.getByText(/item moved to Trash/)).toBeInTheDocument();
-      expect(screen.getByText(/freed/)).toBeInTheDocument();
+      expect(screen.getByText('This session')).toBeInTheDocument();
+      expect(screen.getByText(/1 item moved to Trash/)).toBeInTheDocument();
+      expect(screen.getByText(/Space is released once the Trash is emptied/)).toBeInTheDocument();
+      expect(screen.queryByText(/freed/)).not.toBeInTheDocument();
     });
+  });
+
+  it('counts scan warnings in the status bar', async () => {
+    renderApp();
+    await waitFor(() => expect(scanWarningCallback).not.toBeNull());
+
+    expect(screen.queryByText(/^\d+ warnings?$/)).not.toBeInTheDocument();
+
+    act(() => {
+      scanWarningCallback!({ payload: 'Permission denied: /root' });
+      scanWarningCallback!({ payload: 'Permission denied: /var' });
+    });
+
+    expect(await screen.findByText('2 warnings')).toBeInTheDocument();
   });
 });
