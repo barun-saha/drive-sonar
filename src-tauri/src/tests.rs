@@ -966,6 +966,52 @@ fn test_hardlink_deduplication() {
 }
 
 #[test]
+fn test_zero_size_files_are_not_recorded_for_hardlink_resolution() {
+    let dir = tempdir().unwrap();
+    let root_path = dir.path();
+    fs::write(root_path.join("empty1.txt"), b"").unwrap();
+    fs::write(root_path.join("empty2.txt"), b"").unwrap();
+    fs::write(root_path.join("data.bin"), vec![0x42u8; 16384]).unwrap();
+
+    let ids = HardlinkIds::default();
+    let shared_arena = Mutex::new(vec![DiskNode {
+        name: root_path.to_string_lossy().into_owned().into_boxed_str(),
+        size: 0,
+        is_dir: true,
+        modified_secs: 0,
+        parent_id: u32::MAX,
+        first_child: u32::MAX,
+        next_sibling: u32::MAX,
+        is_tombstoned: false,
+    }]);
+    let file_count = AtomicUsize::new(0);
+    let res = scan_dir_parallel(
+        root_path,
+        0,
+        &AtomicBool::new(false),
+        &AtomicUsize::new(0),
+        &AtomicUsize::new(0),
+        &AtomicUsize::new(0),
+        &file_count,
+        &AtomicUsize::new(0),
+        &AtomicUsize::new(0),
+        &AtomicUsize::new(0),
+        &AtomicU64::new(0),
+        &shared_arena,
+        0,
+        get_dev(root_path),
+        &ids,
+    );
+    assert!(res.is_ok());
+
+    // All three files are in the tree and counted, but only the non-empty one is tracked.
+    assert_eq!(file_count.load(AtomicOrdering::Relaxed), 3);
+    assert_eq!(ids.recorded(), 1);
+    let mut arena = shared_arena.into_inner().unwrap();
+    assert_eq!(ids.resolve(&mut arena), 0);
+}
+
+#[test]
 fn test_hardlink_across_directories_counted_once() {
     // Links in different directories are discovered by different batches, with node indices
     // rebased onto different arena offsets: they must still resolve to the same identity.

@@ -109,7 +109,8 @@ pub struct FileIdentity {
 /// the scan has finished.
 ///
 /// Workers append one directory's batch at a time, so there is no per-file locking. The cost
-/// is 12 bytes per file that has a non-zero identity, held only until `resolve` consumes it.
+/// is 12 bytes per file with a non-zero identity and a non-zero size (zero-size files have
+/// nothing to de-duplicate and are not recorded), held only until `resolve` consumes it.
 /// Each scan owns its own instance, so overlapping scans cannot affect each other.
 #[derive(Default)]
 pub struct HardlinkIds {
@@ -122,6 +123,12 @@ impl HardlinkIds {
         if !batch.is_empty() {
             self.entries.lock().unwrap().extend_from_slice(batch);
         }
+    }
+
+    /// Number of identities recorded so far (test helper).
+    #[cfg(test)]
+    pub fn recorded(&self) -> usize {
+        self.entries.lock().unwrap().len()
     }
 
     /// Zeroes the size of every node that shares an identity with a lower-indexed node, so each

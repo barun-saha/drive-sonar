@@ -156,7 +156,9 @@ pub fn scan_dir_parallel(
         } else {
             local_files += 1;
             local_bytes += entry.size;
-            if entry.file_id != 0 {
+            // A zero-size file has no bytes to de-duplicate, so skip recording it: this keeps
+            // the per-file memory cost to files that actually occupy space.
+            if entry.file_id != 0 && entry.size != 0 {
                 local_ids.push(FileIdentity {
                     id: entry.file_id,
                     node_idx: i as u32,
