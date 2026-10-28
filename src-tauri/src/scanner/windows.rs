@@ -1,12 +1,12 @@
 //! High-performance Windows directory scanner utilizing low-level `NtQueryDirectoryFileEx` APIs.
 
 use crate::models::DirEntry;
-use std::ffi::{c_void, OsString};
+use std::ffi::c_void;
 use std::io;
-use std::os::windows::ffi::{OsStrExt, OsStringExt};
+use std::os::windows::ffi::OsStrExt;
 use std::path::Path;
 use windows::core::PCWSTR;
-use windows::Wdk::Storage::FileSystem::{FileIdBothDirectoryInformation, NtQueryDirectoryFileEx};
+use windows::Wdk::Storage::FileSystem::{FileIdFullDirectoryInformation, NtQueryDirectoryFileEx};
 use windows::Win32::Foundation::{CloseHandle, HANDLE, STATUS_NO_MORE_FILES, STATUS_SUCCESS};
 use windows::Win32::Storage::FileSystem::{
     CreateFileW, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_REPARSE_POINT,
@@ -27,9 +27,15 @@ std::thread_local! {
         std::cell::RefCell::new(vec![0u8; INITIAL_QUERY_BUFFER_SIZE]);
 }
 
+/// Fixed-size header of `FILE_ID_FULL_DIR_INFORMATION`, followed in the buffer by the UTF-16 name.
+///
+/// This class is used instead of `FileIdBothDirectoryInformation` because it supplies the two
+/// fields the scanner needs (`AllocationSize` and `FileId`) without the 8.3 short name, which is
+/// never used. `repr(C)` inserts the 4 bytes of padding between `ea_size` and `file_id`, so
+/// the header is 80 bytes and the file name starts at offset 80.
 #[repr(C)]
 #[derive(Copy, Clone)]
-pub(crate) struct FileIdBothDirectoryInformationRaw {
+pub(crate) struct FileIdFullDirectoryInformationRaw {
     next_entry_offset: u32,
     file_index: u32,
     creation_time: i64,
@@ -41,10 +47,6 @@ pub(crate) struct FileIdBothDirectoryInformationRaw {
     file_attributes: u32,
     file_name_length: u32,
     ea_size: u32,
-    short_name_length: i8,
-    _reserved: u8,
-    short_name: [u16; 12],
-    _padding: [u8; 2],
     file_id: i64,
 }
 
@@ -105,7 +107,7 @@ pub fn list_directory(path: &Path) -> io::Result<Vec<DirEntry>> {
                     &mut iosb,
                     buffer.as_mut_ptr() as *mut c_void,
                     buffer.len() as u32,
-                    FileIdBothDirectoryInformation,
+                    FileIdFullDirectoryInformation,
                     if restart_scan { 0x00000001 } else { 0 },
                     None,
                 )
@@ -150,9 +152,19 @@ pub fn list_directory(path: &Path) -> io::Result<Vec<DirEntry>> {
     Ok(entries)
 }
 
+/// Returns true if the UTF-16 (native-endian) name bytes are exactly "." or "..".
+fn is_dot_or_dotdot(name_bytes: &[u8]) -> bool {
+    const DOT: [u8; 2] = 0x002E_u16.to_ne_bytes();
+    match name_bytes.len() {
+        2 => name_bytes == DOT,
+        4 => name_bytes[..2] == DOT && name_bytes[2..] == DOT,
+        _ => false,
+    }
+}
+
 /// Parses raw directory header bytes from the NT system call into structured `DirEntry` items.
 fn parse_entries(buf: &[u8], out: &mut Vec<DirEntry>) -> io::Result<()> {
-    const HEADER_SIZE: usize = std::mem::size_of::<FileIdBothDirectoryInformationRaw>();
+    const HEADER_SIZE: usize = std::mem::size_of::<FileIdFullDirectoryInformationRaw>();
     let mut offset = 0usize;
 
     loop {
@@ -160,7 +172,7 @@ fn parse_entries(buf: &[u8], out: &mut Vec<DirEntry>) -> io::Result<()> {
             break;
         }
         let header_ptr =
-            unsafe { buf.as_ptr().add(offset) as *const FileIdBothDirectoryInformationRaw };
+            unsafe { buf.as_ptr().add(offset) as *const FileIdFullDirectoryInformationRaw };
         let header = unsafe { std::ptr::read_unaligned(header_ptr) };
 
         let name_len = header.file_name_length as usize;
@@ -169,15 +181,24 @@ fn parse_entries(buf: &[u8], out: &mut Vec<DirEntry>) -> io::Result<()> {
             break;
         }
 
-        // Preserve the native UTF-16 filename for filesystem identity. A lossy
-        // String is kept separately for display and serialization only.
-        let wide_name: Vec<u16> = buf[offset + HEADER_SIZE..name_end]
-            .chunks_exact(2)
-            .map(|b| u16::from_ne_bytes([b[0], b[1]]))
-            .collect();
-        let native_name = OsString::from_wide(&wide_name);
+        // Skip "." and ".." on the raw bytes, before allocating anything for them.
+        let name_bytes = &buf[offset + HEADER_SIZE..name_end];
+        if !is_dot_or_dotdot(name_bytes) {
+            // Decode UTF-16 straight into the final String (lossy for unpaired surrogates,
+            // identical to `OsString::to_string_lossy`). This is the only per-entry
+            // allocation: no intermediate Vec<u16> or OsString. The capacity is the u16
+            // count, which is exact for ASCII names, so the later `into_boxed_str` does
+            // not need to shrink it.
+            let mut name = String::with_capacity(name_bytes.len() / 2);
+            name.extend(
+                char::decode_utf16(
+                    name_bytes
+                        .chunks_exact(2)
+                        .map(|b| u16::from_ne_bytes([b[0], b[1]])),
+                )
+                .map(|r| r.unwrap_or(char::REPLACEMENT_CHARACTER)),
+            );
 
-        if native_name != "." && native_name != ".." {
             let tw = header.last_write_time as u64;
             let is_dir = header.file_attributes & FILE_ATTRIBUTE_DIRECTORY.0 != 0;
             let is_reparse_point =
@@ -188,7 +209,7 @@ fn parse_entries(buf: &[u8], out: &mut Vec<DirEntry>) -> io::Result<()> {
                 header.allocation_size.max(0) as u64
             };
             out.push(DirEntry {
-                name: native_name.to_string_lossy().into_owned(),
+                name,
                 size,
                 is_dir,
                 is_reparse_point,

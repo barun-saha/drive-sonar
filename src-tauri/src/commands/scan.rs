@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering as AtomicOr
 use std::sync::{mpsc, Arc, Mutex};
 use tauri::{Emitter, State};
 
-use crate::models::{create_hardlink_filter, AppState, DirectoryPayload, DiskNode, ScanProgress};
+use crate::models::{AppState, DirectoryPayload, DiskNode, HardlinkIds, ScanProgress};
 use crate::scanner::{get_dev, init_rayon_thread_pool, scan_dir_parallel};
 use crate::tree::{aggregate_node, build_directory_payload};
 
@@ -121,8 +121,9 @@ pub async fn scan_directory(
 
     init_rayon_thread_pool();
 
-    // A canceled blocking task may still be running when a new scan starts.
-    let hardlink_filter = create_hardlink_filter();
+    // Each scan owns its identity list: a canceled blocking task may still be running
+    // when a new scan starts, and the two must not share hardlink state.
+    let hardlink_ids = HardlinkIds::default();
 
     let scan_res = tokio::task::spawn_blocking(move || {
         // Resolve the device ID of the scan root once
@@ -144,12 +145,17 @@ pub async fn scan_directory(
             &shared_arena,
             0,
             root_dev,
-            &hardlink_filter,
+            &hardlink_ids,
         )?;
 
         let mut final_arena = shared_arena.into_inner().unwrap();
+        // Count each hardlinked file's bytes once: zero all but one link, then drop the
+        // identity list before the tree is aggregated and stored. The live progress counter
+        // included every link, so bring it in line with the final totals.
+        let duplicate_bytes = hardlink_ids.resolve(&mut final_arena);
+        total_file_bytes_task.fetch_sub(duplicate_bytes, AtomicOrdering::Relaxed);
         aggregate_node(0, &mut final_arena);
-        final_arena.shrink_to_fit();
+        // Deliberately no shrink_to_fit(): it reallocates and copies the entire arena.
         Ok::<Vec<DiskNode>, String>(final_arena)
     })
     .await;

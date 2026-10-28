@@ -12,32 +12,94 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering as AtomicOr
 use std::sync::Mutex;
 use tempfile::tempdir;
 
-#[test]
-fn test_hardlink_filter_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
-    assert_send_sync::<HardlinkFilter>();
+fn file_node(size: u64) -> DiskNode {
+    DiskNode {
+        name: "f".into(),
+        size,
+        is_dir: false,
+        modified_secs: 0,
+        parent_id: 0,
+        first_child: u32::MAX,
+        next_sibling: u32::MAX,
+        is_tombstoned: false,
+    }
 }
 
 #[test]
-fn test_hardlink_filter_parallel_duplicates() {
-    let filter = create_hardlink_filter();
-    let first_visits = AtomicUsize::new(0);
+fn test_hardlink_ids_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<HardlinkIds>();
+}
+
+#[test]
+fn test_file_identity_is_twelve_bytes() {
+    // The per-file cost of exact hardlink detection: 8-byte id + 4-byte node index, no padding.
+    assert_eq!(std::mem::size_of::<FileIdentity>(), 12);
+}
+
+#[test]
+fn test_hardlink_ids_resolve_keeps_lowest_index_per_identity() {
+    // Nodes 1..=7. Identity 5 is shared by nodes 2, 4 and 6; identity 9 by nodes 3 and 7;
+    // node 1 and node 5 have unique identities. Entries are deliberately out of order.
+    let mut arena = vec![file_node(0)];
+    arena.extend((1..=7u64).map(|i| file_node(i * 100)));
+    let ids = HardlinkIds::default();
+    ids.extend(&[
+        FileIdentity { id: 5, node_idx: 6 },
+        FileIdentity { id: 9, node_idx: 7 },
+        FileIdentity { id: 5, node_idx: 2 },
+    ]);
+    ids.extend(&[
+        FileIdentity { id: 1, node_idx: 1 },
+        FileIdentity { id: 9, node_idx: 3 },
+        FileIdentity { id: 5, node_idx: 4 },
+        FileIdentity { id: 2, node_idx: 5 },
+    ]);
+
+    let removed = ids.resolve(&mut arena);
+
+    // Removed: nodes 4 and 6 (identity 5) and node 7 (identity 9).
+    assert_eq!(removed, 400 + 600 + 700);
+    let sizes: Vec<u64> = arena.iter().map(|n| n.size).collect();
+    assert_eq!(sizes, vec![0, 100, 200, 300, 0, 500, 0, 0]);
+}
+
+#[test]
+fn test_hardlink_ids_resolve_empty_is_noop() {
+    let mut arena = vec![file_node(10), file_node(20)];
+    assert_eq!(HardlinkIds::default().resolve(&mut arena), 0);
+    assert_eq!(arena[0].size, 10);
+    assert_eq!(arena[1].size, 20);
+}
+
+#[test]
+fn test_hardlink_ids_parallel_batches() {
+    // 8 threads each report a link to the same file from "their own directory".
+    let mut arena = vec![file_node(0)];
+    arena.extend((0..8).map(|_| file_node(10)));
+    let ids = HardlinkIds::default();
     let barrier = std::sync::Barrier::new(8);
     std::thread::scope(|scope| {
-        for _ in 0..8 {
-            scope.spawn(|| {
+        for t in 0..8u32 {
+            let (ids, barrier) = (&ids, &barrier);
+            scope.spawn(move || {
                 barrier.wait();
-                if !filter.insert(&123) {
-                    first_visits.fetch_add(1, AtomicOrdering::Relaxed);
-                }
+                ids.extend(&[FileIdentity {
+                    id: 123,
+                    node_idx: t + 1,
+                }]);
             });
         }
     });
-    assert_eq!(first_visits.load(AtomicOrdering::Relaxed), 1);
+
+    let removed = ids.resolve(&mut arena);
+
+    assert_eq!(removed, 70);
+    assert_eq!(arena.iter().filter(|n| n.size == 10).count(), 1);
 }
 
 #[test]
-fn test_overlapping_scans_have_independent_hardlink_filters() {
+fn test_overlapping_scans_have_independent_hardlink_ids() {
     let dir = tempdir().unwrap();
     fs::write(dir.path().join("file.bin"), vec![0x42; 16384]).unwrap();
     fs::hard_link(dir.path().join("file.bin"), dir.path().join("link.bin")).unwrap();
@@ -46,7 +108,7 @@ fn test_overlapping_scans_have_independent_hardlink_filters() {
     std::thread::scope(|scope| {
         for _ in 0..2 {
             scope.spawn(|| {
-                let filter = create_hardlink_filter();
+                let ids = HardlinkIds::default();
                 let total_bytes = AtomicU64::new(0);
                 let file_count = AtomicUsize::new(0);
                 let arena = Mutex::new(vec![DiskNode {
@@ -75,12 +137,19 @@ fn test_overlapping_scans_have_independent_hardlink_filters() {
                     &arena,
                     0,
                     get_dev(dir.path()),
-                    &filter,
+                    &ids,
                 )
                 .unwrap();
                 assert_eq!(file_count.load(AtomicOrdering::Relaxed), 2);
-                assert_eq!(total_bytes.load(AtomicOrdering::Relaxed), expected_bytes);
+                // While scanning, the progress counter includes every link...
+                assert_eq!(
+                    total_bytes.load(AtomicOrdering::Relaxed),
+                    2 * expected_bytes
+                );
                 let mut arena = arena.into_inner().unwrap();
+                // ...and resolving removes exactly one link's worth, independently per scan.
+                let removed = ids.resolve(&mut arena);
+                assert_eq!(removed, expected_bytes);
                 aggregate_node(0, &mut arena);
                 assert_eq!(arena[0].size, expected_bytes);
             });
@@ -464,16 +533,7 @@ fn test_scan_dir_parallel() {
         is_tombstoned: false,
     }]);
 
-    let filter = create_hardlink_filter();
-    // Force Bloom hits for unique files without recording their exact IDs.
-    // These false positives must retain both node sizes and progress bytes.
-    for path in [root_path, sub_dir1.as_path()] {
-        for entry in get_directory_entries(path).unwrap() {
-            if !entry.is_dir {
-                filter.bloom.insert(&entry.file_id);
-            }
-        }
-    }
+    let filter = HardlinkIds::default();
     let res = scan_dir_parallel(
         root_path,
         0,
@@ -508,6 +568,8 @@ fn test_scan_dir_parallel() {
     );
 
     let mut final_arena = shared_arena.into_inner().unwrap();
+    // Unique files must keep their sizes: resolving finds no hardlinks to remove.
+    assert_eq!(filter.resolve(&mut final_arena), 0);
     aggregate_node(0, &mut final_arena);
 
     assert!(final_arena.len() >= 4); // root, subdir1, hello.txt, data.bin
@@ -529,7 +591,7 @@ fn test_scan_dir_parallel() {
     // Test cancel flag
     let cancel_flag_true = AtomicBool::new(true);
     let shared_arena2 = Mutex::new(vec![]);
-    let filter2 = create_hardlink_filter();
+    let filter2 = HardlinkIds::default();
     let res_cancelled = scan_dir_parallel(
         root_path,
         0,
@@ -552,7 +614,7 @@ fn test_scan_dir_parallel() {
     // Test depth limit
     let depth_exceeded_count2 = AtomicUsize::new(0);
     let shared_arena3 = Mutex::new(vec![]);
-    let filter3 = create_hardlink_filter();
+    let filter3 = HardlinkIds::default();
     let res_depth = scan_dir_parallel(
         root_path,
         0,
@@ -625,7 +687,7 @@ fn test_scan_dir_parallel_edge_cases() {
         is_tombstoned: false,
     }]);
 
-    let filter = create_hardlink_filter();
+    let filter = HardlinkIds::default();
     let res = scan_dir_parallel(
         root_path,
         0,
@@ -656,7 +718,7 @@ fn test_scan_dir_parallel_edge_cases() {
 
     // 3. Non-existent path causes skipped_count increment
     let non_existent = root_path.join("does_not_exist");
-    let filter2 = create_hardlink_filter();
+    let filter2 = HardlinkIds::default();
     let res_non_exist = scan_dir_parallel(
         &non_existent,
         0,
@@ -712,7 +774,7 @@ fn test_skip_counts_distinguish_inaccessible_and_cross_device_paths() {
         actual_dev + 1
     };
 
-    let filter1 = create_hardlink_filter();
+    let filter1 = HardlinkIds::default();
     let inaccessible_result = scan_dir_parallel(
         &root_path.join("missing"),
         0,
@@ -735,7 +797,7 @@ fn test_skip_counts_distinguish_inaccessible_and_cross_device_paths() {
     assert_eq!(skipped_count.load(AtomicOrdering::Relaxed), 1);
     assert_eq!(filesystem_skipped_count.load(AtomicOrdering::Relaxed), 0);
 
-    let filter2 = create_hardlink_filter();
+    let filter2 = HardlinkIds::default();
     let result = scan_dir_parallel(
         root_path,
         0,
@@ -792,29 +854,29 @@ fn test_disk_node_size_unchanged() {
     assert_eq!(std::mem::size_of::<DiskNode>(), 48);
 }
 
-#[test]
-fn test_bloom_filter_memory_footprint() {
-    let filter = create_hardlink_filter();
-    let bytes = filter.bloom.num_bits() / 8;
-    // The Bloom component remains bounded; exact identity storage grows with
-    // the number of unique files to guarantee correct accounting.
-    assert!(bytes <= 4 * 1024 * 1024);
-    assert!(bytes < 5 * 1024 * 1024);
-}
-
 #[cfg(windows)]
 #[test]
 fn test_windows_struct_layout() {
-    use ::windows::Wdk::Storage::FileSystem::FILE_ID_BOTH_DIR_INFORMATION;
-    use crate::scanner::windows::FileIdBothDirectoryInformationRaw;
-    // Verify header size matches FileId offset + sizeof(FileId) = 104 bytes
-    assert_eq!(std::mem::size_of::<FileIdBothDirectoryInformationRaw>(), 104);
-    let dummy = std::mem::MaybeUninit::<FILE_ID_BOTH_DIR_INFORMATION>::uninit();
+    use crate::scanner::windows::FileIdFullDirectoryInformationRaw;
+    use ::windows::Wdk::Storage::FileSystem::FILE_ID_FULL_DIR_INFORMATION;
+    // The header must end exactly where the file name starts: 80 bytes, with FileId at 72.
+    assert_eq!(std::mem::size_of::<FileIdFullDirectoryInformationRaw>(), 80);
+    let dummy = std::mem::MaybeUninit::<FILE_ID_FULL_DIR_INFORMATION>::uninit();
     let ptr = dummy.as_ptr();
+    let offset_of = |field: *const u8| field as usize - ptr as usize;
     unsafe {
-        assert_eq!(std::ptr::addr_of!((*ptr).FileName) as usize - ptr as usize, 104);
-        assert_eq!(std::ptr::addr_of!((*ptr).FileId) as usize - ptr as usize, 96);
-        assert_eq!(std::ptr::addr_of!((*ptr).AllocationSize) as usize - ptr as usize, 48);
+        let fields = [
+            (std::ptr::addr_of!((*ptr).FileName) as *const u8, 80),
+            (std::ptr::addr_of!((*ptr).FileId) as *const u8, 72),
+            (std::ptr::addr_of!((*ptr).EaSize) as *const u8, 64),
+            (std::ptr::addr_of!((*ptr).FileNameLength) as *const u8, 60),
+            (std::ptr::addr_of!((*ptr).FileAttributes) as *const u8, 56),
+            (std::ptr::addr_of!((*ptr).AllocationSize) as *const u8, 48),
+            (std::ptr::addr_of!((*ptr).EndOfFile) as *const u8, 40),
+        ];
+        for (field, expected) in fields {
+            assert_eq!(offset_of(field), expected);
+        }
     }
 }
 
@@ -855,7 +917,7 @@ fn test_hardlink_deduplication() {
         is_tombstoned: false,
     }]);
 
-    let filter = create_hardlink_filter();
+    let filter = HardlinkIds::default();
     let res = scan_dir_parallel(
         root_path,
         0,
@@ -879,6 +941,10 @@ fn test_hardlink_deduplication() {
     assert_eq!(file_count.load(AtomicOrdering::Relaxed), 2);
 
     let mut arena = shared_arena.into_inner().unwrap();
+    // The progress counter saw both links until the scan was resolved.
+    let counted_while_scanning = total_file_bytes.load(AtomicOrdering::Relaxed);
+    let removed = filter.resolve(&mut arena);
+    total_file_bytes.fetch_sub(removed, AtomicOrdering::Relaxed);
     aggregate_node(0, &mut arena);
 
     // Both nodes must exist in the arena (root + 2 files)
@@ -894,7 +960,76 @@ fn test_hardlink_deduplication() {
 
     // Total aggregate size at root must equal the primary file's size alone (no double counting!)
     assert_eq!(arena[0].size, primary.size);
+    assert_eq!(counted_while_scanning, 2 * primary.size);
+    assert_eq!(removed, primary.size);
     assert_eq!(total_file_bytes.load(AtomicOrdering::Relaxed), primary.size);
+}
+
+#[test]
+fn test_hardlink_across_directories_counted_once() {
+    // Links in different directories are discovered by different batches, with node indices
+    // rebased onto different arena offsets: they must still resolve to the same identity.
+    let dir = tempdir().unwrap();
+    let root_path = dir.path();
+    let sub = root_path.join("sub");
+    fs::create_dir(&sub).unwrap();
+    fs::write(root_path.join("a.bin"), vec![0x42u8; 16384]).unwrap();
+    if let Err(e) = fs::hard_link(root_path.join("a.bin"), sub.join("b.bin")) {
+        eprintln!(
+            "Skipping hard link test: filesystem does not support hard links ({})",
+            e
+        );
+        return;
+    }
+    // An unrelated file of the same size must not be mistaken for a hardlink.
+    fs::write(sub.join("unrelated.bin"), vec![0x42u8; 16384]).unwrap();
+
+    let ids = HardlinkIds::default();
+    let total_file_bytes = AtomicU64::new(0);
+    let shared_arena = Mutex::new(vec![DiskNode {
+        name: root_path.to_string_lossy().into_owned().into_boxed_str(),
+        size: 0,
+        is_dir: true,
+        modified_secs: 0,
+        parent_id: u32::MAX,
+        first_child: u32::MAX,
+        next_sibling: u32::MAX,
+        is_tombstoned: false,
+    }]);
+    let res = scan_dir_parallel(
+        root_path,
+        0,
+        &AtomicBool::new(false),
+        &AtomicUsize::new(0),
+        &AtomicUsize::new(0),
+        &AtomicUsize::new(0),
+        &AtomicUsize::new(0),
+        &AtomicUsize::new(0),
+        &AtomicUsize::new(0),
+        &AtomicUsize::new(0),
+        &total_file_bytes,
+        &shared_arena,
+        0,
+        get_dev(root_path),
+        &ids,
+    );
+    assert!(res.is_ok());
+
+    let mut arena = shared_arena.into_inner().unwrap();
+    let removed = ids.resolve(&mut arena);
+    aggregate_node(0, &mut arena);
+
+    let size_of_node = |name: &str| arena.iter().find(|n| n.name.as_ref() == name).unwrap().size;
+    let (a, b, unrelated) = (
+        size_of_node("a.bin"),
+        size_of_node("b.bin"),
+        size_of_node("unrelated.bin"),
+    );
+    assert!(unrelated > 0, "unrelated file must keep its size");
+    assert_eq!(a.min(b), 0, "exactly one of the two links must be zeroed");
+    assert!(a.max(b) > 0, "one link must keep the file's size");
+    assert_eq!(removed, a.max(b));
+    assert_eq!(arena[0].size, a.max(b) + unrelated);
 }
 
 #[test]
@@ -916,7 +1051,7 @@ fn test_reparse_point_not_recursed() {
             .output();
         if let Ok(output) = status {
             if output.status.success() {
-                let filter = create_hardlink_filter();
+                let filter = HardlinkIds::default();
                 let cancel_flag = AtomicBool::new(false);
                 let skipped_count = AtomicUsize::new(0);
                 let filesystem_skipped_count = AtomicUsize::new(0);

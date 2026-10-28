@@ -1,8 +1,8 @@
 //! Data models, shared state, and payload types for Drive Sonar.
 
+use rayon::prelude::*;
 use serde::Serialize;
 use std::cmp::Ordering;
-use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -93,32 +93,58 @@ pub struct ScanProgress {
     pub elapsed_secs: f64,
 }
 
-pub const HARDLINK_FILTER_BITS: usize = 33_554_432; // 4 MiB (2^25 bits)
-pub const HARDLINK_FILTER_EXPECTED_ITEMS: usize = 10_000_000;
-
-/// Per-scan identities. Bloom hits are only hints; exact identities decide
-/// whether a file's bytes have already been counted.
-pub struct HardlinkFilter {
-    pub(crate) bloom: fastbloom::AtomicBloomFilter,
-    seen: Mutex<HashSet<u64>>,
+/// Identity of one non-directory entry (`FileId` on Windows, inode on Unix) paired with the
+/// arena index of its node.
+///
+/// Packed to 12 bytes: a plain `(u64, u32)` would be padded to 16. Fields are only ever
+/// copied out, never borrowed, which is what makes `packed` sound here.
+#[derive(Clone, Copy)]
+#[repr(C, packed)]
+pub struct FileIdentity {
+    pub id: u64,
+    pub node_idx: u32,
 }
 
-impl HardlinkFilter {
-    pub fn insert(&self, file_id: &u64) -> bool {
-        // Serialize both updates so parallel visits to the same identity cannot
-        // count it twice. Record every identity, including Bloom misses.
-        let mut seen = self.seen.lock().unwrap();
-        let possibly_seen = self.bloom.insert(file_id);
-        let newly_seen = seen.insert(*file_id);
-        possibly_seen && !newly_seen
+/// Collects file identities during a scan so hardlinked files can be resolved exactly, once
+/// the scan has finished.
+///
+/// Workers append one directory's batch at a time, so there is no per-file locking. The cost
+/// is 12 bytes per file that has a non-zero identity, held only until `resolve` consumes it.
+/// Each scan owns its own instance, so overlapping scans cannot affect each other.
+#[derive(Default)]
+pub struct HardlinkIds {
+    entries: Mutex<Vec<FileIdentity>>,
+}
+
+impl HardlinkIds {
+    /// Appends the identities of one directory's files (node indices already absolute).
+    pub fn extend(&self, batch: &[FileIdentity]) {
+        if !batch.is_empty() {
+            self.entries.lock().unwrap().extend_from_slice(batch);
+        }
     }
-}
 
-pub fn create_hardlink_filter() -> HardlinkFilter {
-    HardlinkFilter {
-        bloom: fastbloom::AtomicBloomFilter::with_num_bits(HARDLINK_FILTER_BITS)
-            .expected_items(HARDLINK_FILTER_EXPECTED_ITEMS),
-        seen: Mutex::new(HashSet::new()),
+    /// Zeroes the size of every node that shares an identity with a lower-indexed node, so each
+    /// hardlinked file's bytes are counted exactly once. Must run before `aggregate_node`.
+    ///
+    /// Returns the number of bytes removed. Which link of a group keeps its size is the one
+    /// with the lowest arena index, which depends on worker scheduling; totals are exact.
+    pub fn resolve(self, arena: &mut [DiskNode]) -> u64 {
+        let mut entries = self.entries.into_inner().unwrap();
+        entries.par_sort_unstable_by_key(|e| (e.id, e.node_idx));
+
+        let mut removed = 0u64;
+        let mut previous_id: Option<u64> = None;
+        for entry in &entries {
+            let (id, node_idx) = (entry.id, entry.node_idx);
+            if previous_id == Some(id) {
+                let node = &mut arena[node_idx as usize];
+                removed += node.size;
+                node.size = 0;
+            }
+            previous_id = Some(id);
+        }
+        removed
     }
 }
 
