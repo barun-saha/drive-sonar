@@ -6,7 +6,11 @@ use std::io;
 use std::os::windows::ffi::OsStrExt;
 use std::path::Path;
 use windows::core::PCWSTR;
-use windows::Wdk::Storage::FileSystem::{FileIdFullDirectoryInformation, NtQueryDirectoryFileEx};
+use windows::Wdk::Storage::FileSystem::{
+    FileDirectoryInformation, FileFullDirectoryInformation, FileIdBothDirectoryInformation,
+    FileIdExtdDirectoryInformation, FileIdFullDirectoryInformation, NtQueryDirectoryFileEx,
+    FILE_INFORMATION_CLASS,
+};
 use windows::Win32::Foundation::{CloseHandle, HANDLE, STATUS_NO_MORE_FILES, STATUS_SUCCESS};
 use windows::Win32::Storage::FileSystem::{
     CreateFileW, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_REPARSE_POINT,
@@ -33,6 +37,7 @@ std::thread_local! {
 /// fields the scanner needs (`AllocationSize` and `FileId`) without the 8.3 short name, which is
 /// never used. `repr(C)` inserts the 4 bytes of padding between `ea_size` and `file_id`, so
 /// the header is 80 bytes and the file name starts at offset 80.
+#[allow(dead_code)]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub(crate) struct FileIdFullDirectoryInformationRaw {
@@ -48,6 +53,69 @@ pub(crate) struct FileIdFullDirectoryInformationRaw {
     file_name_length: u32,
     ea_size: u32,
     file_id: i64,
+}
+
+/// DIAGNOSTIC BUILD: which NT directory-information class to request and how to read it.
+///
+/// Selected once from the `DRIVESONAR_NT_CLASS` environment variable (`dir`, `full`, `idfull`,
+/// `idboth`, `idextd`; default `idfull`). All classes share the same first 64 bytes up to
+/// `FileNameLength` (offsets: write time 24, EndOfFile 40, AllocationSize 48, attributes 56,
+/// name length 60); they differ in header size and in whether/where a file id is present.
+#[derive(Clone, Copy)]
+struct Layout {
+    class: FILE_INFORMATION_CLASS,
+    header: usize,
+    file_id_offset: Option<usize>,
+}
+
+fn layout_for(name: Option<&str>) -> Layout {
+    match name {
+        Some("dir") => Layout {
+            class: FileDirectoryInformation,
+            header: 64,
+            file_id_offset: None,
+        },
+        Some("full") => Layout {
+            class: FileFullDirectoryInformation,
+            header: 68,
+            file_id_offset: None,
+        },
+        Some("idboth") => Layout {
+            class: FileIdBothDirectoryInformation,
+            header: 104,
+            file_id_offset: Some(96),
+        },
+        Some("idextd") => Layout {
+            class: FileIdExtdDirectoryInformation,
+            header: 88,
+            file_id_offset: Some(72),
+        },
+        _ => Layout {
+            class: FileIdFullDirectoryInformation,
+            header: 80,
+            file_id_offset: Some(72),
+        },
+    }
+}
+
+fn layout() -> Layout {
+    static LAYOUT: std::sync::OnceLock<Layout> = std::sync::OnceLock::new();
+    *LAYOUT.get_or_init(|| layout_for(std::env::var("DRIVESONAR_NT_CLASS").ok().as_deref()))
+}
+
+fn read_u32(buf: &[u8], offset: usize) -> u32 {
+    u32::from_ne_bytes([
+        buf[offset],
+        buf[offset + 1],
+        buf[offset + 2],
+        buf[offset + 3],
+    ])
+}
+
+fn read_i64(buf: &[u8], offset: usize) -> i64 {
+    let mut bytes = [0u8; 8];
+    bytes.copy_from_slice(&buf[offset..offset + 8]);
+    i64::from_ne_bytes(bytes)
 }
 
 struct HandleGuard(HANDLE);
@@ -92,6 +160,7 @@ pub fn list_directory(path: &Path) -> io::Result<Vec<DirEntry>> {
     let guard = open_directory(path)?;
     let mut entries = Vec::new();
     let mut restart_scan = true;
+    let layout = layout();
 
     SCAN_BUFFER.with(|cell| -> io::Result<()> {
         let mut buffer = cell.borrow_mut();
@@ -107,7 +176,7 @@ pub fn list_directory(path: &Path) -> io::Result<Vec<DirEntry>> {
                     &mut iosb,
                     buffer.as_mut_ptr() as *mut c_void,
                     buffer.len() as u32,
-                    FileIdFullDirectoryInformation,
+                    layout.class,
                     if restart_scan { 0x00000001 } else { 0 },
                     None,
                 )
@@ -143,7 +212,7 @@ pub fn list_directory(path: &Path) -> io::Result<Vec<DirEntry>> {
                 break;
             }
 
-            parse_entries(&buffer[..bytes_returned], &mut entries)?;
+            parse_entries(&buffer[..bytes_returned], layout, &mut entries)?;
         }
 
         Ok(())
@@ -163,26 +232,31 @@ fn is_dot_or_dotdot(name_bytes: &[u8]) -> bool {
 }
 
 /// Parses raw directory header bytes from the NT system call into structured `DirEntry` items.
-fn parse_entries(buf: &[u8], out: &mut Vec<DirEntry>) -> io::Result<()> {
-    const HEADER_SIZE: usize = std::mem::size_of::<FileIdFullDirectoryInformationRaw>();
+fn parse_entries(buf: &[u8], layout: Layout, out: &mut Vec<DirEntry>) -> io::Result<()> {
     let mut offset = 0usize;
 
     loop {
-        if offset + HEADER_SIZE > buf.len() {
+        if offset + layout.header > buf.len() {
             break;
         }
-        let header_ptr =
-            unsafe { buf.as_ptr().add(offset) as *const FileIdFullDirectoryInformationRaw };
-        let header = unsafe { std::ptr::read_unaligned(header_ptr) };
+        let entry = &buf[offset..];
+        let next_entry_offset = read_u32(entry, 0);
+        let last_write_time = read_i64(entry, 24);
+        let allocation_size = read_i64(entry, 48);
+        let file_attributes = read_u32(entry, 56);
+        let name_len = read_u32(entry, 60) as usize;
+        let file_id = match layout.file_id_offset {
+            Some(file_id_offset) => read_i64(entry, file_id_offset) as u64,
+            None => 0,
+        };
 
-        let name_len = header.file_name_length as usize;
-        let name_end = offset + HEADER_SIZE + name_len;
+        let name_end = offset + layout.header + name_len;
         if name_end > buf.len() {
             break;
         }
 
         // Skip "." and ".." on the raw bytes, before allocating anything for them.
-        let name_bytes = &buf[offset + HEADER_SIZE..name_end];
+        let name_bytes = &buf[offset + layout.header..name_end];
         if !is_dot_or_dotdot(name_bytes) {
             // Decode UTF-16 straight into the final String (lossy for unpaired surrogates,
             // identical to `OsString::to_string_lossy`). This is the only per-entry
@@ -199,14 +273,13 @@ fn parse_entries(buf: &[u8], out: &mut Vec<DirEntry>) -> io::Result<()> {
                 .map(|r| r.unwrap_or(char::REPLACEMENT_CHARACTER)),
             );
 
-            let tw = header.last_write_time as u64;
-            let is_dir = header.file_attributes & FILE_ATTRIBUTE_DIRECTORY.0 != 0;
-            let is_reparse_point =
-                header.file_attributes & FILE_ATTRIBUTE_REPARSE_POINT.0 != 0;
+            let tw = last_write_time as u64;
+            let is_dir = file_attributes & FILE_ATTRIBUTE_DIRECTORY.0 != 0;
+            let is_reparse_point = file_attributes & FILE_ATTRIBUTE_REPARSE_POINT.0 != 0;
             let size = if is_dir || is_reparse_point {
                 0
             } else {
-                header.allocation_size.max(0) as u64
+                allocation_size.max(0) as u64
             };
             out.push(DirEntry {
                 name,
@@ -218,14 +291,14 @@ fn parse_entries(buf: &[u8], out: &mut Vec<DirEntry>) -> io::Result<()> {
                 } else {
                     0
                 },
-                file_id: header.file_id as u64,
+                file_id,
             });
         }
 
-        if header.next_entry_offset == 0 {
+        if next_entry_offset == 0 {
             break;
         }
-        offset += header.next_entry_offset as usize;
+        offset += next_entry_offset as usize;
     }
     Ok(())
 }

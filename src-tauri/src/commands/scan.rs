@@ -186,6 +186,14 @@ pub async fn scan_directory(
                 build_directory_payload(&state_arena.nodes, 0)?
             };
 
+            // DIAGNOSTIC BUILD: show which NT info class was requested.
+            if let Ok(class) = std::env::var("DRIVESONAR_NT_CLASS") {
+                let _ = app.emit(
+                    "scan-warning",
+                    format!("Diagnostic build: NT info class = {}", class),
+                );
+            }
+
             let skipped = skipped_count.load(AtomicOrdering::Relaxed);
             if skipped > 0 {
                 let _ = app.emit(
