@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::Mutex;
 
-use crate::models::{DirEntry, DiskNode, HardlinkFilter};
+use crate::models::{DirEntry, DiskNode, FileIdentity, HardlinkIds};
 
 pub mod default;
 #[cfg(target_os = "linux")]
@@ -64,6 +64,11 @@ pub fn get_dev(path: &Path) -> u64 {
 /// prevent virtual pseudo-files with nonsensical sizes (e.g. `/proc/kcore` = 128 TB on x86_64)
 /// from inflating scan totals. Obtain this value via `get_dev(root_path)` before the first call.
 /// On non-Unix platforms the value is ignored and all subdirectories are walked as before.
+///
+/// Hardlinks are not resolved here: every file's size is recorded as-is, and its identity is
+/// appended to `hardlink_ids`. After the scan completes, the caller must call
+/// `HardlinkIds::resolve` on the final arena (before `aggregate_node`) and subtract the
+/// returned bytes from `total_file_bytes`, which counts every link while the scan runs.
 #[allow(clippy::too_many_arguments)]
 pub fn scan_dir_parallel(
     dir_path: &Path,
@@ -80,7 +85,7 @@ pub fn scan_dir_parallel(
     shared_arena: &Mutex<Vec<DiskNode>>,
     depth: usize,
     root_dev: u64,
-    hardlink_filter: &HardlinkFilter,
+    hardlink_ids: &HardlinkIds,
 ) -> Result<(), String> {
     if cancel_flag.load(AtomicOrdering::Relaxed) {
         return Err("Scan was cancelled".to_string());
@@ -112,6 +117,9 @@ pub fn scan_dir_parallel(
     let mut local_files: usize = 0;
     let mut local_dirs: usize = 0;
     let mut local_bytes: u64 = 0;
+    // Identities of this directory's files. `node_idx` is relative to this directory's
+    // block of nodes until it is rebased onto the arena offset below.
+    let mut local_ids: Vec<FileIdentity> = Vec::new();
 
     for (i, entry) in dir_entries.into_iter().enumerate() {
         let is_subdir = entry.is_dir && !entry.is_reparse_point;
@@ -143,20 +151,24 @@ pub fn scan_dir_parallel(
             subdir_relative.push((child_path, i as u32));
         }
 
-        let is_hardlink =
-            !entry.is_dir && entry.file_id != 0 && hardlink_filter.insert(&entry.file_id);
-        let effective_size = if is_hardlink { 0 } else { entry.size };
-
         if entry.is_dir {
             local_dirs += 1;
         } else {
             local_files += 1;
-            local_bytes += effective_size;
+            local_bytes += entry.size;
+            // A zero-size file has no bytes to de-duplicate, so skip recording it: this keeps
+            // the per-file memory cost to files that actually occupy space.
+            if entry.file_id != 0 && entry.size != 0 {
+                local_ids.push(FileIdentity {
+                    id: entry.file_id,
+                    node_idx: i as u32,
+                });
+            }
         }
 
         local_nodes.push(DiskNode {
             name: entry.name.into_boxed_str(),
-            size: effective_size,
+            size: entry.size,
             is_dir: entry.is_dir,
             modified_secs: entry.modified_secs,
             parent_id,
@@ -198,6 +210,14 @@ pub fn scan_dir_parallel(
         start
     };
 
+    // Register this directory's identities in one batch (a single short lock per directory),
+    // then release the buffer before recursing so it does not stay alive across the recursion.
+    for identity in &mut local_ids {
+        identity.node_idx += start_idx;
+    }
+    hardlink_ids.extend(&local_ids);
+    drop(local_ids);
+
     let subdir_tasks: Vec<(PathBuf, u32)> = subdir_relative
         .into_iter()
         .map(|(path, i)| (path, start_idx + i))
@@ -221,7 +241,7 @@ pub fn scan_dir_parallel(
                 shared_arena,
                 depth + 1,
                 root_dev,
-                hardlink_filter,
+                hardlink_ids,
             )
         })
 }
