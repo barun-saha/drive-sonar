@@ -1,6 +1,6 @@
 //! High-performance Windows directory scanner utilizing low-level `NtQueryDirectoryFileEx` APIs.
 
-use crate::models::DirEntry;
+use crate::models::{DirEntry, ScanTimers, TIMERS};
 use std::ffi::c_void;
 use std::io;
 use std::os::windows::ffi::OsStrExt;
@@ -89,7 +89,10 @@ fn open_directory(path: &Path) -> io::Result<HandleGuard> {
 
 /// Lists entries in a directory using low-level Windows `NtQueryDirectoryFileEx` calls.
 pub fn list_directory(path: &Path) -> io::Result<Vec<DirEntry>> {
-    let guard = open_directory(path)?;
+    let t_open = std::time::Instant::now();
+    let opened = open_directory(path);
+    ScanTimers::add_since(&TIMERS.open_ns, t_open);
+    let guard = opened?;
     let mut entries = Vec::new();
     let mut restart_scan = true;
 
@@ -98,6 +101,7 @@ pub fn list_directory(path: &Path) -> io::Result<Vec<DirEntry>> {
 
         loop {
             let mut iosb = IO_STATUS_BLOCK::default();
+            let t_query = std::time::Instant::now();
             let status = unsafe {
                 NtQueryDirectoryFileEx(
                     guard.0,
@@ -112,6 +116,10 @@ pub fn list_directory(path: &Path) -> io::Result<Vec<DirEntry>> {
                     None,
                 )
             };
+            ScanTimers::add_since(&TIMERS.query_ns, t_query);
+            TIMERS
+                .query_calls
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             restart_scan = false;
 
             if status == STATUS_NO_MORE_FILES {
@@ -143,11 +151,17 @@ pub fn list_directory(path: &Path) -> io::Result<Vec<DirEntry>> {
                 break;
             }
 
+            let t_parse = std::time::Instant::now();
             parse_entries(&buffer[..bytes_returned], &mut entries)?;
+            ScanTimers::add_since(&TIMERS.parse_ns, t_parse);
         }
 
         Ok(())
     })?;
+
+    let t_close = std::time::Instant::now();
+    drop(guard);
+    ScanTimers::add_since(&TIMERS.close_ns, t_close);
 
     Ok(entries)
 }

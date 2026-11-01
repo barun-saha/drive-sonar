@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::Mutex;
 
-use crate::models::{DirEntry, DiskNode, FileIdentity, HardlinkIds};
+use crate::models::{DirEntry, DiskNode, FileIdentity, HardlinkIds, ScanTimers, TIMERS};
 
 pub mod default;
 #[cfg(target_os = "linux")]
@@ -96,7 +96,11 @@ pub fn scan_dir_parallel(
         return Ok(());
     }
 
-    let dir_entries = match get_directory_entries(dir_path) {
+    let t_list = std::time::Instant::now();
+    let listing = get_directory_entries(dir_path);
+    ScanTimers::add_since(&TIMERS.list_ns, t_list);
+    TIMERS.dirs.fetch_add(1, AtomicOrdering::Relaxed);
+    let dir_entries = match listing {
         Ok(e) => e,
         Err(_) => {
             skipped_count.fetch_add(1, AtomicOrdering::Relaxed);
@@ -195,7 +199,9 @@ pub fn scan_dir_parallel(
     }
 
     let start_idx = {
+        let t_lock = std::time::Instant::now();
         let mut arena = shared_arena.lock().unwrap();
+        ScanTimers::add_since(&TIMERS.lock_wait_ns, t_lock);
         if arena.len() + local_nodes.len() > u32::MAX as usize {
             return Err("Arena exceeded maximum node capacity (4 billion nodes)".to_string());
         }

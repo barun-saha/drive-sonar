@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering as AtomicOr
 use std::sync::{mpsc, Arc, Mutex};
 use tauri::{Emitter, State};
 
-use crate::models::{AppState, DirectoryPayload, DiskNode, HardlinkIds, ScanProgress};
+use crate::models::{AppState, DirectoryPayload, DiskNode, HardlinkIds, ScanProgress, TIMERS};
 use crate::scanner::{get_dev, init_rayon_thread_pool, scan_dir_parallel};
 use crate::tree::{aggregate_node, build_directory_payload};
 
@@ -120,6 +120,7 @@ pub async fn scan_directory(
     });
 
     init_rayon_thread_pool();
+    TIMERS.reset();
 
     // Each scan owns its identity list: a canceled blocking task may still be running
     // when a new scan starts, and the two must not share hardlink state.
@@ -130,6 +131,7 @@ pub async fn scan_directory(
         // On Unix this is used to skip subdirectories on different filesystems (e.g. /proc, /sys)
         let root_dev = get_dev(&canonical);
 
+        let t_walk = std::time::Instant::now();
         scan_dir_parallel(
             &canonical,
             0,
@@ -148,15 +150,23 @@ pub async fn scan_directory(
             &hardlink_ids,
         )?;
 
+        let walk_secs = t_walk.elapsed().as_secs_f64();
         let mut final_arena = shared_arena.into_inner().unwrap();
+        let t_resolve = std::time::Instant::now();
         // Count each hardlinked file's bytes once: zero all but one link, then drop the
         // identity list before the tree is aggregated and stored. The live progress counter
         // included every link, so bring it in line with the final totals.
         let duplicate_bytes = hardlink_ids.resolve(&mut final_arena);
         total_file_bytes_task.fetch_sub(duplicate_bytes, AtomicOrdering::Relaxed);
+        let resolve_secs = t_resolve.elapsed().as_secs_f64();
+        let t_aggregate = std::time::Instant::now();
         aggregate_node(0, &mut final_arena);
+        let aggregate_secs = t_aggregate.elapsed().as_secs_f64();
         // Deliberately no shrink_to_fit(): it reallocates and copies the entire arena.
-        Ok::<Vec<DiskNode>, String>(final_arena)
+        Ok::<(Vec<DiskNode>, [f64; 3]), String>((
+            final_arena,
+            [walk_secs, resolve_secs, aggregate_secs],
+        ))
     })
     .await;
 
@@ -165,10 +175,10 @@ pub async fn scan_directory(
     let _ = progress_emitter_handle.join();
 
     match scan_res {
-        Ok(Ok(completed_arena)) => {
+        Ok(Ok((completed_arena, phase_secs))) => {
             // Scan startup and commit share this lock, making the generation
             // check and arena replacement atomic with respect to newer scans.
-            let payload = {
+            let (payload, payload_secs) = {
                 let _scan_guard = state
                     .cancel_flag
                     .lock()
@@ -183,8 +193,13 @@ pub async fn scan_directory(
                 state_arena.nodes = completed_arena;
                 state_arena.generation = scan_generation;
 
-                build_directory_payload(&state_arena.nodes, 0)?
+                let t_payload = std::time::Instant::now();
+                let payload = build_directory_payload(&state_arena.nodes, 0)?;
+                (payload, t_payload.elapsed().as_secs_f64())
             };
+
+            // DIAGNOSTIC BUILD: report where the scan's time went.
+            report_scan_timing(&app, &phase_secs, payload_secs);
 
             let skipped = skipped_count.load(AtomicOrdering::Relaxed);
             if skipped > 0 {
@@ -241,4 +256,52 @@ pub async fn open_directory(
 pub fn cancel_scan(state: State<'_, AppState>) {
     let flag = state.cancel_flag.lock().unwrap().clone();
     flag.store(true, AtomicOrdering::Relaxed);
+}
+
+/// DIAGNOSTIC BUILD: shows where the scan's time went, as toasts and in
+/// `%TEMP%\drivesonar-diag.txt` (appended to, one block per scan).
+///
+/// "wall" figures are real elapsed seconds. "summed" figures add up the time all worker
+/// threads spent in that call, so divide by the thread count to compare them with wall time.
+fn report_scan_timing(app: &tauri::AppHandle, phase_secs: &[f64; 3], payload_secs: f64) {
+    use std::sync::atomic::Ordering::Relaxed;
+    let secs = |ns: u64| ns as f64 / 1e9;
+    let threads = rayon::current_num_threads();
+    let dirs = TIMERS.dirs.load(Relaxed);
+    let lines = [
+        format!(
+            "wall: walk {:.2}s, resolve {:.2}s, aggregate {:.2}s, payload {:.2}s (threads {}, dirs {})",
+            phase_secs[0], phase_secs[1], phase_secs[2], payload_secs, threads, dirs
+        ),
+        format!(
+            "summed: list {:.1}s = open {:.1}s + query {:.1}s ({} calls) + parse {:.1}s + close {:.1}s",
+            secs(TIMERS.list_ns.load(Relaxed)),
+            secs(TIMERS.open_ns.load(Relaxed)),
+            secs(TIMERS.query_ns.load(Relaxed)),
+            TIMERS.query_calls.load(Relaxed),
+            secs(TIMERS.parse_ns.load(Relaxed)),
+            secs(TIMERS.close_ns.load(Relaxed)),
+        ),
+        format!(
+            "summed: arena lock wait {:.2}s; list per thread {:.1}s",
+            secs(TIMERS.lock_wait_ns.load(Relaxed)),
+            secs(TIMERS.list_ns.load(Relaxed)) / threads.max(1) as f64
+        ),
+    ];
+
+    for line in &lines {
+        let _ = app.emit("scan-warning", format!("Diag {}", line));
+    }
+    let _ = (|| -> std::io::Result<()> {
+        use std::io::Write;
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(std::env::temp_dir().join("drivesonar-diag.txt"))?;
+        writeln!(file, "--- scan finished ---")?;
+        for line in &lines {
+            writeln!(file, "{}", line)?;
+        }
+        Ok(())
+    })();
 }

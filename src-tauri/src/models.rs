@@ -155,6 +155,63 @@ impl HardlinkIds {
     }
 }
 
+/// DIAGNOSTIC BUILD: cumulative time spent in each part of a scan, summed over all worker
+/// threads (so the sums can exceed the wall-clock time). Reset at the start of every scan.
+pub struct ScanTimers {
+    /// Directories listed.
+    pub dirs: std::sync::atomic::AtomicU64,
+    /// Whole `get_directory_entries` call (open + query + parse + close on Windows).
+    pub list_ns: std::sync::atomic::AtomicU64,
+    /// `CreateFileW` on the directory (Windows only).
+    pub open_ns: std::sync::atomic::AtomicU64,
+    /// `NtQueryDirectoryFileEx` calls (Windows only).
+    pub query_ns: std::sync::atomic::AtomicU64,
+    pub query_calls: std::sync::atomic::AtomicU64,
+    /// Decoding the returned buffer into entries (Windows only).
+    pub parse_ns: std::sync::atomic::AtomicU64,
+    /// Closing the directory handle (Windows only).
+    pub close_ns: std::sync::atomic::AtomicU64,
+    /// Waiting to take the shared arena lock.
+    pub lock_wait_ns: std::sync::atomic::AtomicU64,
+}
+
+pub static TIMERS: ScanTimers = ScanTimers {
+    dirs: std::sync::atomic::AtomicU64::new(0),
+    list_ns: std::sync::atomic::AtomicU64::new(0),
+    open_ns: std::sync::atomic::AtomicU64::new(0),
+    query_ns: std::sync::atomic::AtomicU64::new(0),
+    query_calls: std::sync::atomic::AtomicU64::new(0),
+    parse_ns: std::sync::atomic::AtomicU64::new(0),
+    close_ns: std::sync::atomic::AtomicU64::new(0),
+    lock_wait_ns: std::sync::atomic::AtomicU64::new(0),
+};
+
+impl ScanTimers {
+    pub fn reset(&self) {
+        use std::sync::atomic::Ordering::Relaxed;
+        for counter in [
+            &self.dirs,
+            &self.list_ns,
+            &self.open_ns,
+            &self.query_ns,
+            &self.query_calls,
+            &self.parse_ns,
+            &self.close_ns,
+            &self.lock_wait_ns,
+        ] {
+            counter.store(0, Relaxed);
+        }
+    }
+
+    /// Adds the time elapsed since `start` to `counter`.
+    pub fn add_since(counter: &std::sync::atomic::AtomicU64, start: std::time::Instant) {
+        counter.fetch_add(
+            start.elapsed().as_nanos() as u64,
+            std::sync::atomic::Ordering::Relaxed,
+        );
+    }
+}
+
 pub struct AppState {
     pub arena: Arc<RwLock<ArenaTree>>,
     pub cancel_flag: Mutex<Arc<AtomicBool>>,
