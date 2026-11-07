@@ -57,8 +57,38 @@ jobs:
           $fileName = "Drive.Sonar_${version}_x64-setup.exe"
           $url      = "https://github.com/${env:REPOSITORY}/releases/download/${tag}/${fileName}"
 
+          Write-Host "Waiting for installer asset to become available at: $url"
+          $maxWaitSeconds = 600
+          $intervalSeconds = 30
+          $elapsed = 0
+          $ready = $false
+
+          while ($elapsed -lt $maxWaitSeconds) {
+            try {
+              $response = Invoke-WebRequest -Uri $url -Method Head -UseBasicParsing -ErrorAction Stop
+              if ($response.StatusCode -eq 200) {
+                $ready = $true
+                Write-Host "Asset is available."
+                break
+              }
+            } catch {
+              Write-Host "Asset not ready yet (${elapsed}s elapsed): $($_.Exception.Message)"
+            }
+            Start-Sleep -Seconds $intervalSeconds
+            $elapsed += $intervalSeconds
+          }
+
+          if (-not $ready) {
+            throw "Timed out after $maxWaitSeconds seconds waiting for $fileName at $url"
+          }
+
+          if (Test-Path $fileName) { Remove-Item $fileName -Force }
           Write-Host "Downloading: $url"
           Invoke-WebRequest -Uri $url -OutFile $fileName -UseBasicParsing
+
+          if (-not (Test-Path $fileName) -or (Get-Item $fileName).Length -eq 0) {
+            throw "Downloaded file $fileName is missing or empty."
+          }
 
           # Chocolatey expects lowercase SHA256
           $sha256 = (Get-FileHash -Path $fileName -Algorithm SHA256).Hash.ToLower()
