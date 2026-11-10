@@ -33,21 +33,21 @@ Drive Sonar is inspired by the simplicity of `ncdu`. Drive Sonar offers differen
 
 | Metric | Drive Sonar | WinDirStat | WizTree |
 |---|---:|---:|---:|
-| Version tested | 0.6.0 | 2.8.0 | 4.3.1 |
+| Version tested | 0.10.0 | 2.8.0 | 4.3.1 |
 | License | Apache 2.0 | GPL v2 | Proprietary |
 | Runs in user mode (no admin required) | ✅ | ✅ | ❌[^1] |
-| Installed size [MB] | **5.7** | 7.1 | 20.0 |
-| Peak memory usage (median)[^2] [MB] | **108.7** | 239.6 | 635.2 |
-| Warm scan time (median)[^3] [s] | **3.3** | 9.1 | 6.5 |
-| Cold scan time (single run)[^4] [s] | **10.6** | 22.9 | 17.2 |
+| Installed size [MB] | **6.3** | 7.1 | 20.0 |
+| Peak memory usage (median)[^2] [MB] | 305.6 | 286.8 | 560.1 |
+| Warm scan time (median)[^3] [s] | **4.7** | 9.4 | 8.1 |
+| Cold scan time (single run)[^4] [s] | **10.7** | 23.4 | 13.7 |
 
 [^1]: **Admin requirement:** WizTree requires administrator privileges to read the NTFS Master File Table directly for its full-speed mode; without elevation it falls back to a slower standard directory scan. WinDirStat can be optionally run with admin privileges as well.
 
-[^2]: **Memory usage:** Median of 3 independent runs, same scan location.
+[^2]: **Memory usage:** Median of independent runs (peak memory), same scan location. For Drive Sonar, the overhead due to WebView2 is also included.
 
-[^3]: **Warm scan:** Median of 5 independent runs of the same folder, each app already opened once beforehand (warm file-system cache) — the scenario most users encounter when re-scanning (e.g., after deleting files). Because all three tools benefit equally from the OS file-system cache under this condition, disk I/O latency is minimized for each of them alike — this measurement isolates each application's own processing efficiency (directory traversal, tree construction, size aggregation) rather than raw disk speed.
+[^3]: **Warm scan:** Median of independent runs of the same folder, each app already opened once beforehand (warm file-system cache) — the scenario most users encounter when re-scanning (e.g., after deleting files). Because all three tools benefit equally from the OS file-system cache under this condition, disk I/O latency is minimized for each of them alike — this measurement isolates each application's own processing efficiency (directory traversal, tree construction, size aggregation) rather than raw disk speed.
 
-[^4]: **Cold scan:** Median of 3 independent runs per app, each following a full system restart. Disk activity was confirmed quiet via Resource Monitor before every run (queue length ~0, active time 1–3%, throughput under a few hundred KB/sec) to rule out background OS contention (updates, indexing, sync clients) as a confound. WizTree was run with administrator elevation (its intended mode, enabling direct MFT reads); WinDirStat and Drive Sonar were both run in standard user mode. WinDirStat does not report scan duration natively and was timed manually with a stopwatch. Item count varied slightly across runs (~1.2M items). Note: if background OS activity (updates, indexing, antivirus scans) is active during a scan, cold-scan times can spike well above these figures — we observed up to ~50s in earlier unconstrained trials — so results are only comparable when disk activity is confirmed idle beforehand.
+[^4]: **Cold scan:** Median of 5 independent runs per app, each following a full system shutdown and reboot. Checked CPU and disk activitiy to reduce background OS contention. However, antivirus, One Drive, and other services ran in the background.
 
 
 ## 🤔 Why Drive Sonar?
@@ -151,10 +151,15 @@ To create a new release:
 
 Find out more about Drive Sonar:
 
-- [Drive Sonar Live Demo](https://www.youtube.com/watch?v=3nzoO78sRlY)
+- [Drive Sonar](https://youtu.be/mGdI-Px6GYE?si=vk_akxUYh6HL5HtG)
+- [Drive Sonar (legacy version)](https://www.youtube.com/watch?v=3nzoO78sRlY)
 - [WinDirStat vs WizTree vs Drive Sonar: Which Free Disk Space Analyzer Should You Use in 2026?](https://dev.to/barun_saha/windirstat-vs-wiztree-vs-drive-sonar-which-free-disk-space-analyzer-should-you-use-in-2026-56lo)
 
 
 ## 📜 License
 
 Drive Sonar is open-source software, released under the Apache 2.0 license.
+
+---
+
+[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/barun-saha/badge.svg)](https://hub.xerj.org/contributors/barun-saha)
