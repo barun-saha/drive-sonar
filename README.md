@@ -159,3 +159,7 @@ Find out more about Drive Sonar:
 ## 📜 License
 
 Drive Sonar is open-source software, released under the Apache 2.0 license.
+
+---
+
+[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/barun-saha/badge.svg)](https://hub.xerj.org/contributors/barun-saha)
