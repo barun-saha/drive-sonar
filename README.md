@@ -151,7 +151,8 @@ To create a new release:
 
 Find out more about Drive Sonar:
 
-- [Drive Sonar Live Demo](https://www.youtube.com/watch?v=3nzoO78sRlY)
+- [Drive Sonar](https://youtu.be/mGdI-Px6GYE?si=vk_akxUYh6HL5HtG)
+- [Drive Sonar (legacy version)](https://www.youtube.com/watch?v=3nzoO78sRlY)
 - [WinDirStat vs WizTree vs Drive Sonar: Which Free Disk Space Analyzer Should You Use in 2026?](https://dev.to/barun_saha/windirstat-vs-wiztree-vs-drive-sonar-which-free-disk-space-analyzer-should-you-use-in-2026-56lo)
 
 
