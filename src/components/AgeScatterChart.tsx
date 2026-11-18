@@ -7,11 +7,15 @@ import { invoke } from '@tauri-apps/api/core';
 import { TopFileNode } from '../types';
 import { ChartHeader } from './ChartHeader';
 import { ChartTooltip } from './ChartTooltip';
+import { CategoryLegend } from './CategoryLegend';
 import { useLogScale } from '../hooks/useLogScale';
 import { formatBytes } from '../utils/format';
 import {
-  AGE_GROUPS, AGING_MAX_MONTHS, RECENT_MAX_MONTHS, ageColor, getAgeGroup, type AgeGroup,
+  AGE_GROUPS, AGING_MAX_MONTHS, RECENT_MAX_MONTHS, getAgeGroup, type AgeGroup,
 } from '../utils/ageGroup';
+import {
+  CATEGORY_LABELS, categoryColor, categoryOfItem, type FileCategory,
+} from '../utils/fileCategory';
 
 interface AgeScatterChartProps {
   files?: TopFileNode[];
@@ -29,12 +33,11 @@ const AGE_REFERENCE_LINES = [RECENT_MAX_MONTHS, AGING_MAX_MONTHS].map((months) =
 const DynamicScatterPoint = (props: any) => {
   const { cx, cy, payload, onPointClick } = props;
 
-  // Color shows age; the radius still grows with size. The oldest group also gets a heavier outline,
-  // so the groups can be told apart without relying on color.
+  // Issue #112: Color shows file category (matches the File Types bar graph palette).
+  // Radius still grows with size for a secondary size cue.
   const sizeMB = payload?.sizeMB ?? 0;
-  const color = ageColor(payload?.ageGroup);
-  const isOld = payload?.ageGroup === 'old';
-  const radius = sizeMB < 500 ? 4 : sizeMB < 1500 ? 6 : 8;
+  const color = categoryColor(payload?.fileCategory ?? 'other');
+  const radius = sizeMB < 500 ? 6 : sizeMB < 1500 ? 8 : 10;
 
   const handleActivate = (event: MouseEvent<SVGCircleElement> | KeyboardEvent<SVGCircleElement>) => {
     event.stopPropagation();
@@ -49,8 +52,8 @@ const DynamicScatterPoint = (props: any) => {
       r={radius}
       fill={color}
       fillOpacity={0.8}
-      stroke={isOld ? 'var(--text-main)' : 'var(--bg-panel)'}
-      strokeWidth={isOld ? 2 : 1.5}
+      stroke={'var(--bg-panel)'}
+      strokeWidth={1.5}
       tabIndex={0}
       role="button"
       aria-label={`Open ${payload?.fileName ?? 'file'} in Files Explorer`}
@@ -96,6 +99,8 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
       const ageMonths = file.modified_secs
         ? Math.max(0, Number(((nowSecs - file.modified_secs) / SECONDS_PER_MONTH).toFixed(1)))
         : 0;
+      // Issue #112: derive file category from the file name extension (files are never dirs)
+      const fileCategory = categoryOfItem(file.name, false);
       return {
         ageMonths,
         ageGroup: getAgeGroup(ageMonths),
@@ -104,6 +109,7 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
         fileName: file.name,
         filePath: file.path || file.name, // Issue #24: Full file path
         fileId: file.id, // Issue #24: Arena node ID for explorer reveal
+        fileCategory,
       };
     });
 
@@ -173,6 +179,12 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
     [plottablePoints, hiddenGroups]
   );
 
+  // Issue #112: collect the file categories present in the current view for the legend
+  const displayedCategories = useMemo(
+    () => displayPoints.map((p) => p.fileCategory as FileCategory),
+    [displayPoints]
+  );
+
   return (
     <Box p="xs" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <ChartHeader
@@ -191,20 +203,13 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
                 size="compact-xs"
                 variant={visible ? 'light' : 'subtle'}
                 color="gray"
+                c={visible ? undefined : 'dimmed'}
+                fw={visible ? 600 : 400}
                 aria-pressed={visible}
                 onClick={() => toggleGroup(group)}
-                leftSection={
-                  <Box
-                    w={10}
-                    h={10}
-                    style={{
-                      borderRadius: '50%',
-                      background: ageColor(group),
-                      border: group === 'old' ? '2px solid var(--text-main)' : undefined,
-                      opacity: visible ? 1 : 0.4,
-                    }}
-                  />
-                }
+                style={{
+                  opacity: visible ? 1 : 0.45,
+                }}
               >
                 {label} · {groupCounts[group]}
               </Button>
@@ -266,6 +271,10 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
                     <Text size="sm" fw={500} c="dimmed">
                       Modified: {data.ageMonths} months ago
                     </Text>
+                    {/* Issue #112: Show the file category in the tooltip */}
+                    <Text size="sm" fw={500} c="dimmed">
+                      Category: {CATEGORY_LABELS[data.fileCategory as FileCategory] ?? data.fileCategory}
+                    </Text>
                     {/* Issue #24: Instruction to click point */}
                     <Text size="xs" c="dimmed" mt={4} style={{ fontStyle: 'italic' }}>
                       Click point to open in Files Explorer
@@ -283,6 +292,9 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
           </Group>
         )}
       </div>
+
+      {/* Issue #112: Category legend below the chart, same as ExtensionChart / SizeChart */}
+      {displayPoints.length > 0 && <CategoryLegend categories={displayedCategories} />}
     </Box>
   );
 }

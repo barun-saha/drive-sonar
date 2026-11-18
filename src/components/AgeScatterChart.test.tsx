@@ -68,7 +68,7 @@ describe('AgeScatterChart', () => {
     const content = capturedScatterProps?.tooltipProps?.content;
     if (content) {
       const tooltipUI = content({
-        payload: [{ payload: { fileName: 'large_file.iso', filePath: '/downloads/large_file.iso', fileId: 1, rawBytes: 1048576 * 500, sizeMB: 500, ageMonths: 2 } }],
+        payload: [{ payload: { fileName: 'large_file.iso', filePath: '/downloads/large_file.iso', fileId: 1, rawBytes: 1048576 * 500, sizeMB: 500, ageMonths: 2, fileCategory: 'installers' } }],
       });
       renderWithMantine(tooltipUI);
       expect(screen.getByText('large_file.iso')).toBeInTheDocument();
@@ -76,6 +76,8 @@ describe('AgeScatterChart', () => {
       expect(screen.getByText('/downloads/large_file.iso')).toBeInTheDocument();
       expect(screen.getByText('Click point to open in Files Explorer')).toBeInTheDocument();
       expect(screen.getByText('Modified: 2 months ago')).toBeInTheDocument();
+      // Issue #112: verify category row is rendered
+      expect(screen.getByText('Category: Installers')).toBeInTheDocument();
 
       expect(content({ payload: [] })).toBeNull();
       expect(content({})).toBeNull();
@@ -216,7 +218,7 @@ describe('AgeScatterChart', () => {
     expect(screen.getByText(`Modified: ${ageMonths} months ago`)).toBeInTheDocument();
   });
 
-  describe('age groups', () => {
+  describe('age group assignment', () => {
     const monthsAgo = (months: number) => Math.floor(Date.now() / 1000) - months * 86400 * 30.4375;
     const MB = 1048576;
     const mixedFiles: TopFileNode[] = [
@@ -226,9 +228,6 @@ describe('AgeScatterChart', () => {
       { id: 4, name: 'old2.zip', size: MB * 400, modified_secs: monthsAgo(60), path: '/old2.zip' },
       { id: 5, name: 'empty.bin', size: 0, modified_secs: monthsAgo(2), path: '/empty.bin' },
     ];
-
-    const chip = (name: RegExp) => screen.getByRole('button', { name });
-    const plottedNames = () => capturedScatterProps.data[0].data.map((p: any) => p.fileName);
 
     it('assigns each point to an age group using the 6 and 24 month thresholds', () => {
       renderWithMantine(<AgeScatterChart files={mixedFiles} />);
@@ -251,6 +250,9 @@ describe('AgeScatterChart', () => {
         [24, '24 mo'],
       ]);
     });
+
+    const chip = (name: RegExp) => screen.getByRole('button', { name });
+    const plottedNames = () => capturedScatterProps.data[0].data.map((p: any) => p.fileName);
 
     it('shows a legend with the thresholds and a count per group', () => {
       renderWithMantine(<AgeScatterChart files={mixedFiles} />);
@@ -293,22 +295,139 @@ describe('AgeScatterChart', () => {
       fireEvent.click(chip(/^Old/));
       expect(screen.getByTestId('mock-scatter-chart')).toBeInTheDocument();
     });
+  });
 
-    it('colors points by age and gives the oldest group a heavier outline', () => {
-      renderWithMantine(<AgeScatterChart files={mixedFiles} />);
-      const [recent, , old] = capturedScatterProps.data[0].data;
+  // Issue #112: file-category coloring and legend
+  describe('file-category coloring (#112)', () => {
+    const MB = 1048576;
+    const monthsAgo = (months: number) => Math.floor(Date.now() / 1000) - months * 86400 * 30.4375;
 
-      const renderPoint = (payload: any) => render(
-        <svg>{cloneElement(capturedScatterProps.scatterProps.shape, { cx: 1, cy: 1, payload })}</svg>
-      ).container.querySelector('circle')!;
+    it('assigns fileCategory to each point based on the file name extension', () => {
+      const files: TopFileNode[] = [
+        { id: 1, name: 'movie.mp4',   size: MB * 500, modified_secs: monthsAgo(1),  path: '/movie.mp4' },
+        { id: 2, name: 'report.pdf',  size: MB * 100, modified_secs: monthsAgo(12), path: '/report.pdf' },
+        { id: 3, name: 'backup.zip',  size: MB * 200, modified_secs: monthsAgo(36), path: '/backup.zip' },
+        { id: 4, name: 'setup.exe',   size: MB * 300, modified_secs: monthsAgo(2),  path: '/setup.exe' },
+        { id: 5, name: 'script.py',   size: MB * 50,  modified_secs: monthsAgo(5),  path: '/script.py' },
+        { id: 6, name: 'unknown.xyz', size: MB * 10,  modified_secs: monthsAgo(3),  path: '/unknown.xyz' },
+      ];
+      renderWithMantine(<AgeScatterChart files={files} />);
 
-      const recentDot = renderPoint(recent);
-      expect(recentDot).toHaveAttribute('fill', 'var(--age-recent)');
-      expect(recentDot).toHaveAttribute('stroke-width', '1.5');
+      const categories = capturedScatterProps.data[0].data.map((p: any) => [p.fileName, p.fileCategory]);
+      expect(categories).toEqual([
+        ['movie.mp4',   'media'],
+        ['report.pdf',  'documents'],
+        ['backup.zip',  'archives'],
+        ['setup.exe',   'installers'],
+        ['script.py',   'code'],
+        ['unknown.xyz', 'other'],
+      ]);
+    });
 
-      const oldDot = renderPoint(old);
-      expect(oldDot).toHaveAttribute('fill', 'var(--age-old)');
-      expect(oldDot).toHaveAttribute('stroke-width', '2');
+    it('colors each point using the category CSS variable, not an age variable', () => {
+      const files: TopFileNode[] = [
+        { id: 1, name: 'movie.mp4',  size: MB * 500, modified_secs: monthsAgo(1),  path: '/movie.mp4' },
+        { id: 2, name: 'backup.zip', size: MB * 200, modified_secs: monthsAgo(60), path: '/backup.zip' },
+      ];
+      renderWithMantine(<AgeScatterChart files={files} />);
+
+      const renderPoint = (payload: any) =>
+        render(
+          <svg>{cloneElement(capturedScatterProps.scatterProps.shape, { cx: 1, cy: 1, payload })}</svg>
+        ).container.querySelector('circle')!;
+
+      const [mediaPoint, archivePoint] = capturedScatterProps.data[0].data;
+
+      const mediaDot = renderPoint(mediaPoint);
+      expect(mediaDot).toHaveAttribute('fill', 'var(--cat-media)');
+      expect(mediaDot).not.toHaveAttribute('fill', 'var(--age-recent)');
+
+      const archiveDot = renderPoint(archivePoint);
+      expect(archiveDot).toHaveAttribute('fill', 'var(--cat-archives)');
+      expect(archiveDot).not.toHaveAttribute('fill', 'var(--age-old)');
+
+      // Uniform stroke regardless of age
+      expect(mediaDot).toHaveAttribute('stroke-width', '1.5');
+      expect(archiveDot).toHaveAttribute('stroke-width', '1.5');
+    });
+
+    it('renders the CategoryLegend with the categories present in the data', () => {
+      const files: TopFileNode[] = [
+        { id: 1, name: 'movie.mp4',  size: MB * 500, modified_secs: monthsAgo(1),  path: '/movie.mp4' },
+        { id: 2, name: 'report.pdf', size: MB * 100, modified_secs: monthsAgo(12), path: '/report.pdf' },
+      ];
+      renderWithMantine(<AgeScatterChart files={files} />);
+
+      expect(screen.getByText('Media')).toBeInTheDocument();
+      expect(screen.getByText('Documents')).toBeInTheDocument();
+      // Categories not present should not appear in the legend
+      expect(screen.queryByText('Installers')).not.toBeInTheDocument();
+    });
+
+    it('does not render the legend when no files are provided', () => {
+      renderWithMantine(<AgeScatterChart files={[]} />);
+      // Legend items use specific category labels; none should appear
+      expect(screen.queryByText('Media')).not.toBeInTheDocument();
+      expect(screen.queryByText('Other')).not.toBeInTheDocument();
+    });
+
+    it('does not render the legend when all points are filtered out in log mode', () => {
+      const files: TopFileNode[] = [
+        { id: 1, name: 'empty.zip', size: 0, modified_secs: monthsAgo(1), path: '/empty.zip' },
+      ];
+      renderWithMantine(<AgeScatterChart files={files} />);
+      fireEvent.click(screen.getByLabelText('Use semi-log scale'));
+
+      expect(screen.queryByText('Archives')).not.toBeInTheDocument();
+      expect(screen.getByText('No files to analyze in this scope.')).toBeInTheDocument();
+    });
+
+    it('shows the file category in the tooltip', () => {
+      const files: TopFileNode[] = [
+        { id: 1, name: 'movie.mp4', size: MB * 500, modified_secs: monthsAgo(1), path: '/movie.mp4' },
+      ];
+      renderWithMantine(<AgeScatterChart files={files} />);
+
+      const content = capturedScatterProps?.tooltipProps?.content;
+      const tooltipUI = content({
+        payload: [{ payload: { fileName: 'movie.mp4', filePath: '/movie.mp4', fileId: 1, rawBytes: MB * 500, sizeMB: 500, ageMonths: 1, fileCategory: 'media' } }],
+      });
+      renderWithMantine(tooltipUI);
+      expect(screen.getByText('Category: Media')).toBeInTheDocument();
+    });
+
+    it('renders scatter points with slightly larger radii based on file size', () => {
+      const files: TopFileNode[] = [
+        { id: 1, name: 'small.txt',  size: MB * 100,  modified_secs: monthsAgo(1), path: '/small.txt' },
+        { id: 2, name: 'medium.zip', size: MB * 800,  modified_secs: monthsAgo(1), path: '/medium.zip' },
+        { id: 3, name: 'large.iso',  size: MB * 2000, modified_secs: monthsAgo(1), path: '/large.iso' },
+      ];
+      renderWithMantine(<AgeScatterChart files={files} />);
+
+      const renderPoint = (payload: any) =>
+        render(
+          <svg>{cloneElement(capturedScatterProps.scatterProps.shape, { cx: 1, cy: 1, payload })}</svg>
+        ).container.querySelector('circle')!;
+
+      const [small, medium, large] = capturedScatterProps.data[0].data;
+
+      expect(renderPoint(small)).toHaveAttribute('r', '6');
+      expect(renderPoint(medium)).toHaveAttribute('r', '8');
+      expect(renderPoint(large)).toHaveAttribute('r', '10');
+    });
+
+    it('falls back to raw fileCategory string in tooltip when category is unrecognised', () => {
+      const files: TopFileNode[] = [
+        { id: 1, name: 'weird.xyz', size: MB * 10, modified_secs: monthsAgo(1), path: '/weird.xyz' },
+      ];
+      renderWithMantine(<AgeScatterChart files={files} />);
+
+      const content = capturedScatterProps?.tooltipProps?.content;
+      const tooltipUI = content({
+        payload: [{ payload: { fileName: 'weird.xyz', filePath: '/weird.xyz', fileId: 1, rawBytes: MB * 10, sizeMB: 10, ageMonths: 1, fileCategory: 'other' } }],
+      });
+      renderWithMantine(tooltipUI);
+      expect(screen.getByText('Category: Other')).toBeInTheDocument();
     });
   });
 });
