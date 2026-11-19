@@ -87,6 +87,20 @@ describe('overlapping language requests', () => {
     expect(document.documentElement.lang).toBe('es');
   });
 
+  it('ignores a load failure of a request that was already superseded', async () => {
+    const { applyLanguage: apply, default: instance } = await fresh();
+    vi.spyOn(instance, 'addResourceBundle').mockImplementationOnce(() => {
+      throw new Error('chunk failed');
+    });
+
+    const failing = apply('bn'); // fails to load, but only after the user picked English
+    const newest = apply('en');
+
+    await expect(newest).resolves.toBe('en');
+    await expect(failing).resolves.toBeNull(); // no rejection, so no error toast for an obsolete choice
+    expect(instance.language).toBe('en');
+  });
+
   it('rejects, and leaves the UI as it was, when a language cannot be loaded', async () => {
     const { applyLanguage: apply, default: instance } = await fresh();
     await apply('de');

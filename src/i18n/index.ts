@@ -23,19 +23,26 @@ let latestRequest = 0;
  * Loads the language's strings and font if needed, then switches the UI and `<html lang>` (CSS keys off it).
  * Resolves to the language now showing, or `null` when a newer request arrived while this one was loading: the newest
  * selection always wins, so a slow load can never switch the UI back after the user has picked something else.
- * Rejects if the language cannot be loaded; the UI is then left unchanged.
+ * Rejects if the language cannot be loaded (unless a newer request has replaced it, which resolves to `null`); the UI
+ * is then left unchanged.
  */
 export async function applyLanguage(setting: LanguageSetting): Promise<LanguageCode | null> {
   const request = ++latestRequest;
   const code = resolveLanguage(setting);
 
   if (code !== DEFAULT_LANGUAGE) {
-    if (!i18n.hasResourceBundle(code, 'translation')) {
-      const loadStrings = localeLoaders[`./locales/${code}.json`];
-      if (loadStrings) i18n.addResourceBundle(code, 'translation', (await loadStrings()).default);
+    try {
+      if (!i18n.hasResourceBundle(code, 'translation')) {
+        const loadStrings = localeLoaders[`./locales/${code}.json`];
+        if (loadStrings) i18n.addResourceBundle(code, 'translation', (await loadStrings()).default);
+      }
+      // A missing font file only means falling back to system fonts, so it must not block the switch
+      await fontLoaders[`./fonts/${code}.css`]?.().catch(() => undefined);
+    } catch (error) {
+      // A failure belonging to a request the user has already replaced is not worth reporting
+      if (request !== latestRequest) return null;
+      throw error;
     }
-    // A missing font file only means falling back to system fonts, so it must not block the switch
-    await fontLoaders[`./fonts/${code}.css`]?.().catch(() => undefined);
   }
 
   if (request !== latestRequest) return null;
