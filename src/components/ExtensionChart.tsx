@@ -2,10 +2,12 @@ import { useMemo } from 'react';
 import { Box, Text, Group } from '@mantine/core';
 import { BarChart } from '@mantine/charts';
 import { useReducedMotion } from '@mantine/hooks';
+import { useTranslation } from 'react-i18next';
 import { ExtensionStat } from '../types';
 import { ChartHeader } from './ChartHeader';
 import { useLogScale } from '../hooks/useLogScale';
 import { formatBytes } from '../utils/format';
+import { formatNumber } from '../i18n';
 import { categoryColor, categoryOfExtension } from '../utils/fileCategory';
 import { CategoryLegend } from './CategoryLegend';
 import { ChartTooltip } from './ChartTooltip';
@@ -15,6 +17,7 @@ interface ExtensionChartProps {
 }
 
 export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
+  const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
 
   const data = useMemo(() => {
@@ -56,7 +59,7 @@ export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
   return (
     <Box p="xs" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <ChartHeader
-        title="TOP 15 FILE EXTENSIONS BY STORAGE"
+        title={t('extensions.title')}
         checked={isLog}
         onChange={setUseLogScale}
       />
@@ -72,8 +75,8 @@ export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
             series={[{ name: 'sizeMB', color: 'brand' }]}
             xAxisProps={axisProps}
             yAxisProps={{ width: 80 }}
-            xAxisLabel={getAxisLabel('Size (MB)')}
-            yAxisLabel="Extension"
+            xAxisLabel={getAxisLabel(t('charts.sizeMb'))}
+            yAxisLabel={t('extensions.axis')}
             gridAxis="y"
             barProps={{
               isAnimationActive: !reduceMotion,
@@ -92,10 +95,10 @@ export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
                       {item.extension}
                     </Text>
                     <Text size="sm" fw={500} c="dimmed">
-                      Size: {formatBytes(item.rawBytes)}
+                      {t('charts.size', { size: formatBytes(item.rawBytes) })}
                     </Text>
                     <Text size="xs" c="dimmed">
-                      Files: {item.fileCount.toLocaleString()}
+                      {t('extensions.files', { n: formatNumber(item.fileCount) })}
                     </Text>
                   </ChartTooltip>
                 );
@@ -105,7 +108,7 @@ export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
         ) : (
           <Group justify="center" align="center" style={{ height: '100%' }}>
             <Text size="sm" c="dimmed">
-              No files to analyze in this scope.
+              {t('charts.noFiles')}
             </Text>
           </Group>
         )}

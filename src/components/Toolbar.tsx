@@ -1,9 +1,11 @@
 import { ReactNode, useMemo } from 'react';
 import { Group, TextInput, Button, Text, ActionIcon, Stack, SimpleGrid, Paper, Progress, Tooltip } from '@mantine/core';
 import { Search, FolderOpen, Loader2, CircleX } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { DiskInfo, ScanProgress, TrashedTotals } from '../types';
 import { formatBytes } from '../utils/format';
+import { formatNumber } from '../i18n';
 
 interface ToolbarProps {
   targetPath: string;
@@ -33,12 +35,13 @@ export function Toolbar({
   scanTime, diskInfo, scanPath, dirCount, fileCount, currentViewSize,
   scanProgress, trashedCount = 0, trashedBytes = 0, lifetimeTrashed, children
 }: ToolbarProps) {
+  const { t } = useTranslation();
 
   const driveLabel = useMemo(() => {
-    if (!scanPath) return 'Disk';
+    if (!scanPath) return t('toolbar.disk');
     const match = scanPath.match(/^([a-zA-Z]:)/);
-    return match ? `Drive (${match[1].toUpperCase()})` : 'Disk';
-  }, [scanPath]);
+    return match ? t('toolbar.drive', { letter: match[1].toUpperCase() }) : t('toolbar.disk');
+  }, [scanPath, t]);
 
   // Disk info is available as soon as the parallel call resolves
   const showDiskInfo = diskInfo !== null && scanPath !== '';
@@ -63,7 +66,7 @@ export function Toolbar({
         <Group justify="space-between" align="center">
           <Group style={{ flex: 1 }}>
             <TextInput
-              placeholder="Select a target directory to scan..."
+              placeholder={t('toolbar.pathPlaceholder')}
               value={targetPath}
               onChange={(e) => setTargetPath(e.target.value)}
               style={{ flex: 1 }}
@@ -81,7 +84,7 @@ export function Toolbar({
                   color="gray"
                   onClick={onBrowse}
                   disabled={isScanning}
-                  title="Browse folder"
+                  title={t('toolbar.browse')}
                 >
                   <FolderOpen />
                 </ActionIcon>
@@ -92,7 +95,7 @@ export function Toolbar({
               disabled={isScanning || !targetPath.trim()}
               leftSection={isScanning ? <Loader2 className="spin" /> : <Search />}
             >
-              {isScanning ? 'Scanning...' : 'Run Scan'}
+              {isScanning ? t('toolbar.scanning') : t('toolbar.runScan')}
             </Button>
             <Button
               color="red"
@@ -101,7 +104,7 @@ export function Toolbar({
               disabled={!isScanning}
               leftSection={<CircleX />}
             >
-              Cancel Scan
+              {t('toolbar.cancelScan')}
             </Button>
           </Group>
           {children}
@@ -112,38 +115,44 @@ export function Toolbar({
             {showDiskInfo && diskInfo && (
               <Paper withBorder p="xs" radius="md" style={cardStyle}>
                 <Text size="xs" tt="uppercase" fw={600} c="dimmed">{driveLabel}</Text>
-                <Text fz="lg" fw={700}>{formatBytes(diskInfo.free_bytes)} free</Text>
-                <Tooltip label="Many SSDs perform best with roughly 10–20% free space.">
+                <Text fz="lg" fw={700}>{t('toolbar.free', { size: formatBytes(diskInfo.free_bytes) })}</Text>
+                <Tooltip label={t('toolbar.ssdTip')}>
                   <Progress value={100 - freePercent} color={diskBarColor} size="sm" my={4} />
                 </Tooltip>
-                <Text size="xs" c="dimmed">{formatBytes(diskInfo.total_bytes)} total · {freePercent.toFixed(1)}% free</Text>
+                <Text size="xs" c="dimmed">
+                  {t('toolbar.diskSummary', { total: formatBytes(diskInfo.total_bytes), percent: freePercent.toFixed(1) })}
+                </Text>
               </Paper>
             )}
 
             {showCurrentFolder && (
               <Paper withBorder p="xs" radius="md" style={cardStyle}>
-                <Text size="xs" tt="uppercase" fw={600} c="dimmed">Current folder</Text>
+                <Text size="xs" tt="uppercase" fw={600} c="dimmed">{t('toolbar.currentFolder')}</Text>
                 <Text fz="lg" fw={700}>{formatBytes(folderBytes)}</Text>
                 <Text size="xs" c="dimmed">
-                  {folderCount.toLocaleString()} {folderCount === 1 ? 'folder' : 'folders'}
+                  {t('toolbar.folderCount', { count: folderCount, n: formatNumber(folderCount) })}
                   {' · '}
-                  {filesInFolder.toLocaleString()} {filesInFolder === 1 ? 'file' : 'files'}
+                  {t('toolbar.fileCount', { count: filesInFolder, n: formatNumber(filesInFolder) })}
                 </Text>
               </Paper>
             )}
 
             {trashedCount > 0 && (
               <Paper withBorder p="xs" radius="md" style={cardStyle}>
-                <Text size="xs" tt="uppercase" fw={600} c="dimmed">This session</Text>
+                <Text size="xs" tt="uppercase" fw={600} c="dimmed">{t('toolbar.thisSession')}</Text>
                 <Text fz="lg" fw={700}>
-                  {trashedCount.toLocaleString()} {trashedCount === 1 ? 'item' : 'items'} moved to Trash
+                  {t('toolbar.movedToTrash', { count: trashedCount, n: formatNumber(trashedCount) })}
                 </Text>
                 <Text size="xs" c="dimmed">
-                  {formatBytes(trashedBytes)} · Space is released once the Trash is emptied
+                  {t('toolbar.trashSpaceNote', { size: formatBytes(trashedBytes) })}
                 </Text>
                 {lifetimeTrashed && lifetimeTrashed.count > 0 && (
                   <Text size="xs" c="dimmed">
-                    Lifetime: {lifetimeTrashed.count.toLocaleString()} {lifetimeTrashed.count === 1 ? 'item' : 'items'} · {formatBytes(lifetimeTrashed.bytes)} moved to Trash
+                    {t('toolbar.lifetimeSummary', {
+                      count: lifetimeTrashed.count,
+                      n: formatNumber(lifetimeTrashed.count),
+                      size: formatBytes(lifetimeTrashed.bytes),
+                    })}
                   </Text>
                 )}
               </Paper>

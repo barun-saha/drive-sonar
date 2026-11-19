@@ -1,14 +1,16 @@
+import i18n from '../i18n';
+
 /**
  * Formats a byte number into a human-readable string (e.g., 1024 -> "1.00 KB").
  */
 export function formatBytes(bytes: number, useShortUnits: boolean = false): string {
   if (!Number.isFinite(bytes) || bytes <= 0) {
-    return useShortUnits ? '0 B' : '0 Bytes';
+    return useShortUnits ? '0 B' : `0 ${i18n.t('common.bytes')}`;
   }
 
   const sizes = useShortUnits
     ? ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB']
-    : ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];
+    : [i18n.t('common.bytes'), 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];
 
   // Base-2 log divided by 10 determines exponent index (1024 = 2^10)
   const i = Math.max(

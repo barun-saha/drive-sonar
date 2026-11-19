@@ -26,6 +26,18 @@ body {
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+/* Indic scripts have tall matras and stacked conjuncts that clip or crowd at Latin line heights.
+   Mantine's Text reads these variables, so they cover both body text and sized text. */
+html[lang='bn'],
+html[lang='hi'] {
+  --mantine-line-height: 1.75;
+  --mantine-line-height-xs: 1.7;
+  --mantine-line-height-sm: 1.7;
+  --mantine-line-height-md: 1.75;
+  --mantine-line-height-lg: 1.75;
+  --mantine-line-height-xl: 1.8;
+}
+
 /* Progress tracks use the theme border color so they stay visible on both panels */
 .mantine-Progress-root {
   background-color: var(--border-color);

@@ -1,17 +1,7 @@
 export type FileCategory = 'folder' | 'media' | 'documents' | 'archives' | 'code' | 'installers' | 'other';
 
-/** Display order, also used for legends */
-export const CATEGORY_LABELS: Record<FileCategory, string> = {
-  folder: 'Folders',
-  media: 'Media',
-  documents: 'Documents',
-  archives: 'Archives',
-  code: 'Code',
-  installers: 'Installers',
-  other: 'Other',
-};
-
-export const CATEGORY_ORDER = Object.keys(CATEGORY_LABELS) as FileCategory[];
+/** Display order, used for legends. Labels are translated under `category.*`. */
+export const CATEGORY_ORDER: FileCategory[] = ['folder', 'media', 'documents', 'archives', 'code', 'installers', 'other'];
 
 const EXTENSIONS: Record<Exclude<FileCategory, 'folder' | 'other'>, string[]> = {
   media: [

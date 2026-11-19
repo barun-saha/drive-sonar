@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Treemap } from '@mantine/charts';
 import { Box, Text, Group, Badge } from '@mantine/core';
 import { useReducedMotion } from '@mantine/hooks';
+import { useTranslation } from 'react-i18next';
 import type { TreemapNode } from 'recharts';
 
 import { UiDiskNode } from '../types';
@@ -16,6 +17,7 @@ interface SizeChartProps {
 }
 
 export function SizeChart({ items, onNavigate }: SizeChartProps) {
+  const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
 
   const sortedItems = useMemo(() => {
@@ -44,7 +46,7 @@ export function SizeChart({ items, onNavigate }: SizeChartProps) {
   return (
     <Box p="xs" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Text size="xs" fw={700} c="dimmed" mb="sm" style={{ textTransform: 'uppercase' }}>
-        Top 12 Space Distribution Map
+        {t('spaceMap.title')}
       </Text>
 
       <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative' }}>
@@ -76,14 +78,14 @@ export function SizeChart({ items, onNavigate }: SizeChartProps) {
                     <ChartTooltip>
                       <Group gap={6} mb={4}>
                         <Text size="sm" fw={700}>{data.name}</Text>
-                        {data.isDir && <Badge size="xs" variant="light">Folder</Badge>}
+                        {data.isDir && <Badge size="xs" variant="light">{t('charts.folder')}</Badge>}
                       </Group>
                       <Text size="sm" fw={500} c="dimmed">
-                        Size: {formatBytes(data.realSize)}
+                        {t('charts.size', { size: formatBytes(data.realSize) })}
                       </Text>
                       {data.isDir && onNavigate && (
                         <Text size="xs" c="brand" mt={4}>
-                          Click block to open folder
+                          {t('spaceMap.clickToOpen')}
                         </Text>
                       )}
                     </ChartTooltip>
@@ -95,7 +97,7 @@ export function SizeChart({ items, onNavigate }: SizeChartProps) {
           />
         ) : (
           <Group justify="center" align="center" style={{ height: '100%' }}>
-            <Text size="sm" c="dimmed">No non-empty items to map in this scope.</Text>
+            <Text size="sm" c="dimmed">{t('spaceMap.empty')}</Text>
           </Group>
         )}
       </div>

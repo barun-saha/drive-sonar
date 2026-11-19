@@ -3,7 +3,8 @@ import { ActionIcon, Anchor, Button, Code, Collapse, Group, Stack, Text, Menu, M
 import { useMantineColorScheme, useComputedColorScheme } from '@mantine/core';
 import { useDisclosure, useLocalStorage } from '@mantine/hooks';
 import { Notifications, notifications } from '@mantine/notifications';
-import { Menu as MenuIcon, HelpCircle, Info, Sun, Moon, Save, Star } from 'lucide-react';
+import { Menu as MenuIcon, HelpCircle, Info, Sun, Moon, Save, Star, Languages, Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { homeDir } from '@tauri-apps/api/path';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
@@ -14,6 +15,10 @@ import { Workspace } from './components/Workspace';
 import { StatusBar } from './components/StatusBar';
 import { saveReportToTextFile } from './utils/exportReport';
 import { formatBytes } from './utils/format';
+import i18n, { applyLanguage } from './i18n';
+import {
+  LANGUAGES, LANGUAGE_STORAGE_KEY, parseLanguageSetting, type LanguageSetting,
+} from './i18n/languages';
 import thirdPartyNotices from '../THIRD_PARTY_NOTICES.md?raw';
 
 import '@mantine/notifications/styles.css';
@@ -40,6 +45,7 @@ function parseTrashedTotals(stored?: string): TrashedTotals {
 }
 
 export default function App() {
+  const { t } = useTranslation();
   const [targetPath, setTargetPath] = useState('');
   const [payload, setPayload] = useState<DirectoryPayload | null>(null);
   const [scanTime, setScanTime] = useState<number | null>(null);
@@ -56,6 +62,17 @@ export default function App() {
     getInitialValueInEffect: false,
   });
   const [warningCount, setWarningCount] = useState(0);
+  const [languageSetting, setLanguageSetting] = useLocalStorage<LanguageSetting>({
+    key: LANGUAGE_STORAGE_KEY,
+    defaultValue: 'system',
+    deserialize: parseLanguageSetting,
+    getInitialValueInEffect: false,
+  });
+
+  const selectLanguage = (setting: LanguageSetting) => {
+    setLanguageSetting(setting);
+    void applyLanguage(setting);
+  };
 
   // Store the root scan statistics and top-level structure specifically for report export
   const [rootStats, setRootStats] = useState<{
@@ -97,7 +114,7 @@ export default function App() {
     listen<string>('scan-warning', (event) => {
       setWarningCount((count) => count + 1);
       notifications.show({
-        title: 'Scan Warning',
+        title: i18n.t('notify.scanWarning'),
         message: event.payload,
         color: 'yellow',
         autoClose: 6000,
@@ -162,8 +179,8 @@ export default function App() {
       }
     } catch (error) {
       notifications.show({
-        title: 'Error',
-        message: `Could not open directory picker: ${error}`,
+        title: t('notify.error'),
+        message: t('notify.pickerFailed', { error: String(error) }),
         color: 'red',
       });
     }
@@ -242,7 +259,7 @@ export default function App() {
     } catch (error) {
       if (activeScanGenerationRef.current === scanGeneration && scanGenerationRef.current === scanGeneration) {
         notifications.show({
-          title: 'Scan Failed',
+          title: t('notify.scanFailed'),
           message: String(error),
           color: 'red',
         });
@@ -263,7 +280,7 @@ export default function App() {
       setPayload(res);
     } catch (error) {
       notifications.show({
-        title: 'Navigation Failed',
+        title: t('notify.navigationFailed'),
         message: String(error),
         color: 'red',
       });
@@ -303,8 +320,8 @@ export default function App() {
   const handleExportReport = async () => {
     if (!payload || !rootStats) {
       notifications.show({
-        title: 'No Data to Export',
-        message: 'Please run a scan before saving a report.',
+        title: t('notify.noDataTitle'),
+        message: t('notify.noDataMessage'),
         color: 'yellow',
       });
       return;
@@ -332,8 +349,8 @@ export default function App() {
 
     if (saved) {
       notifications.show({
-        title: 'Report Saved',
-        message: 'Scan report has been saved successfully.',
+        title: t('notify.reportSavedTitle'),
+        message: t('notify.reportSavedMessage'),
         color: 'green',
       });
     }
@@ -348,24 +365,22 @@ export default function App() {
             <Modal.Title>
               <Group gap="xs">
                 <HelpCircle size={20} color="var(--mantine-color-dimmed)" />
-                <Text fw={600} size="lg" c="dimmed">Usage Guide</Text>
+                <Text fw={600} size="lg" c="dimmed">{t('help.title')}</Text>
               </Group>
             </Modal.Title>
             <Modal.CloseButton />
           </Modal.Header>
           <Modal.Body pt="md">
             <Text size="lg">
-              To find the disk usage of a given directory, select the directory and click on the "Run Scan" button.
+              {t('help.scan', { run: t('toolbar.runScan') })}
             </Text>
             <br />
             <Text size="lg">
-              To cancel an ongoing scan, click on the "Cancel Scan" button.
+              {t('help.cancel', { cancel: t('toolbar.cancelScan') })}
             </Text>
             <br />
             <Text size="lg">
-              In the file list, use the arrow keys to select an item, Enter to open a folder, and Delete to move it
-              to the Trash. Tab moves to the selected item's buttons and Shift+Tab back; press Escape to return to
-              the list.
+              {t('help.keyboard')}
             </Text>
           </Modal.Body>
         </Modal.Content>
@@ -378,7 +393,7 @@ export default function App() {
             <Modal.Title>
               <Group gap="xs">
                 <Info size={20} color="var(--mantine-color-dimmed)" />
-                <Text fw={600} size="lg" c="dimmed">About Drive Sonar</Text>
+                <Text fw={600} size="lg" c="dimmed">{t('about.title')}</Text>
               </Group>
             </Modal.Title>
             <Modal.CloseButton />
@@ -387,14 +402,14 @@ export default function App() {
             <Stack gap="xs">
               <Text fw={500}>Drive Sonar {appVersion ? `v${appVersion}` : ''}</Text>
               <Text size="lg">
-                A fast, lightweight disk space explorer powered by Rust and Tauri. Apache-2.0 licensed.
+                {t('about.description')}
               </Text>
               <br />
-              <Text size="lg">Licensed under Apache-2.0</Text>
-              <Text size="lg">© 2026 Barun Saha.</Text>
+              <Text size="lg">{t('about.license')}</Text>
+              <Text size="lg">{t('about.copyright')}</Text>
               <br />
               <Text size="md">
-                Website:{' '}
+                {t('about.website')}{' '}
                 <Anchor
                   href="https://drivesonar.download/"
                   target="_blank"
@@ -405,7 +420,7 @@ export default function App() {
               </Text>
 
               <Text size="md">
-                If you like Drive Sonar, please consider starring the project on GitHub!
+                {t('about.starPrompt')}
               </Text>
 
               <Button
@@ -419,28 +434,28 @@ export default function App() {
                 leftSection={<Star fill="currentColor" />}
                 style={{ alignSelf: 'flex-start' }}
               >
-                Star on GitHub
+                {t('about.starButton')}
               </Button>
 
               {lifetimeTrashed.count > 0 && (
                 <Group gap="xs" mt="xs">
                   <Text size="sm" c="dimmed">
-                    Lifetime: {formatBytes(lifetimeTrashed.bytes)} moved to Trash (stored on this device only)
+                    {t('about.lifetime', { size: formatBytes(lifetimeTrashed.bytes) })}
                   </Text>
                   <Button variant="subtle" color="gray" size="compact-xs" onClick={() => setLifetimeTrashed(NO_TRASHED)}>
-                    Reset
+                    {t('about.reset')}
                   </Button>
                 </Group>
               )}
 
               <Text size="sm" c="dimmed" mt="xs">
-                Bundled fonts: Inter and JetBrains Mono, licensed under the SIL Open Font License 1.1.{' '}
+                {t('about.fonts')}{' '}
                 <Anchor
                   href="https://github.com/barun-saha/drive-sonar/blob/main/THIRD_PARTY_NOTICES.md"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Third-party notices
+                  {t('about.notices')}
                 </Anchor>
               </Text>
               <Button
@@ -451,7 +466,7 @@ export default function App() {
                 aria-expanded={noticesOpened}
                 style={{ alignSelf: 'flex-start' }}
               >
-                {noticesOpened ? 'Hide' : 'Show'} license text
+                {noticesOpened ? t('about.hideLicense') : t('about.showLicense')}
               </Button>
               <Collapse expanded={noticesOpened}>
                 <Code block mah={240} style={{ overflow: 'auto' }}>{thirdPartyNotices}</Code>
@@ -481,21 +496,45 @@ export default function App() {
           trashedBytes={trashedBytes}
           lifetimeTrashed={lifetimeTrashed}
         >
-          <Menu shadow="md" width={200} position="bottom-end">
+          <Menu shadow="md" width={240} position="bottom-end">
             <Menu.Target>
-              <ActionIcon variant="subtle" size="lg" aria-label="Menu" color="gray">
+              <ActionIcon variant="subtle" size="lg" aria-label={t('menu.label')} color="gray">
                 <MenuIcon size={20} />
               </ActionIcon>
             </Menu.Target>
 
             <Menu.Dropdown>
-              <Menu.Label>Application</Menu.Label>
+              <Menu.Label>{t('menu.application')}</Menu.Label>
               <Menu.Item
                 leftSection={computedColorScheme === 'dark' ? <Sun /> : <Moon />}
                 onClick={toggleColorScheme}
               >
-                {computedColorScheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                {computedColorScheme === 'dark' ? t('menu.switchToLight') : t('menu.switchToDark')}
               </Menu.Item>
+
+              <Menu.Sub>
+                <Menu.Sub.Target>
+                  <Menu.Sub.Item leftSection={<Languages />}>{t('menu.language')}</Menu.Sub.Item>
+                </Menu.Sub.Target>
+                <Menu.Sub.Dropdown>
+                  <Menu.Item
+                    onClick={() => selectLanguage('system')}
+                    rightSection={languageSetting === 'system' ? <Check size={14} /> : null}
+                  >
+                    {t('menu.systemDefault')}
+                  </Menu.Item>
+                  {LANGUAGES.map(({ code, name }) => (
+                    <Menu.Item
+                      key={code}
+                      lang={code}
+                      onClick={() => selectLanguage(code)}
+                      rightSection={languageSetting === code ? <Check size={14} /> : null}
+                    >
+                      {name}
+                    </Menu.Item>
+                  ))}
+                </Menu.Sub.Dropdown>
+              </Menu.Sub>
               <Menu.Divider />
 
               <Menu.Item
@@ -503,17 +542,17 @@ export default function App() {
                 onClick={handleExportReport}
                 disabled={!payload || isScanning}
               >
-                Save Report
+                {t('menu.saveReport')}
               </Menu.Item>
               <Menu.Divider />
 
               <Menu.Item leftSection={<HelpCircle />} onClick={openHelp}>
-                Help
+                {t('menu.help')}
               </Menu.Item>
               <Menu.Divider />
 
               <Menu.Item leftSection={<Info />} onClick={openAbout}>
-                About Drive Sonar
+                {t('menu.about')}
               </Menu.Item>
             </Menu.Dropdown>
           </Menu>

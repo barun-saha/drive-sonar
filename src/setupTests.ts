@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 import ResizeObserverPolyfill from 'resize-observer-polyfill';
+import './i18n'; // English strings, so components render the same text as before
 
 // Polyfill ResizeObserver
 globalThis.ResizeObserver = ResizeObserverPolyfill;

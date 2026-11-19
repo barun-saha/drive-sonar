@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Anchor, Breadcrumbs, Text, Tooltip } from "@mantine/core";
 import { ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { BreadcrumbItem } from '../types';
 
@@ -21,6 +22,7 @@ interface RenderItem {
 }
 
 export function PathNav({ ancestors, onNavigate, onRescan, isWindows }: PathNavProps) {
+  const { t } = useTranslation();
   const items = useMemo(() => {
     if (!ancestors || ancestors.length === 0) return [];
 
@@ -136,7 +138,7 @@ export function PathNav({ ancestors, onNavigate, onRescan, isWindows }: PathNavP
           return (
             <Tooltip
               key={item.key}
-              label={`Scan ${item.fullPath}`}
+              label={t('nav.scanPath', { path: item.fullPath })}
               position="bottom"
               withArrow
               openDelay={300}

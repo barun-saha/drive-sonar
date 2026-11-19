@@ -2,6 +2,7 @@ import { useMemo, useState, type MouseEvent, type KeyboardEvent } from 'react';
 import { Box, Button, Text, Group } from '@mantine/core';
 import { ScatterChart } from '@mantine/charts';
 import { useReducedMotion } from '@mantine/hooks';
+import { useTranslation } from 'react-i18next';
 import { notifications } from '@mantine/notifications';
 import { invoke } from '@tauri-apps/api/core';
 import { TopFileNode } from '../types';
@@ -10,11 +11,12 @@ import { ChartTooltip } from './ChartTooltip';
 import { CategoryLegend } from './CategoryLegend';
 import { useLogScale } from '../hooks/useLogScale';
 import { formatBytes } from '../utils/format';
+import i18n from '../i18n';
 import {
-  AGE_GROUPS, AGING_MAX_MONTHS, RECENT_MAX_MONTHS, getAgeGroup, type AgeGroup,
+  AGE_GROUPS, AGING_MAX_MONTHS, RECENT_MAX_MONTHS, ageGroupLabel, getAgeGroup, type AgeGroup,
 } from '../utils/ageGroup';
 import {
-  CATEGORY_LABELS, categoryColor, categoryOfItem, type FileCategory,
+  categoryColor, categoryOfItem, type FileCategory,
 } from '../utils/fileCategory';
 
 interface AgeScatterChartProps {
@@ -22,9 +24,9 @@ interface AgeScatterChartProps {
 }
 
 // Faint vertical lines at the age thresholds. `extendDomain` keeps them visible even when no file is that old.
-const AGE_REFERENCE_LINES = [RECENT_MAX_MONTHS, AGING_MAX_MONTHS].map((months) => ({
+const ageReferenceLines = () => [RECENT_MAX_MONTHS, AGING_MAX_MONTHS].map((months) => ({
   x: months,
-  label: `${months} mo`,
+  label: i18n.t('age.months', { n: months }),
   strokeDasharray: '4 4',
   ifOverflow: 'extendDomain' as const,
 }));
@@ -56,7 +58,7 @@ const DynamicScatterPoint = (props: any) => {
       strokeWidth={1.5}
       tabIndex={0}
       role="button"
-      aria-label={`Open ${payload?.fileName ?? 'file'} in Files Explorer`}
+      aria-label={i18n.t('age.openFile', { name: payload?.fileName ?? '' })}
       style={{ transition: 'all 0.3s ease', cursor: 'pointer' }}
       onClick={handleActivate}
       onKeyDown={(event) => {
@@ -67,13 +69,15 @@ const DynamicScatterPoint = (props: any) => {
       }}
     >
       {/* Issue #24: Native SVG title hint for immediate hover feedback */}
-      <title>{`${payload?.fileName ?? ''}\n${payload?.filePath ?? ''}\nClick to open in Files Explorer`}</title>
+      <title>{`${payload?.fileName ?? ''}\n${payload?.filePath ?? ''}\n${i18n.t('list.openInExplorer')}`}</title>
     </circle>
   );
 };
 
 export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
+  const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
+  const referenceLines = useMemo(ageReferenceLines, [t]);
 
   // Issue #24: Open file location in native OS explorer
   const handleOpenInExplorer = async (fileId?: number) => {
@@ -82,8 +86,8 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
       await invoke('open_in_explorer', { nodeId: fileId });
     } catch (error) {
       notifications.show({
-        title: 'Execution Failed',
-        message: `Could not open file location: ${error}`,
+        title: t('notify.executionFailed'),
+        message: t('notify.openLocationFailed', { error: String(error) }),
         color: 'red',
       });
     }
@@ -188,14 +192,14 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
   return (
     <Box p="xs" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <ChartHeader
-        title="TOP 30 LARGEST FILES: SIZE vs AGE"
+        title={t('age.title')}
         checked={isLog}
         onChange={setUseLogScale}
       />
 
       {points.length > 0 && (
-        <Group gap="xs" mb="xs" role="group" aria-label="Age groups">
-          {AGE_GROUPS.map(({ group, label }) => {
+        <Group gap="xs" mb="xs" role="group" aria-label={t('age.groupsLabel')}>
+          {AGE_GROUPS.map(({ group }) => {
             const visible = !hiddenGroups.has(group);
             return (
               <Button
@@ -211,7 +215,7 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
                   opacity: visible ? 1 : 0.45,
                 }}
               >
-                {label} · {groupCounts[group]}
+                {ageGroupLabel(group)} · {groupCounts[group]}
               </Button>
             );
           })}
@@ -223,12 +227,12 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
           <ScatterChart
             h="100%"
             style={{ position: 'absolute', inset: 0 }}
-            data={[{ color: 'brand', name: 'Files', data: displayPoints as any }]}
+            data={[{ color: 'brand', name: t('age.series'), data: displayPoints as any }]}
             dataKey={{ x: 'plottedAgeMonths', y: 'sizeMB' }}
-            xAxisLabel="Age (Months Since Modified)"
-            yAxisLabel={getAxisLabel('Size (MB)')}
+            xAxisLabel={t('age.axis')}
+            yAxisLabel={getAxisLabel(t('charts.sizeMb'))}
             yAxisProps={axisProps}
-            referenceLines={AGE_REFERENCE_LINES}
+            referenceLines={referenceLines}
             scatterProps={{
               shape: <DynamicScatterPoint onPointClick={(data: any) => handleOpenInExplorer(data?.fileId)} />, // Issue #24
               onClick: (entry: any) => {
@@ -266,18 +270,18 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
                       {data.filePath}
                     </Text>
                     <Text size="sm" fw={500} c="dimmed">
-                      Size: {formatBytes(data.rawBytes)}
+                      {t('charts.size', { size: formatBytes(data.rawBytes) })}
                     </Text>
                     <Text size="sm" fw={500} c="dimmed">
-                      Modified: {data.ageMonths} months ago
+                      {t('age.modified', { n: data.ageMonths })}
                     </Text>
                     {/* Issue #112: Show the file category in the tooltip */}
                     <Text size="sm" fw={500} c="dimmed">
-                      Category: {CATEGORY_LABELS[data.fileCategory as FileCategory] ?? data.fileCategory}
+                      {t('age.category', { category: t(`category.${data.fileCategory}`) })}
                     </Text>
                     {/* Issue #24: Instruction to click point */}
                     <Text size="xs" c="dimmed" mt={4} style={{ fontStyle: 'italic' }}>
-                      Click point to open in Files Explorer
+                      {t('age.clickToOpen')}
                     </Text>
                   </ChartTooltip>
                 );
@@ -287,7 +291,7 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
         ) : (
           <Group justify="center" align="center" style={{ height: '100%' }}>
             <Text size="sm" c="dimmed">
-              No files to analyze in this scope.
+              {t('charts.noFiles')}
             </Text>
           </Group>
         )}

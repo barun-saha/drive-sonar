@@ -1,0 +1,149 @@
+{
+  "common": {
+    "bytes": "बाइट"
+  },
+  "toolbar": {
+    "pathPlaceholder": "स्कैन करने के लिए कोई डायरेक्टरी चुनें...",
+    "browse": "फ़ोल्डर ब्राउज़ करें",
+    "runScan": "स्कैन शुरू करें",
+    "scanning": "स्कैन हो रहा है...",
+    "cancelScan": "स्कैन रद्द करें",
+    "disk": "डिस्क",
+    "drive": "ड्राइव ({{letter}})",
+    "free": "{{size}} खाली",
+    "ssdTip": "कई SSD लगभग 10–20% खाली जगह होने पर सबसे अच्छा प्रदर्शन करते हैं।",
+    "diskSummary": "कुल {{total}} · {{percent}}% खाली",
+    "currentFolder": "वर्तमान फ़ोल्डर",
+    "folderCount_one": "{{n}} फ़ोल्डर",
+    "folderCount_other": "{{n}} फ़ोल्डर",
+    "fileCount_one": "{{n}} फ़ाइल",
+    "fileCount_other": "{{n}} फ़ाइलें",
+    "thisSession": "यह सत्र",
+    "movedToTrash_one": "{{n}} आइटम ट्रैश में भेजा गया",
+    "movedToTrash_other": "{{n}} आइटम ट्रैश में भेजे गए",
+    "trashSpaceNote": "{{size}} · ट्रैश खाली करने पर जगह वापस मिलेगी",
+    "lifetimeSummary_one": "अब तक कुल: {{n}} आइटम · {{size}} ट्रैश में भेजा गया",
+    "lifetimeSummary_other": "अब तक कुल: {{n}} आइटम · {{size}} ट्रैश में भेजे गए"
+  },
+  "status": {
+    "scanned_one": "<b>{{time}}</b> में <b>{{n}}</b> आइटम स्कैन किया गया",
+    "scanned_other": "<b>{{time}}</b> में <b>{{n}}</b> आइटम स्कैन किए गए",
+    "seconds": "{{value}} सेकंड",
+    "unaccounted": "लगभग <b>{{size}}</b> का हिसाब नहीं (फ़ाइल सिस्टम मेटाडेटा / अप्राप्य क्षेत्र)",
+    "warnings_one": "{{n}} चेतावनी",
+    "warnings_other": "{{n}} चेतावनियाँ"
+  },
+  "menu": {
+    "label": "मेन्यू",
+    "application": "एप्लिकेशन",
+    "switchToLight": "लाइट मोड पर जाएँ",
+    "switchToDark": "डार्क मोड पर जाएँ",
+    "language": "भाषा",
+    "systemDefault": "सिस्टम डिफ़ॉल्ट",
+    "saveReport": "रिपोर्ट सहेजें",
+    "help": "सहायता",
+    "about": "Drive Sonar के बारे में"
+  },
+  "help": {
+    "title": "उपयोग गाइड",
+    "scan": "किसी डायरेक्टरी का डिस्क उपयोग जानने के लिए डायरेक्टरी चुनें और \"{{run}}\" बटन पर क्लिक करें।",
+    "cancel": "चल रहे स्कैन को रद्द करने के लिए \"{{cancel}}\" बटन पर क्लिक करें।",
+    "keyboard": "फ़ाइल सूची में तीर कुंजियों से आइटम चुनें, फ़ोल्डर खोलने के लिए Enter और ट्रैश में भेजने के लिए Delete दबाएँ। Tab से चुने गए आइटम के बटनों पर जाया जाता है और Shift+Tab से वापस; सूची में लौटने के लिए Escape दबाएँ।"
+  },
+  "about": {
+    "title": "Drive Sonar के बारे में",
+    "description": "Rust और Tauri पर आधारित एक तेज़, हल्का डिस्क स्पेस एक्सप्लोरर। Apache-2.0 लाइसेंस के अंतर्गत।",
+    "license": "Apache-2.0 लाइसेंस के अंतर्गत",
+    "copyright": "© 2026 Barun Saha.",
+    "website": "वेबसाइट:",
+    "starPrompt": "यदि आपको Drive Sonar पसंद आया, तो कृपया GitHub पर प्रोजेक्ट को स्टार करें!",
+    "starButton": "GitHub पर स्टार करें",
+    "lifetime": "अब तक कुल: {{size}} ट्रैश में भेजा गया (केवल इस डिवाइस पर सहेजा गया)",
+    "reset": "रीसेट",
+    "fonts": "शामिल फ़ॉन्ट: Inter, JetBrains Mono और Noto Sans (बंगाली, देवनागरी), SIL Open Font License 1.1 के अंतर्गत।",
+    "notices": "तृतीय-पक्ष सूचनाएँ",
+    "showLicense": "लाइसेंस दिखाएँ",
+    "hideLicense": "लाइसेंस छिपाएँ"
+  },
+  "notify": {
+    "scanWarning": "स्कैन चेतावनी",
+    "error": "त्रुटि",
+    "pickerFailed": "डायरेक्टरी चयनकर्ता नहीं खोला जा सका: {{error}}",
+    "scanFailed": "स्कैन विफल रहा",
+    "navigationFailed": "नेविगेशन विफल रहा",
+    "noDataTitle": "निर्यात के लिए कोई डेटा नहीं",
+    "noDataMessage": "रिपोर्ट सहेजने से पहले कृपया एक स्कैन चलाएँ।",
+    "reportSavedTitle": "रिपोर्ट सहेजी गई",
+    "reportSavedMessage": "स्कैन रिपोर्ट सफलतापूर्वक सहेज ली गई है।",
+    "executionFailed": "कार्य पूरा नहीं हो सका",
+    "openLocationFailed": "फ़ाइल का स्थान नहीं खोला जा सका: {{error}}",
+    "success": "सफल",
+    "trashed": "\"{{name}}\" ({{size}}) सफलतापूर्वक ट्रैश में भेज दिया गया।",
+    "deletionFailed": "हटाना विफल रहा",
+    "trashFailed": "आइटम को ट्रैश में नहीं भेजा जा सका: {{error}}"
+  },
+  "list": {
+    "ariaLabel": "फ़ाइलें और फ़ोल्डर",
+    "clickToOpen": "खोलने के लिए क्लिक करें",
+    "openInExplorer": "फ़ाइल एक्सप्लोरर में खोलें",
+    "moveToTrash": "ट्रैश में भेजें",
+    "percentOfFolder": "वर्तमान फ़ोल्डर का %",
+    "empty": "यह डायरेक्टरी खाली है।",
+    "openFolder": "फ़ोल्डर खोलें",
+    "confirmTitle": "ट्रैश में भेजें",
+    "confirmFolder": "क्या आप वाकई {{name}} डायरेक्टरी और उसकी सभी सामग्री को ट्रैश में भेजना चाहते हैं?",
+    "confirmFile": "क्या आप वाकई {{name}} फ़ाइल को ट्रैश में भेजना चाहते हैं?",
+    "confirmNote": "आप कभी भी सिस्टम के ट्रैश से आइटम वापस ला सकते हैं या उन्हें स्थायी रूप से हटा सकते हैं।",
+    "cancel": "रद्द करें"
+  },
+  "nav": {
+    "scanPath": "{{path}} स्कैन करें"
+  },
+  "tabs": {
+    "spaceMap": "स्पेस मैप",
+    "fileTypes": "फ़ाइल के प्रकार",
+    "ageAnalysis": "आयु विश्लेषण"
+  },
+  "charts": {
+    "semiLog": "सेमी-लॉग स्केल का उपयोग करें",
+    "logScaleSuffix": "{{label}} (लॉग स्केल)",
+    "sizeMb": "आकार (MB)",
+    "size": "आकार: {{size}}",
+    "folder": "फ़ोल्डर",
+    "noFiles": "इस दायरे में विश्लेषण के लिए कोई फ़ाइल नहीं है।"
+  },
+  "spaceMap": {
+    "title": "शीर्ष 12 स्थान वितरण मानचित्र",
+    "clickToOpen": "फ़ोल्डर खोलने के लिए ब्लॉक पर क्लिक करें",
+    "empty": "इस दायरे में मानचित्र पर दिखाने के लिए कोई गैर-खाली आइटम नहीं है।"
+  },
+  "extensions": {
+    "title": "स्टोरेज के अनुसार शीर्ष 15 फ़ाइल एक्सटेंशन",
+    "axis": "एक्सटेंशन",
+    "files": "फ़ाइलें: {{n}}"
+  },
+  "age": {
+    "title": "सबसे बड़ी 30 फ़ाइलें: आकार बनाम आयु",
+    "axis": "आयु (अंतिम बदलाव के बाद के महीने)",
+    "series": "फ़ाइलें",
+    "months": "{{n}} माह",
+    "modified": "संशोधित: {{n}} महीने पहले",
+    "category": "श्रेणी: {{category}}",
+    "clickToOpen": "फ़ाइल एक्सप्लोरर में खोलने के लिए बिंदु पर क्लिक करें",
+    "groupsLabel": "आयु समूह",
+    "openFile": "{{name}} को फ़ाइल एक्सप्लोरर में खोलें",
+    "recent": "हाल की (≤ {{recent}} माह)",
+    "aging": "मध्यम ({{recent}}–{{aging}} माह)",
+    "old": "पुरानी (> {{aging}} माह)"
+  },
+  "category": {
+    "legend": "रंग संकेत",
+    "folder": "फ़ोल्डर",
+    "media": "मीडिया",
+    "documents": "दस्तावेज़",
+    "archives": "आर्काइव",
+    "code": "कोड",
+    "installers": "इंस्टॉलर",
+    "other": "अन्य"
+  }
+}

@@ -156,6 +156,22 @@ describe('AgeScatterChart', () => {
     expect(invoke).toHaveBeenCalledWith('open_in_explorer', { nodeId: 99 });
   });
 
+  it('labels each point with its file name and path for assistive tech and hover', () => {
+    renderWithMantine(<AgeScatterChart files={[{ id: 7, name: 'movie.mkv', size: 1048576 * 700, modified_secs: 1, path: '/media/movie.mkv' }]} />);
+    const shape = capturedScatterProps.scatterProps.shape;
+    const point = (payload?: object) =>
+      render(<svg>{cloneElement(shape, { cx: 10, cy: 10, payload })}</svg>).container.querySelector('circle')!;
+
+    const labelled = point({ fileName: 'movie.mkv', filePath: '/media/movie.mkv', sizeMB: 700 });
+    expect(labelled).toHaveAttribute('aria-label', 'Open movie.mkv in Files Explorer');
+    expect(labelled.querySelector('title')!.textContent).toBe('movie.mkv\n/media/movie.mkv\nOpen in Files Explorer');
+
+    // A point without data must still render rather than throw
+    const bare = point(undefined);
+    expect(bare).toHaveAttribute('aria-label', 'Open  in Files Explorer');
+    expect(bare.querySelector('title')!.textContent).toBe('\n\nOpen in Files Explorer');
+  });
+
   // Issue #24: Test error notification when open_in_explorer fails on point click
   it('shows error notification when open_in_explorer fails on point click', async () => {
     vi.mocked(invoke).mockRejectedValue(new Error('Failed to open'));

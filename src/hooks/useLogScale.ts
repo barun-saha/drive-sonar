@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export function useLogScale(minValue: number, maxValue: number) {
+  const { t } = useTranslation();
   const [useLogScale, setUseLogScale] = useState(false);
 
   // Compute dynamic ticks and domain whenever minValue, maxValue or toggle changes
@@ -44,7 +46,7 @@ export function useLogScale(minValue: number, maxValue: number) {
 
   // Helper to format axis labels dynamically
   const getAxisLabel = (baseLabel: string) =>
-    useLogScale ? `${baseLabel} (Log Scale)` : baseLabel;
+    useLogScale ? t('charts.logScaleSuffix', { label: baseLabel }) : baseLabel;
 
   // Return everything the consuming chart needs
   return {

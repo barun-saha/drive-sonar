@@ -5,12 +5,14 @@ import { Box, Stack, Group, Text, Progress, Tooltip, ActionIcon, Menu } from '@m
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { Folder, File, FolderOpen, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { KeyboardEvent, MouseEvent } from 'react';
 
 import { DirectoryPayload, UiDiskNode } from '../types';
 import { formatBytes, formatPercent } from '../utils/format';
 import { categoryColor, categoryOfItem } from '../utils/fileCategory';
 import { PathNav } from '../components/PathNav';
+import { translateAroundSlot } from '../i18n';
 
 interface ItemListProps {
   payload: DirectoryPayload | null;
@@ -20,6 +22,7 @@ interface ItemListProps {
 }
 
 export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: ItemListProps) {
+  const { t } = useTranslation();
   const [scrollTop, setScrollTop] = useState(0);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; item: UiDiskNode } | null>(null);
@@ -108,8 +111,8 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
       await invoke('open_in_explorer', { nodeId: item.id });
     } catch (error) {
       notifications.show({
-        title: 'Execution Failed',
-        message: `Could not open file location: ${error}`,
+        title: t('notify.executionFailed'),
+        message: t('notify.openLocationFailed', { error: String(error) }),
         color: 'red'
       });
     }
@@ -123,8 +126,8 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
         onItemTrashed?.(item);
 
         notifications.show({
-          title: 'Success',
-          message: `"${item.name}" (${formatBytes(item.size)}) was successfully moved to Trash.`,
+          title: t('notify.success'),
+          message: t('notify.trashed', { name: item.name, size: formatBytes(item.size) }),
           color: 'green'
         });
 
@@ -137,32 +140,35 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
         }
       } catch (error) {
         notifications.show({
-          title: 'Deletion Failed',
-          message: `Could not move item to Trash: ${error}`,
+          title: t('notify.deletionFailed'),
+          message: t('notify.trashFailed', { error: String(error) }),
           color: 'red'
         });
       }
     };
 
+    // The name is rendered as its own element, so a file called "<b>" is never parsed as markup
+    const [beforeName, afterName] = translateAroundSlot(item.is_dir ? 'list.confirmFolder' : 'list.confirmFile');
+
     modals.openConfirmModal({
-      title: 'Move to Trash',
+      title: t('list.confirmTitle'),
       centered: true,
       // 1. Make the destructive nature visually distinct
       children:
         <Stack gap="xs">
           <Text size="md">
-            Are you sure you want to move {item.is_dir ? 'the directory' : 'the file'}{' '}
+            {beforeName}
             <Text span fw={700} c="red.6" style={{ wordBreak: 'break-all' }}>
               {item.name}
             </Text>
-            {item.is_dir ? ' and all its contents' : ''} to the Trash?
+            {afterName}
           </Text>
           <Text size="md" c="dimmed">
-            You can restore items or delete them permanently anytime from your system's Trash.
+            {t('list.confirmNote')}
           </Text>
         </Stack>
       ,
-      labels: { confirm: 'Move to Trash', cancel: 'Cancel' },
+      labels: { confirm: t('list.moveToTrash'), cancel: t('list.cancel') },
       confirmProps: { color: 'red' },
       // 2. CRITICAL UX TWEAK: Default focus on the Cancel button
       // This prevents accidental deletions if the user happens to press 'Enter' or 'Space' double-tapping
@@ -201,7 +207,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
         ref={mergedViewportRef}
         className="item-list"
         role="list"
-        aria-label="Files and folders"
+        aria-label={t('list.ariaLabel')}
         tabIndex={0}
         onKeyDown={handleKeyDown}
         onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
@@ -257,7 +263,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
                         ? <Folder color={itemColor} style={{ flexShrink: 0 }} />
                         : <File color={itemColor} style={{ flexShrink: 0 }} />
                     }
-                    <Tooltip label="Click to open" disabled={!item.is_dir} openDelay={200}>
+                    <Tooltip label={t('list.clickToOpen')} disabled={!item.is_dir} openDelay={200}>
                       <Text size="sm" style={{ color: 'var(--text-main)' }} truncate>
                         {item.name}
                       </Text>
@@ -275,7 +281,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
                       size="sm"
                       style={{ color: 'var(--text-muted)' }}
                       tabIndex={isSelected ? 0 : -1}
-                      title="Open in Files Explorer"
+                      title={t('list.openInExplorer')}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenInExplorer(item);
@@ -288,7 +294,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
                       color="red.5"
                       size="sm"
                       tabIndex={isSelected ? 0 : -1}
-                      title="Move to Trash"
+                      title={t('list.moveToTrash')}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(item);
@@ -304,7 +310,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
                     </Progress.Root>
                   </div>
 
-                  <Tooltip label="% of current folder" openDelay={200}>
+                  <Tooltip label={t('list.percentOfFolder')} openDelay={200}>
                     <Text
                       size="sm"
                       ff="monospace"
@@ -329,7 +335,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
             {sortedItems.length === 0 && (
               <Box py="xl" style={{ textAlign: 'center' }}>
                 <Text size="sm" c="dimmed">
-                  This directory is empty.
+                  {t('list.empty')}
                 </Text>
               </Box>
             )}
@@ -354,14 +360,14 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
         <Menu.Dropdown>
           {menu?.item.is_dir && (
             <Menu.Item leftSection={<Folder />} onClick={() => onNavigate(menu.item.id)}>
-              Open folder
+              {t('list.openFolder')}
             </Menu.Item>
           )}
           <Menu.Item leftSection={<FolderOpen />} onClick={() => handleOpenInExplorer(menu!.item)}>
-            Open in Files Explorer
+            {t('list.openInExplorer')}
           </Menu.Item>
           <Menu.Item color="red" leftSection={<Trash2 />} onClick={() => handleDelete(menu!.item)}>
-            Move to Trash
+            {t('list.moveToTrash')}
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>

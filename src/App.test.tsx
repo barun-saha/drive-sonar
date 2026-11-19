@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import App from './App';
@@ -9,6 +9,8 @@ import { getVersion } from '@tauri-apps/api/app';
 import { listen } from '@tauri-apps/api/event';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { saveReportToTextFile } from './utils/exportReport';
+import { notifications } from '@mantine/notifications';
+import { applyLanguage } from './i18n';
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
@@ -477,7 +479,7 @@ describe('App', () => {
     fireEvent.click(screen.getByLabelText('Menu'));
     fireEvent.click(await screen.findByText('About Drive Sonar'));
 
-    expect(await screen.findByText(/Bundled fonts: Inter and JetBrains Mono/)).toBeInTheDocument();
+    expect(await screen.findByText(/Bundled fonts: Inter, JetBrains Mono and Noto Sans/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Third-party notices' })).toHaveAttribute(
       'href',
       'https://github.com/barun-saha/drive-sonar/blob/main/THIRD_PARTY_NOTICES.md'
@@ -762,5 +764,52 @@ describe('App', () => {
     });
 
     expect(await screen.findByText('2 warnings')).toBeInTheDocument();
+  });
+  describe('language', () => {
+    afterEach(async () => {
+      await applyLanguage('en');
+    });
+
+    // ArrowRight opens a Mantine sub-menu (hover goes through floating-ui, which jsdom cannot drive)
+    async function chooseLanguage(menuLabel: string, languageLabel: string, name: string) {
+      fireEvent.click(screen.getByLabelText(menuLabel));
+      fireEvent.keyDown(await screen.findByRole('menuitem', { name: languageLabel }), { key: 'ArrowRight' });
+      fireEvent.click(await screen.findByText(name));
+    }
+
+    it('switches the UI live, saves the choice and sets the document language', async () => {
+      renderApp();
+
+      await chooseLanguage('Menu', 'Language', 'বাংলা');
+
+      expect(await screen.findByRole('button', { name: 'স্ক্যান শুরু করুন' })).toBeInTheDocument();
+      expect(document.documentElement.lang).toBe('bn');
+      expect(JSON.parse(localStorage.getItem('drive-sonar-language')!)).toBe('bn');
+    });
+
+    it('lets the user go back to the system language', async () => {
+      localStorage.setItem('drive-sonar-language', JSON.stringify('de'));
+      await applyLanguage('de');
+      renderApp();
+      expect(await screen.findByRole('button', { name: 'Scan starten' })).toBeInTheDocument();
+
+      await chooseLanguage('Menü', 'Sprache', 'Systemstandard');
+
+      expect(JSON.parse(localStorage.getItem('drive-sonar-language')!)).toBe('system');
+    });
+
+    it('translates notifications raised after the language changed', async () => {
+      const show = vi.spyOn(notifications, 'show').mockReturnValue('id');
+      renderApp();
+      await chooseLanguage('Menu', 'Language', 'Español');
+      await screen.findByRole('button', { name: 'Iniciar escaneo' });
+
+      // The listener was registered before the switch, so it must read the current language when it fires
+      await waitFor(() => expect(scanWarningCallback).not.toBeNull());
+      act(() => scanWarningCallback!({ payload: 'Permission denied: /root' }));
+
+      expect(show).toHaveBeenCalledWith(expect.objectContaining({ title: 'Advertencia de escaneo' }));
+      show.mockRestore();
+    });
   });
 });

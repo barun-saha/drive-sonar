@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
 import { Group, Text } from '@mantine/core';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { DiskInfo, ScanProgress } from '../types';
 import { formatBytes } from '../utils/format';
+import { formatNumber } from '../i18n';
 
 interface StatusBarProps {
   isScanning: boolean;
@@ -18,6 +20,7 @@ interface StatusBarProps {
 export function StatusBar({
   isScanning, scanTime, totalItems, scanProgress, diskInfo, scanPath, rootScanBytes, warningCount
 }: StatusBarProps) {
+  const { t } = useTranslation();
 
   /** True when the scanned path is the root of a volume (C:\, C:/, /, etc.) */
   const isVolumeRoot = useMemo(() => {
@@ -60,9 +63,12 @@ export function StatusBar({
         <Text size="xs" c="dimmed" truncate="end" style={{ minWidth: 0 }}>
           {showScanTotals && (
             <>
-              <Text span fw={600} inherit>{scannedItems.toLocaleString()}</Text>{' '}
-              {scannedItems === 1 ? 'item' : 'items'} scanned in{' '}
-              <Text span fw={600} inherit>{elapsedSecs.toFixed(2)} s</Text>
+              <Trans
+                i18nKey="status.scanned"
+                count={scannedItems}
+                values={{ n: formatNumber(scannedItems), time: t('status.seconds', { value: elapsedSecs.toFixed(2) }) }}
+                components={{ b: <Text span fw={600} inherit /> }}
+              />
             </>
           )}
         </Text>
@@ -70,13 +76,16 @@ export function StatusBar({
         <Group gap="md" wrap="nowrap" style={{ minWidth: 0 }}>
           {systemAllocationBytes > 0 && (
             <Text size="xs" c="dimmed" truncate="end">
-              ~<Text span fw={600} inherit>{formatBytes(systemAllocationBytes)}</Text>{' '}
-              unaccounted (filesystem metadata / inaccessible regions)
+              <Trans
+                i18nKey="status.unaccounted"
+                values={{ size: formatBytes(systemAllocationBytes) }}
+                components={{ b: <Text span fw={600} inherit /> }}
+              />
             </Text>
           )}
           {warningCount > 0 && (
             <Text size="xs" c="var(--status-warning)" style={{ whiteSpace: 'nowrap' }}>
-              {warningCount.toLocaleString()} {warningCount === 1 ? 'warning' : 'warnings'}
+              {t('status.warnings', { count: warningCount, n: formatNumber(warningCount) })}
             </Text>
           )}
         </Group>

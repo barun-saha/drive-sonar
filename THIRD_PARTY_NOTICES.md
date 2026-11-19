@@ -2,13 +2,17 @@
 
 ## Bundled fonts
 
-Drive Sonar bundles the Latin subsets of the following fonts, installed from the
-`@fontsource-variable/inter` and `@fontsource-variable/jetbrains-mono` npm packages.
+Drive Sonar bundles the Latin subsets of Inter and JetBrains Mono, installed from the
+`@fontsource-variable/inter` and `@fontsource-variable/jetbrains-mono` npm packages. The Bengali and Devanagari
+fonts used for the Bengali and Hindi translations come from the `@fontsource-variable/noto-sans-bengali` and
+`@fontsource-variable/noto-sans-devanagari` packages and are loaded only when one of those languages is selected.
 
 - **Inter**: Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
 - **JetBrains Mono**: Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
+- **Noto Sans Bengali**: Copyright 2025 The Noto Project Authors (https://github.com/notofonts/bengali)
+- **Noto Sans Devanagari**: Copyright 2022 The Noto Project Authors (https://github.com/notofonts/devanagari)
 
-Both are licensed under the SIL Open Font License, Version 1.1, reproduced below.
+All are licensed under the SIL Open Font License, Version 1.1, reproduced below.
 
 ```
 -----------------------------------------------------------
