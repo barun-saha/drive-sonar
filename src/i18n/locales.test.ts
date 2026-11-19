@@ -45,6 +45,12 @@ describe('locale files', () => {
       }
     });
 
+    it('uses Latin digits only, since numbers stay Latin in every language', () => {
+      // Bengali (U+09E6-09EF) and Devanagari (U+0966-096F) digits, which number formatting cannot convert
+      const nonLatin = Object.entries(strings).filter(([, value]) => /[\u09E6-\u09EF\u0966-\u096F]/.test(value));
+      expect(nonLatin, path).toEqual([]);
+    });
+
     it('provides the "other" plural form for every counted string', () => {
       const counted = new Set(Object.keys(source).filter((key) => PLURAL_SUFFIX.test(key)).map(baseKey));
       for (const key of counted) expect(strings[`${key}_other`], `${path}: ${key}_other`).toBeTruthy();

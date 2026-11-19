@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { MantineProvider } from '@mantine/core';
 import { StatusBar } from './StatusBar';
+import { applyLanguage } from '../i18n';
 
 function renderWithMantine(ui: React.ReactNode) {
   return render(<MantineProvider>{ui}</MantineProvider>);
@@ -130,5 +131,23 @@ describe('StatusBar', () => {
       />
     );
     expect(document.body.textContent).not.toMatch(/unaccounted/);
+  });
+
+  describe('elapsed time in the active language', () => {
+    afterEach(async () => {
+      await applyLanguage('en');
+    });
+
+    it.each([
+      ['en', '1.25 s'],
+      ['de', '1,25 s'],
+      ['es', '1,25 s'],
+      ['bn', '1.25 সেকেন্ড'],
+      ['hi', '1.25 सेकंड'],
+    ] as const)('%s uses its own decimal separator and keeps Latin digits', async (language, expected) => {
+      await applyLanguage(language);
+      renderWithMantine(<StatusBar {...defaultProps} scanTime={1250} totalItems={10} />);
+      expect(screen.getByText(expected)).toBeInTheDocument();
+    });
   });
 });

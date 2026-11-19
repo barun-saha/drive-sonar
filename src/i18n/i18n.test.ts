@@ -60,6 +60,46 @@ describe('applyLanguage', () => {
   });
 });
 
+describe('overlapping language requests', () => {
+  // A fresh i18n instance per test, so no language is loaded yet and every request really has to wait
+  const fresh = async () => {
+    vi.resetModules();
+    return import('./index');
+  };
+
+  it('lets the newest request win when an older one finishes loading last', async () => {
+    const { applyLanguage: apply, default: instance } = await fresh();
+
+    const slow = apply('bn'); // has to load strings and a font
+    const newest = apply('en'); // nothing to load, so it would finish first
+
+    await expect(newest).resolves.toBe('en');
+    await expect(slow).resolves.toBeNull(); // superseded: it must not switch the UI back to Bengali
+    expect(instance.language).toBe('en');
+    expect(document.documentElement.lang).toBe('en');
+  });
+
+  it('applies requests that were not superseded', async () => {
+    const { applyLanguage: apply, default: instance } = await fresh();
+    await apply('de');
+    await expect(apply('es')).resolves.toBe('es');
+    expect(instance.language).toBe('es');
+    expect(document.documentElement.lang).toBe('es');
+  });
+
+  it('rejects, and leaves the UI as it was, when a language cannot be loaded', async () => {
+    const { applyLanguage: apply, default: instance } = await fresh();
+    await apply('de');
+    vi.spyOn(instance, 'addResourceBundle').mockImplementationOnce(() => {
+      throw new Error('chunk failed');
+    });
+
+    await expect(apply('bn')).rejects.toThrow('chunk failed');
+    expect(instance.language).toBe('de');
+    expect(document.documentElement.lang).toBe('de');
+  });
+});
+
 describe('plural forms', () => {
   it('picks singular and plural per language', async () => {
     expect(i18n.t('toolbar.fileCount', { count: 1, n: '1' })).toBe('1 file');
@@ -89,6 +129,7 @@ describe('decimal separators', () => {
     expect(formatPercent(0.04)).toBe('<0.1%');
 
     await applyLanguage('de');
+    expect(formatPercent(0.04)).toBe('<0,1%');
     expect(formatBytes(1.5 * 1024 ** 3)).toBe('1,50 GB');
     expect(formatPercent(39.84)).toBe('39,8%');
 

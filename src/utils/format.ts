@@ -29,6 +29,6 @@ export function formatBytes(bytes: number, useShortUnits: boolean = false): stri
  * Formats a percentage with one decimal place, showing "<0.1%" for tiny non-zero values.
  */
 export function formatPercent(value: number): string {
-  if (value > 0 && value < 0.1) return '<0.1%';
+  if (value > 0 && value < 0.1) return `<${formatDecimal(0.1, 1)}%`;
   return `${formatDecimal(value, 1)}%`;
 }

@@ -4,7 +4,7 @@ import { Trans, useTranslation } from 'react-i18next';
 
 import { DiskInfo, ScanProgress } from '../types';
 import { formatBytes } from '../utils/format';
-import { formatNumber } from '../i18n';
+import { formatDecimal, formatNumber } from '../i18n';
 
 interface StatusBarProps {
   isScanning: boolean;
@@ -66,7 +66,7 @@ export function StatusBar({
               <Trans
                 i18nKey="status.scanned"
                 count={scannedItems}
-                values={{ n: formatNumber(scannedItems), time: t('status.seconds', { value: elapsedSecs.toFixed(2) }) }}
+                values={{ n: formatNumber(scannedItems), time: t('status.seconds', { value: formatDecimal(elapsedSecs, 2) }) }}
                 components={{ b: <Text span fw={600} inherit /> }}
               />
             </>

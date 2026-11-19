@@ -12,7 +12,7 @@ import { DirectoryPayload, UiDiskNode } from '../types';
 import { formatBytes, formatPercent } from '../utils/format';
 import { categoryColor, categoryOfItem } from '../utils/fileCategory';
 import { PathNav } from '../components/PathNav';
-import { translateAroundSlot } from '../i18n';
+import i18n, { translateAroundSlot } from '../i18n';
 
 interface ItemListProps {
   payload: DirectoryPayload | null;
@@ -111,8 +111,8 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
       await invoke('open_in_explorer', { nodeId: item.id });
     } catch (error) {
       notifications.show({
-        title: t('notify.executionFailed'),
-        message: t('notify.openLocationFailed', { error: String(error) }),
+        title: i18n.t('notify.executionFailed'),
+        message: i18n.t('notify.openLocationFailed', { error: String(error) }),
         color: 'red'
       });
     }
@@ -126,8 +126,8 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
         onItemTrashed?.(item);
 
         notifications.show({
-          title: t('notify.success'),
-          message: t('notify.trashed', { name: item.name, size: formatBytes(item.size) }),
+          title: i18n.t('notify.success'),
+          message: i18n.t('notify.trashed', { name: item.name, size: formatBytes(item.size) }),
           color: 'green'
         });
 
@@ -140,8 +140,8 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
         }
       } catch (error) {
         notifications.show({
-          title: t('notify.deletionFailed'),
-          message: t('notify.trashFailed', { error: String(error) }),
+          title: i18n.t('notify.deletionFailed'),
+          message: i18n.t('notify.trashFailed', { error: String(error) }),
           color: 'red'
         });
       }

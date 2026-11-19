@@ -32,6 +32,11 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({
   open: vi.fn(),
 }));
 
+vi.mock('./i18n', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./i18n')>();
+  return { ...actual, applyLanguage: vi.fn(actual.applyLanguage) };
+});
+
 vi.mock('./utils/exportReport', () => ({
   saveReportToTextFile: vi.fn().mockResolvedValue(true),
 }));
@@ -795,7 +800,78 @@ describe('App', () => {
 
       await chooseLanguage('Menü', 'Sprache', 'Systemstandard');
 
-      expect(JSON.parse(localStorage.getItem('drive-sonar-language')!)).toBe('system');
+      await waitFor(() => expect(JSON.parse(localStorage.getItem('drive-sonar-language')!)).toBe('system'));
+    });
+
+    it('does not save a language that failed to load, and tells the user', async () => {
+      const show = vi.spyOn(notifications, 'show').mockReturnValue('id');
+      vi.mocked(applyLanguage).mockRejectedValueOnce(new Error('chunk failed'));
+      renderApp();
+
+      await chooseLanguage('Menu', 'Language', 'Español');
+
+      await waitFor(() =>
+        expect(show).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: 'Language Not Changed',
+            message: 'Could not load the selected language: Error: chunk failed',
+            color: 'red',
+          }),
+        ),
+      );
+      expect(localStorage.getItem('drive-sonar-language')).not.toBe('"es"'); // only the default was ever saved
+      expect(document.documentElement.lang).not.toBe('es');
+      expect(screen.getByRole('button', { name: 'Run Scan' })).toBeInTheDocument(); // still English
+      show.mockRestore();
+    });
+
+    it('does not save a selection that a newer one superseded', async () => {
+      vi.mocked(applyLanguage).mockResolvedValueOnce(null);
+      renderApp();
+
+      await chooseLanguage('Menu', 'Language', 'Español');
+      await waitFor(() => expect(applyLanguage).toHaveBeenCalledWith('es'));
+      await act(async () => {});
+
+      expect(localStorage.getItem('drive-sonar-language')).not.toBe('"es"');
+    });
+
+    it('shows the menu checkmark only for the language that is actually showing', async () => {
+      renderApp();
+      await chooseLanguage('Menu', 'Language', 'বাংলা');
+      await screen.findByRole('button', { name: 'স্ক্যান শুরু করুন' });
+
+      if (!screen.queryByText('ভাষা')) fireEvent.click(screen.getByLabelText('মেনু')); // the menu may still be open
+      fireEvent.keyDown((await screen.findByText('ভাষা')).closest('button')!, { key: 'ArrowRight' });
+      const checked = (name: string) => screen.getByText(name).closest('button')!.querySelector('svg') !== null;
+      await screen.findByText('English');
+      expect(checked('বাংলা')).toBe(true);
+      expect(checked('English')).toBe(false);
+      expect(checked('Deutsch')).toBe(false);
+    });
+
+    it('reports a scan failure in the language chosen while the scan was running', async () => {
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const show = vi.spyOn(notifications, 'show').mockReturnValue('id');
+      let failScan: (error: Error) => void = () => {};
+      vi.mocked(invoke).mockImplementation(async (cmd) => {
+        if (cmd === 'scan_directory') return new Promise((_, reject) => (failScan = reject));
+        return null;
+      });
+      renderApp();
+      await waitFor(() => expect(screen.getByPlaceholderText('Select a target directory to scan...')).toHaveValue('/Users/testuser'));
+      fireEvent.click(screen.getByRole('button', { name: 'Run Scan' }));
+      await waitFor(() => expect(invoke).toHaveBeenCalledWith('scan_directory', expect.anything()));
+
+      await chooseLanguage('Menu', 'Language', 'Español');
+      await waitFor(() => expect(document.documentElement.lang).toBe('es'));
+      await act(async () => failScan(new Error('disk gone')));
+
+      await waitFor(() =>
+        expect(show).toHaveBeenCalledWith(expect.objectContaining({ title: 'Error en el escaneo', message: 'Error: disk gone' })),
+      );
+      show.mockRestore();
+      consoleWarn.mockRestore();
     });
 
     it('translates notifications raised after the language changed', async () => {

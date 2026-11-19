@@ -11,7 +11,7 @@ import { ChartTooltip } from './ChartTooltip';
 import { CategoryLegend } from './CategoryLegend';
 import { useLogScale } from '../hooks/useLogScale';
 import { formatBytes } from '../utils/format';
-import i18n from '../i18n';
+import i18n, { formatNumber } from '../i18n';
 import {
   AGE_GROUPS, AGING_MAX_MONTHS, RECENT_MAX_MONTHS, ageGroupLabel, getAgeGroup, type AgeGroup,
 } from '../utils/ageGroup';
@@ -86,8 +86,8 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
       await invoke('open_in_explorer', { nodeId: fileId });
     } catch (error) {
       notifications.show({
-        title: t('notify.executionFailed'),
-        message: t('notify.openLocationFailed', { error: String(error) }),
+        title: i18n.t('notify.executionFailed'),
+        message: i18n.t('notify.openLocationFailed', { error: String(error) }),
         color: 'red',
       });
     }
@@ -273,7 +273,7 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
                       {t('charts.size', { size: formatBytes(data.rawBytes) })}
                     </Text>
                     <Text size="sm" fw={500} c="dimmed">
-                      {t('age.modified', { n: data.ageMonths })}
+                      {t('age.modified', { count: data.ageMonths, n: formatNumber(data.ageMonths, { maximumFractionDigits: 1, useGrouping: false }) })}
                     </Text>
                     {/* Issue #112: Show the file category in the tooltip */}
                     <Text size="sm" fw={500} c="dimmed">

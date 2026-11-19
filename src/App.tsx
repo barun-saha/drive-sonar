@@ -69,9 +69,18 @@ export default function App() {
     getInitialValueInEffect: false,
   });
 
-  const selectLanguage = (setting: LanguageSetting) => {
-    setLanguageSetting(setting);
-    void applyLanguage(setting);
+  // The choice is saved only once it is showing, so the menu's checkmark always matches the UI. A request that a
+  // newer selection superseded resolves to null and is ignored.
+  const selectLanguage = async (setting: LanguageSetting) => {
+    try {
+      if ((await applyLanguage(setting)) !== null) setLanguageSetting(setting);
+    } catch (error) {
+      notifications.show({
+        title: i18n.t('notify.languageFailed'),
+        message: i18n.t('notify.languageFailedMessage', { error: String(error) }),
+        color: 'red',
+      });
+    }
   };
 
   // Store the root scan statistics and top-level structure specifically for report export
@@ -179,8 +188,8 @@ export default function App() {
       }
     } catch (error) {
       notifications.show({
-        title: t('notify.error'),
-        message: t('notify.pickerFailed', { error: String(error) }),
+        title: i18n.t('notify.error'),
+        message: i18n.t('notify.pickerFailed', { error: String(error) }),
         color: 'red',
       });
     }
@@ -259,7 +268,7 @@ export default function App() {
     } catch (error) {
       if (activeScanGenerationRef.current === scanGeneration && scanGenerationRef.current === scanGeneration) {
         notifications.show({
-          title: t('notify.scanFailed'),
+          title: i18n.t('notify.scanFailed'),
           message: String(error),
           color: 'red',
         });
@@ -280,7 +289,7 @@ export default function App() {
       setPayload(res);
     } catch (error) {
       notifications.show({
-        title: t('notify.navigationFailed'),
+        title: i18n.t('notify.navigationFailed'),
         message: String(error),
         color: 'red',
       });
@@ -349,8 +358,8 @@ export default function App() {
 
     if (saved) {
       notifications.show({
-        title: t('notify.reportSavedTitle'),
-        message: t('notify.reportSavedMessage'),
+        title: i18n.t('notify.reportSavedTitle'),
+        message: i18n.t('notify.reportSavedMessage'),
         color: 'green',
       });
     }

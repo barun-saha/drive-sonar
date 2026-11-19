@@ -17,8 +17,16 @@ i18n.use(initReactI18next).init({
   react: { useSuspense: false },
 });
 
-/** Loads the language's strings and font if needed, then switches the UI and `<html lang>` (CSS keys off it). */
-export async function applyLanguage(setting: LanguageSetting): Promise<LanguageCode> {
+let latestRequest = 0;
+
+/**
+ * Loads the language's strings and font if needed, then switches the UI and `<html lang>` (CSS keys off it).
+ * Resolves to the language now showing, or `null` when a newer request arrived while this one was loading: the newest
+ * selection always wins, so a slow load can never switch the UI back after the user has picked something else.
+ * Rejects if the language cannot be loaded; the UI is then left unchanged.
+ */
+export async function applyLanguage(setting: LanguageSetting): Promise<LanguageCode | null> {
+  const request = ++latestRequest;
   const code = resolveLanguage(setting);
 
   if (code !== DEFAULT_LANGUAGE) {
@@ -29,6 +37,8 @@ export async function applyLanguage(setting: LanguageSetting): Promise<LanguageC
     // A missing font file only means falling back to system fonts, so it must not block the switch
     await fontLoaders[`./fonts/${code}.css`]?.().catch(() => undefined);
   }
+
+  if (request !== latestRequest) return null;
 
   await i18n.changeLanguage(code);
   document.documentElement.lang = code;
