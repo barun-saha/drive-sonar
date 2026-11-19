@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import i18n, { applyLanguage, formatNumber, translateAroundSlot } from './index';
-import { formatBytes } from '../utils/format';
+import i18n, { applyLanguage, formatDecimal, formatNumber, translateAroundSlot } from './index';
+import { formatBytes, formatPercent } from '../utils/format';
 import { ageGroupLabel } from '../utils/ageGroup';
 
 afterEach(async () => {
@@ -79,6 +79,35 @@ describe('formatNumber', () => {
     expect(formatNumber(1374220)).toBe('1.374.220');
     await applyLanguage('bn');
     expect(formatNumber(1374220)).toBe('13,74,220');
+  });
+});
+
+describe('decimal separators', () => {
+  it('uses the language\'s separator for sizes and percentages, with Latin digits and no grouping', async () => {
+    expect(formatBytes(1.5 * 1024 ** 3)).toBe('1.50 GB');
+    expect(formatPercent(39.84)).toBe('39.8%');
+    expect(formatPercent(0.04)).toBe('<0.1%');
+
+    await applyLanguage('de');
+    expect(formatBytes(1.5 * 1024 ** 3)).toBe('1,50 GB');
+    expect(formatPercent(39.84)).toBe('39,8%');
+
+    await applyLanguage('es');
+    expect(formatBytes(96 * 1024 ** 3)).toBe('96,00 GB');
+
+    await applyLanguage('bn');
+    expect(formatBytes(1.5 * 1024 ** 3)).toBe('1.50 GB');
+    await applyLanguage('hi');
+    expect(formatPercent(18.8)).toBe('18.8%');
+  });
+
+  it('does not group digits, so a size below 1024 never gains a separator', () => {
+    expect(formatDecimal(1023.99, 2)).toBe('1023.99');
+  });
+
+  it('rounds to the requested number of decimals', () => {
+    expect(formatDecimal(2, 1)).toBe('2.0');
+    expect(formatDecimal(0.126, 2)).toBe('0.13');
   });
 });
 

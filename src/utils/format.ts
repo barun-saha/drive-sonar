@@ -1,4 +1,4 @@
-import i18n from '../i18n';
+import i18n, { formatDecimal } from '../i18n';
 
 /**
  * Formats a byte number into a human-readable string (e.g., 1024 -> "1.00 KB").
@@ -20,7 +20,7 @@ export function formatBytes(bytes: number, useShortUnits: boolean = false): stri
 
   const formattedValue = i === 0
     ? bytes.toString()
-    : (bytes / Math.pow(1024, i)).toFixed(2);
+    : formatDecimal(bytes / Math.pow(1024, i), 2);
 
   return `${formattedValue} ${sizes[i]}`;
 }
@@ -30,5 +30,5 @@ export function formatBytes(bytes: number, useShortUnits: boolean = false): stri
  */
 export function formatPercent(value: number): string {
   if (value > 0 && value < 0.1) return '<0.1%';
-  return `${value.toFixed(1)}%`;
+  return `${formatDecimal(value, 1)}%`;
 }

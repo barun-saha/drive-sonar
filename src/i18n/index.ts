@@ -40,6 +40,11 @@ export function formatNumber(value: number, options?: Intl.NumberFormatOptions):
   return value.toLocaleString(`${i18n.language}-u-nu-latn`, options);
 }
 
+/** A fixed number of decimals in the active language's separator (1.5 -> "1,50" in German), never grouped. */
+export function formatDecimal(value: number, fractionDigits: number): string {
+  return formatNumber(value, { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits, useGrouping: false });
+}
+
 /**
  * Splits a translated sentence around a slot, so a value that must not be parsed (a file name) can be rendered as its
  * own element. Translators keep the placeholder wherever the word order needs it.

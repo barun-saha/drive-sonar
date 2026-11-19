@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { DiskInfo, ScanProgress, TrashedTotals } from '../types';
 import { formatBytes } from '../utils/format';
-import { formatNumber } from '../i18n';
+import { formatDecimal, formatNumber } from '../i18n';
 
 interface ToolbarProps {
   targetPath: string;
@@ -120,7 +120,7 @@ export function Toolbar({
                   <Progress value={100 - freePercent} color={diskBarColor} size="sm" my={4} />
                 </Tooltip>
                 <Text size="xs" c="dimmed">
-                  {t('toolbar.diskSummary', { total: formatBytes(diskInfo.total_bytes), percent: freePercent.toFixed(1) })}
+                  {t('toolbar.diskSummary', { total: formatBytes(diskInfo.total_bytes), percent: formatDecimal(freePercent, 1) })}
                 </Text>
               </Paper>
             )}
