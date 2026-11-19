@@ -814,7 +814,7 @@ describe('App', () => {
         expect(show).toHaveBeenCalledWith(
           expect.objectContaining({
             title: 'Language Not Changed',
-            message: 'Could not load the selected language: Error: chunk failed',
+            message: 'Could not load the selected language. The previous language is still in use.',
             color: 'red',
           }),
         ),

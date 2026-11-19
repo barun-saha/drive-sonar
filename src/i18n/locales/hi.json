@@ -78,7 +78,7 @@
     "executionFailed": "कार्य पूरा नहीं हो सका",
     "openLocationFailed": "फ़ाइल का स्थान नहीं खोला जा सका: {{error}}",
     "languageFailed": "भाषा नहीं बदली गई",
-    "languageFailedMessage": "चुनी गई भाषा लोड नहीं हो सकी: {{error}}",
+    "languageFailedMessage": "चुनी गई भाषा लोड नहीं हो सकी। पिछली भाषा ही उपयोग में है।",
     "success": "सफल",
     "trashed": "\"{{name}}\" ({{size}}) सफलतापूर्वक ट्रैश में भेज दिया गया।",
     "deletionFailed": "हटाना विफल रहा",

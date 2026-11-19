@@ -78,7 +78,7 @@
     "executionFailed": "কাজটি সম্পন্ন হয়নি",
     "openLocationFailed": "ফাইলের অবস্থান খোলা যায়নি: {{error}}",
     "languageFailed": "ভাষা পরিবর্তন হয়নি",
-    "languageFailedMessage": "নির্বাচিত ভাষা লোড করা যায়নি: {{error}}",
+    "languageFailedMessage": "নির্বাচিত ভাষা লোড করা যায়নি। আগের ভাষাই ব্যবহৃত হচ্ছে।",
     "success": "সফল",
     "trashed": "\"{{name}}\" ({{size}}) সফলভাবে ট্র্যাশে সরানো হয়েছে।",
     "deletionFailed": "মুছে ফেলা ব্যর্থ হয়েছে",

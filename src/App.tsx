@@ -74,10 +74,10 @@ export default function App() {
   const selectLanguage = async (setting: LanguageSetting) => {
     try {
       if ((await applyLanguage(setting)) !== null) setLanguageSetting(setting);
-    } catch (error) {
+    } catch {
       notifications.show({
         title: i18n.t('notify.languageFailed'),
-        message: i18n.t('notify.languageFailedMessage', { error: String(error) }),
+        message: i18n.t('notify.languageFailedMessage'),
         color: 'red',
       });
     }

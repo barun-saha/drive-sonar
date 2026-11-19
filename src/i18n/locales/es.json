@@ -84,7 +84,7 @@
     "executionFailed": "Error al ejecutar",
     "openLocationFailed": "No se pudo abrir la ubicación del archivo: {{error}}",
     "languageFailed": "No se cambió el idioma",
-    "languageFailedMessage": "No se pudo cargar el idioma seleccionado: {{error}}",
+    "languageFailedMessage": "No se pudo cargar el idioma seleccionado. Se sigue usando el idioma anterior.",
     "success": "Correcto",
     "trashed": "\"{{name}}\" ({{size}}) se movió correctamente a la Papelera.",
     "deletionFailed": "Error al eliminar",

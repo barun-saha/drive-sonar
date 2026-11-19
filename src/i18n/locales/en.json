@@ -78,7 +78,7 @@
     "executionFailed": "Execution Failed",
     "openLocationFailed": "Could not open file location: {{error}}",
     "languageFailed": "Language Not Changed",
-    "languageFailedMessage": "Could not load the selected language: {{error}}",
+    "languageFailedMessage": "Could not load the selected language. The previous language is still in use.",
     "success": "Success",
     "trashed": "\"{{name}}\" ({{size}}) was successfully moved to Trash.",
     "deletionFailed": "Deletion Failed",

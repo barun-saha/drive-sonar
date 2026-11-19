@@ -78,7 +78,7 @@
     "executionFailed": "Ausführung fehlgeschlagen",
     "openLocationFailed": "Der Speicherort der Datei konnte nicht geöffnet werden: {{error}}",
     "languageFailed": "Sprache nicht geändert",
-    "languageFailedMessage": "Die gewählte Sprache konnte nicht geladen werden: {{error}}",
+    "languageFailedMessage": "Die gewählte Sprache konnte nicht geladen werden. Die bisherige Sprache bleibt aktiv.",
     "success": "Erfolg",
     "trashed": "„{{name}}“ ({{size}}) wurde erfolgreich in den Papierkorb verschoben.",
     "deletionFailed": "Löschen fehlgeschlagen",
