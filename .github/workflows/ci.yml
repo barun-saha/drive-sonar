@@ -39,6 +39,12 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
       # Runs vitest once with coverage. The 90% thresholds in vitest.config.ts
       # are enforced here, so this step also fails the job if they are missed.
       - name: Unit tests with coverage
