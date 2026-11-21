@@ -163,6 +163,8 @@ fn is_dot_or_dotdot(name_bytes: &[u8]) -> bool {
 }
 
 /// Parses raw directory header bytes from the NT system call into structured `DirEntry` items.
+// `chunks_exact(2)` is deliberate in this hot path; `as_chunks` needs a newer Rust.
+#[allow(clippy::chunks_exact_to_as_chunks)]
 fn parse_entries(buf: &[u8], out: &mut Vec<DirEntry>) -> io::Result<()> {
     const HEADER_SIZE: usize = std::mem::size_of::<FileIdFullDirectoryInformationRaw>();
     let mut offset = 0usize;

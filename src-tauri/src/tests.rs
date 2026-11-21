@@ -1103,7 +1103,7 @@ fn test_reparse_point_not_recursed() {
         let link_str = link_path.to_str().unwrap();
         let target_str = sub.to_str().unwrap();
         let status = std::process::Command::new("cmd")
-            .args(&["/C", "mklink", "/J", link_str, target_str])
+            .args(["/C", "mklink", "/J", link_str, target_str])
             .output();
         if let Ok(output) = status {
             if output.status.success() {
