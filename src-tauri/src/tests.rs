@@ -1166,3 +1166,280 @@ fn test_reparse_point_not_recursed() {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Additional coverage: tree edge cases, directory listing, and command guards
+// ---------------------------------------------------------------------------
+
+fn cov_node(
+    name: &str,
+    size: u64,
+    is_dir: bool,
+    parent_id: u32,
+    first_child: u32,
+    next_sibling: u32,
+) -> DiskNode {
+    DiskNode {
+        name: name.into(),
+        size,
+        is_dir,
+        modified_secs: 0,
+        parent_id,
+        first_child,
+        next_sibling,
+        is_tombstoned: false,
+    }
+}
+
+/// Builds a mock Tauri app that manages an `AppState` whose arena holds `nodes`.
+fn cov_app_with_nodes(nodes: Vec<DiskNode>) -> tauri::App<tauri::test::MockRuntime> {
+    use tauri::Manager;
+    let app = tauri::test::mock_app();
+    app.manage(AppState::default());
+    app.state::<AppState>().arena.write().unwrap().nodes = nodes;
+    app
+}
+
+#[test]
+fn test_remove_node_from_tree_non_first_sibling() {
+    // root(0) -> a(1) -> b(2) -> c(3)
+    let mut arena = ArenaTree {
+        generation: 1,
+        nodes: vec![
+            cov_node("root", 60, true, u32::MAX, 1, u32::MAX),
+            cov_node("a", 10, false, 0, u32::MAX, 2),
+            cov_node("b", 20, false, 0, u32::MAX, 3),
+            cov_node("c", 30, false, 0, u32::MAX, u32::MAX),
+        ],
+    };
+
+    // Remove the middle sibling: the chain head is untouched and `a` links straight to `c`.
+    remove_node_from_tree(2, 1, Path::new("root/b"), &mut arena).unwrap();
+    assert_eq!(arena.nodes[0].first_child, 1);
+    assert_eq!(arena.nodes[1].next_sibling, 3);
+    assert!(arena.nodes[2].is_tombstoned);
+    assert_eq!(arena.nodes[0].size, 40);
+
+    // Remove the tail sibling.
+    remove_node_from_tree(3, 1, Path::new("root/c"), &mut arena).unwrap();
+    assert_eq!(arena.nodes[1].next_sibling, u32::MAX);
+    assert!(arena.nodes[3].is_tombstoned);
+    assert_eq!(arena.nodes[0].size, 10);
+}
+
+#[test]
+fn test_remove_node_from_tree_root_tombstones_whole_subtree() {
+    // root(0) -> dir(1) -> file(2); the root has no parent to unlink from.
+    let mut arena = ArenaTree {
+        generation: 1,
+        nodes: vec![
+            cov_node("root", 30, true, u32::MAX, 1, u32::MAX),
+            cov_node("dir", 30, true, 0, 2, u32::MAX),
+            cov_node("file", 30, false, 1, u32::MAX, u32::MAX),
+        ],
+    };
+
+    remove_node_from_tree(0, 1, Path::new("root"), &mut arena).unwrap();
+    assert!(arena.nodes.iter().all(|n| n.is_tombstoned));
+}
+
+#[test]
+fn test_aggregate_subtree_stats_empty_dir_and_full_heap() {
+    // root(0) -> empty dir(1) -> 32 files with strictly decreasing sizes (1000, 999, ...).
+    let mut nodes = vec![
+        cov_node("root", 0, true, u32::MAX, 1, u32::MAX),
+        cov_node("empty", 0, true, 0, u32::MAX, 2),
+    ];
+    for i in 0..32u32 {
+        let id = 2 + i;
+        let next = if i == 31 { u32::MAX } else { id + 1 };
+        nodes.push(cov_node(
+            &format!("f{i}.dat"),
+            1000 - u64::from(i),
+            false,
+            0,
+            u32::MAX,
+            next,
+        ));
+    }
+
+    let (ext_stats, top_files) = aggregate_subtree_stats(&nodes, 0);
+
+    // Only the 30 largest files are kept; the two smallest (969, 970) never displace anything.
+    assert_eq!(top_files.len(), 30);
+    assert!(top_files.iter().all(|t| t.size >= 971));
+    assert_eq!(ext_stats.len(), 1);
+    assert_eq!(ext_stats[0].extension, ".dat");
+    assert_eq!(ext_stats[0].file_count, 32);
+}
+
+#[test]
+fn test_build_directory_payload_zero_size_and_tombstoned_children() {
+    // root(0, size 0) -> a(1, size 0) -> removed(2, tombstoned)
+    let mut removed = cov_node("removed.txt", 0, false, 0, u32::MAX, u32::MAX);
+    removed.is_tombstoned = true;
+    let nodes = vec![
+        cov_node("root", 0, true, u32::MAX, 1, u32::MAX),
+        cov_node("a.txt", 0, false, 0, u32::MAX, 2),
+        removed,
+    ];
+
+    let payload = build_directory_payload(&nodes, 0).unwrap();
+    // The tombstoned child is skipped, and a zero-size parent reports 0% instead of dividing.
+    assert_eq!(payload.items.len(), 1);
+    assert_eq!(payload.items[0].name, "a.txt");
+    assert_eq!(payload.items[0].percentage_of_parent, 0.0);
+}
+
+#[test]
+fn test_default_list_directory_entries() {
+    let temp = tempdir().unwrap();
+    fs::write(temp.path().join("a.txt"), b"hello").unwrap();
+    fs::create_dir(temp.path().join("sub")).unwrap();
+
+    let mut entries = crate::scanner::default::list_directory(temp.path()).unwrap();
+    entries.sort_by(|a, b| a.name.cmp(&b.name));
+
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].name, "a.txt");
+    assert_eq!(entries[0].size, 5);
+    assert!(!entries[0].is_dir);
+    assert!(!entries[0].is_reparse_point);
+    assert_eq!(entries[1].name, "sub");
+    assert!(entries[1].is_dir);
+    assert_eq!(entries[1].size, 0);
+    #[cfg(unix)]
+    assert_ne!(entries[0].file_id, 0);
+
+    assert!(crate::scanner::default::list_directory(&temp.path().join("missing")).is_err());
+}
+
+#[cfg(unix)]
+#[test]
+fn test_default_list_directory_does_not_follow_symlinks() {
+    let temp = tempdir().unwrap();
+    let target = temp.path().join("target.txt");
+    fs::write(&target, b"12345678").unwrap();
+    std::os::unix::fs::symlink(&target, temp.path().join("link.txt")).unwrap();
+
+    let entries = crate::scanner::default::list_directory(temp.path()).unwrap();
+    let link = entries.iter().find(|e| e.name == "link.txt").unwrap();
+    assert!(link.is_reparse_point);
+    assert!(!link.is_dir);
+    assert_eq!(link.size, 0);
+}
+
+#[test]
+fn test_get_directory_entries_pre_epoch_mtime_reads_as_zero() {
+    let temp = tempdir().unwrap();
+    let path = temp.path().join("old.txt");
+    let file = File::create(&path).unwrap();
+    let ten_years = std::time::Duration::from_secs(10 * 365 * 24 * 3600);
+    file.set_modified(std::time::UNIX_EPOCH - ten_years)
+        .unwrap();
+    drop(file);
+
+    let entries = get_directory_entries(temp.path()).unwrap();
+    let entry = entries.iter().find(|e| e.name == "old.txt").unwrap();
+    assert_eq!(entry.modified_secs, 0);
+}
+
+#[test]
+fn test_get_directory_entries_on_a_file_does_not_list_anything() {
+    let temp = tempdir().unwrap();
+    let path = temp.path().join("plain.txt");
+    fs::write(&path, b"x").unwrap();
+
+    let result = get_directory_entries(&path);
+    // A file is not a directory: expect an error (or, at worst, an empty listing).
+    assert!(result.is_err() || result.unwrap().is_empty());
+}
+
+#[test]
+fn test_cancel_scan_command_sets_the_active_flag() {
+    use tauri::Manager;
+    let app = tauri::test::mock_app();
+    app.manage(AppState::default());
+
+    let flag = app.state::<AppState>().cancel_flag.lock().unwrap().clone();
+    assert!(!flag.load(AtomicOrdering::Relaxed));
+
+    crate::commands::scan::cancel_scan(app.state::<AppState>());
+    assert!(flag.load(AtomicOrdering::Relaxed));
+}
+
+#[test]
+fn test_open_directory_command() {
+    use tauri::Manager;
+    let app = cov_app_with_nodes(vec![
+        cov_node("root", 30, true, u32::MAX, 1, u32::MAX),
+        cov_node("a.txt", 30, false, 0, u32::MAX, u32::MAX),
+    ]);
+
+    let payload = tauri::async_runtime::block_on(crate::commands::scan::open_directory(
+        0,
+        app.state::<AppState>(),
+    ))
+    .unwrap();
+    assert_eq!(payload.current_id, 0);
+    assert_eq!(payload.items.len(), 1);
+    assert_eq!(payload.items[0].name, "a.txt");
+
+    let missing = tauri::async_runtime::block_on(crate::commands::scan::open_directory(
+        99,
+        app.state::<AppState>(),
+    ));
+    assert!(missing.is_err());
+}
+
+#[test]
+fn test_open_in_explorer_rejects_invalid_and_removed_nodes() {
+    use tauri::Manager;
+    let mut removed = cov_node("gone.txt", 1, false, 0, u32::MAX, u32::MAX);
+    removed.is_tombstoned = true;
+    let app = cov_app_with_nodes(vec![
+        cov_node("root", 1, true, u32::MAX, 1, u32::MAX),
+        removed,
+    ]);
+
+    let invalid = crate::commands::file_ops::open_in_explorer(99, app.state::<AppState>());
+    assert_eq!(invalid.unwrap_err(), "Invalid ID");
+
+    let tombstoned = crate::commands::file_ops::open_in_explorer(1, app.state::<AppState>());
+    assert_eq!(tombstoned.unwrap_err(), "Node has been removed");
+}
+
+#[test]
+fn test_move_to_trash_rejects_invalid_removed_and_protected_nodes() {
+    use tauri::Manager;
+    // The root node is a filesystem root, which is always protected. None of these
+    // cases may reach the real trash call.
+    let root_name = if cfg!(windows) { "C:\\" } else { "/" };
+    let mut removed = cov_node("gone.txt", 1, false, 0, u32::MAX, u32::MAX);
+    removed.is_tombstoned = true;
+    let app = cov_app_with_nodes(vec![
+        cov_node(root_name, 1, true, u32::MAX, 1, u32::MAX),
+        removed,
+    ]);
+
+    let invalid = tauri::async_runtime::block_on(crate::commands::file_ops::move_to_trash(
+        99,
+        app.state::<AppState>(),
+    ));
+    assert_eq!(invalid.unwrap_err(), "Invalid ID");
+
+    let tombstoned = tauri::async_runtime::block_on(crate::commands::file_ops::move_to_trash(
+        1,
+        app.state::<AppState>(),
+    ));
+    assert_eq!(tombstoned.unwrap_err(), "Node has been removed");
+
+    let protected = tauri::async_runtime::block_on(crate::commands::file_ops::move_to_trash(
+        0,
+        app.state::<AppState>(),
+    ));
+    assert!(protected
+        .unwrap_err()
+        .starts_with("Refusing to delete protected path"));
+    assert!(!app.state::<AppState>().arena.read().unwrap().nodes[0].is_tombstoned);
+}

@@ -50,3 +50,5 @@ libc = "0.2"
 
 [dev-dependencies]
 tempfile = "3"
+# Mock runtime (`tauri::test`) to build `State` for command tests; not used in release builds.
+tauri = { version = "2", features = ["test"] }
