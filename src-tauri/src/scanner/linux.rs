@@ -1,8 +1,8 @@
 //! Linux-specific directory scanner implementation and extension points.
 
+use crate::models::DirEntry;
 use std::io;
 use std::path::Path;
-use crate::models::DirEntry;
 
 /// Specialized Linux directory scanner.
 ///

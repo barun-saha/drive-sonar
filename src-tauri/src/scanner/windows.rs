@@ -201,8 +201,7 @@ fn parse_entries(buf: &[u8], out: &mut Vec<DirEntry>) -> io::Result<()> {
 
             let tw = header.last_write_time as u64;
             let is_dir = header.file_attributes & FILE_ATTRIBUTE_DIRECTORY.0 != 0;
-            let is_reparse_point =
-                header.file_attributes & FILE_ATTRIBUTE_REPARSE_POINT.0 != 0;
+            let is_reparse_point = header.file_attributes & FILE_ATTRIBUTE_REPARSE_POINT.0 != 0;
             let size = if is_dir || is_reparse_point {
                 0
             } else {

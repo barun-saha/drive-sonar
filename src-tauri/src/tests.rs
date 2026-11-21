@@ -893,7 +893,10 @@ fn test_hardlink_deduplication() {
 
     // Create a hard link
     if let Err(e) = fs::hard_link(&file1, &file2) {
-        eprintln!("Skipping hard link test: filesystem does not support hard links ({})", e);
+        eprintln!(
+            "Skipping hard link test: filesystem does not support hard links ({})",
+            e
+        );
         return;
     }
 
@@ -1139,9 +1142,16 @@ fn test_reparse_point_not_recursed() {
 
                 let arena = shared_arena.into_inner().unwrap();
                 let junction_node = arena.iter().find(|n| n.name.as_ref() == "junction_link");
-                assert!(junction_node.is_some(), "Junction must be instantiated in the tree");
+                assert!(
+                    junction_node.is_some(),
+                    "Junction must be instantiated in the tree"
+                );
                 let j_node = junction_node.unwrap();
-                assert_eq!(j_node.first_child, u32::MAX, "Junction must NOT have children (not traversed)");
+                assert_eq!(
+                    j_node.first_child,
+                    u32::MAX,
+                    "Junction must NOT have children (not traversed)"
+                );
 
                 // file_count should only count inner.bin ONCE (from junction_target), NOT twice!
                 assert_eq!(file_count.load(AtomicOrdering::Relaxed), 1);

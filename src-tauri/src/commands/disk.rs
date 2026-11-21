@@ -1,7 +1,7 @@
 //! Disk capacity and storage volume querying commands.
 
-use std::path::Path;
 use crate::models::DiskInfo;
+use std::path::Path;
 
 #[cfg(windows)]
 use windows::core::PCWSTR;
