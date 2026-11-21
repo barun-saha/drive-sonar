@@ -1,7 +1,7 @@
 //! Disk capacity and storage volume querying commands.
 
-use std::path::Path;
 use crate::models::DiskInfo;
+use std::path::Path;
 
 #[cfg(windows)]
 use windows::core::PCWSTR;
@@ -9,6 +9,9 @@ use windows::core::PCWSTR;
 use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 
 /// Tauri command to query total and free byte capacity for the drive containing a path.
+// The `as u64` casts on statvfs fields are no-ops on 64-bit Linux but required on
+// other Unix targets (e.g. macOS, where these fields are u32).
+#[allow(clippy::unnecessary_cast)]
 #[tauri::command]
 pub fn get_disk_info(path: String) -> Result<DiskInfo, String> {
     let p = Path::new(&path);

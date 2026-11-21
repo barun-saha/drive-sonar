@@ -709,11 +709,18 @@ fn test_scan_dir_parallel_edge_cases() {
 
     #[cfg(unix)]
     {
+        // Node names are stored as UTF-8 strings (the scanner uses
+        // `to_string_lossy`), so a non-UTF-8 file name is recorded with
+        // U+FFFD in place of the invalid bytes. The raw path cannot be
+        // reconstructed from the tree; assert the lossy form instead.
+        let lossy_name = non_utf_path.file_name().unwrap().to_string_lossy();
+        assert!(lossy_name.contains('\u{FFFD}'));
+        let expected_path = root_path.join(lossy_name.as_ref());
         let arena = shared_arena.lock().unwrap();
         assert!(arena
             .iter()
             .enumerate()
-            .any(|(id, _)| get_node_path(id as u32, &arena) == non_utf_path));
+            .any(|(id, _)| get_node_path(id as u32, &arena) == expected_path));
     }
 
     // 3. Non-existent path causes skipped_count increment
@@ -893,7 +900,10 @@ fn test_hardlink_deduplication() {
 
     // Create a hard link
     if let Err(e) = fs::hard_link(&file1, &file2) {
-        eprintln!("Skipping hard link test: filesystem does not support hard links ({})", e);
+        eprintln!(
+            "Skipping hard link test: filesystem does not support hard links ({})",
+            e
+        );
         return;
     }
 
@@ -1093,7 +1103,7 @@ fn test_reparse_point_not_recursed() {
         let link_str = link_path.to_str().unwrap();
         let target_str = sub.to_str().unwrap();
         let status = std::process::Command::new("cmd")
-            .args(&["/C", "mklink", "/J", link_str, target_str])
+            .args(["/C", "mklink", "/J", link_str, target_str])
             .output();
         if let Ok(output) = status {
             if output.status.success() {
@@ -1139,9 +1149,16 @@ fn test_reparse_point_not_recursed() {
 
                 let arena = shared_arena.into_inner().unwrap();
                 let junction_node = arena.iter().find(|n| n.name.as_ref() == "junction_link");
-                assert!(junction_node.is_some(), "Junction must be instantiated in the tree");
+                assert!(
+                    junction_node.is_some(),
+                    "Junction must be instantiated in the tree"
+                );
                 let j_node = junction_node.unwrap();
-                assert_eq!(j_node.first_child, u32::MAX, "Junction must NOT have children (not traversed)");
+                assert_eq!(
+                    j_node.first_child,
+                    u32::MAX,
+                    "Junction must NOT have children (not traversed)"
+                );
 
                 // file_count should only count inner.bin ONCE (from junction_target), NOT twice!
                 assert_eq!(file_count.load(AtomicOrdering::Relaxed), 1);

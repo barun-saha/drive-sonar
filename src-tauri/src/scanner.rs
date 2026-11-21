@@ -69,7 +69,7 @@ pub fn get_dev(path: &Path) -> u64 {
 /// appended to `hardlink_ids`. After the scan completes, the caller must call
 /// `HardlinkIds::resolve` on the final arena (before `aggregate_node`) and subtract the
 /// returned bytes from `total_file_bytes`, which counts every link while the scan runs.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::only_used_in_recursion)]
 pub fn scan_dir_parallel(
     dir_path: &Path,
     parent_id: u32,

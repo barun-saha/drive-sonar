@@ -27,6 +27,9 @@ pub async fn scan_directory(
         guard.store(true, AtomicOrdering::Relaxed);
         let new_flag = Arc::new(AtomicBool::new(false));
         *guard = new_flag.clone();
+        // `fetch_update` is deprecated in favor of `try_update` on newer toolchains;
+        // the old name works everywhere, so keep it until the minimum Rust version allows.
+        #[allow(deprecated)]
         let previous_generation = state
             .scan_generation
             .fetch_update(

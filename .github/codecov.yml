@@ -1,0 +1,41 @@
+codecov:
+  require_ci_to_pass: false
+  notify:
+    # Three uploads per commit: frontend, rust-Windows, rust-Linux. Wait for
+    # all of them so the patch/project status is not computed on partial data.
+    after_n_builds: 3
+
+coverage:
+  precision: 2
+  round: down
+  range: '70...95'
+  status:
+    # Patch coverage: lines changed in a PR must be at least 80% covered.
+    # Add the "codecov/patch" check to your ruleset to make it blocking.
+    patch:
+      default:
+        target: 80%
+    # Project coverage must not drop by more than 1% versus the base commit.
+    project:
+      default:
+        target: auto
+        threshold: 1%
+
+flags:
+  frontend:
+    paths:
+      - src/
+  rust:
+    paths:
+      - src-tauri/src/
+
+comment:
+  layout: 'condensed_header, diff, flags, files'
+  require_changes: true
+
+ignore:
+  - '**/*.test.ts'
+  - '**/*.test.tsx'
+  - 'src/setupTests.ts'
+  - 'src/main.tsx'
+  - 'src-tauri/build.rs'
