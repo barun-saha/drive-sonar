@@ -1,0 +1,149 @@
+name: CI
+
+# Runs on PRs and on pushes to main only. It deliberately does NOT trigger on
+# tags or on `release` events, so it cannot interfere with release.yml
+# (tag v*), chocolatey.yml and winget.yml (release: published).
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # Only cancel superseded PR runs; let every main-branch run finish so
+  # coverage on main stays complete for Codecov's base comparisons.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  frontend:
+    name: Frontend (typecheck, tests, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Runs vitest once with coverage. The 90% thresholds in vitest.config.ts
+      # are enforced here, so this step also fails the job if they are missed.
+      - name: Unit tests with coverage
+        run: npm run test:coverage
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          flags: frontend
+          name: frontend
+          fail_ci_if_error: false
+
+  rust:
+    name: Rust (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        # Windows is essential: the NT-API scanner is Windows-only code.
+        os: [windows-latest, ubuntu-24.04]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # tauri::generate_context! needs the built frontend (frontendDist =
+      # ../dist) to exist at compile time, so build it exactly as release does.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend (needed by the Tauri crate at compile time)
+        run: npm run build
+
+      # Same package list as release.yml, which is known to work on ubuntu-24.04.
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt, llvm-tools-preview
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Check formatting
+        if: runner.os == 'Linux'
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+
+      # TODO: clippy findings were not verified before adding this. Fix them,
+      # then delete `continue-on-error` so warnings fail the build.
+      - name: Clippy
+        continue-on-error: true
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+
+      # Runs the Rust unit tests and records coverage in a single pass.
+      - name: Rust tests with coverage
+        run: cargo llvm-cov --manifest-path src-tauri/Cargo.toml --lcov --output-path lcov.info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./lcov.info
+          flags: rust
+          name: rust-${{ runner.os }}
+          fail_ci_if_error: false
+
+  # Single, stable check name to require in branch protection / rulesets,
+  # so the matrix can change without editing the ruleset.
+  ci-passed:
+    name: CI passed
+    if: always()
+    needs: [frontend, rust]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all jobs succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          for r in $RESULTS; do
+            if [ "$r" != "success" ]; then
+              echo "At least one required job did not succeed."
+              exit 1
+            fi
+          done

@@ -1,0 +1,78 @@
+version: 2
+
+# Commit/PR title prefixes follow the repo's conventional-commit convention so
+# Release Drafter files these under "Maintenance & CI" (see release-drafter.yml).
+#
+# NOTE on Tauri: the `tauri*` crates and the `@tauri-apps/*` npm packages must
+# keep matching major.minor versions (the Tauri CLI errors on a mismatch). They
+# are grouped so each ecosystem opens one Tauri PR; merge the cargo and npm
+# Tauri PRs together.
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: 'chore'
+      include: scope
+    groups:
+      tauri-npm:
+        patterns:
+          - '@tauri-apps/*'
+      npm-minor-patch:
+        update-types:
+          - minor
+          - patch
+        exclude-patterns:
+          - '@tauri-apps/*'
+
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: 'chore'
+      include: scope
+    groups:
+      tauri-cargo:
+        patterns:
+          - 'tauri'
+          - 'tauri-*'
+      cargo-minor-patch:
+        update-types:
+          - minor
+          - patch
+        exclude-patterns:
+          - 'tauri'
+          - 'tauri-*'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: 'ci'
+      include: scope
+    groups:
+      github-actions:
+        patterns:
+          - '*'
