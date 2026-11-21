@@ -54,7 +54,7 @@ jobs:
           files: ./coverage/lcov.info
           flags: frontend
           name: frontend
-          fail_ci_if_error: false
+          fail_ci_if_error: true
 
   rust:
     name: Rust (${{ matrix.os }})
@@ -126,7 +126,7 @@ jobs:
           files: ./lcov.info
           flags: rust
           name: rust-${{ runner.os }}
-          fail_ci_if_error: false
+          fail_ci_if_error: true
 
   # Single, stable check name to require in branch protection / rulesets,
   # so the matrix can change without editing the ruleset.
