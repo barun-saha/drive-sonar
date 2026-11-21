@@ -1,5 +1,20 @@
 # Drive Sonar
 
+[![CI](https://github.com/barun-saha/drive-sonar/actions/workflows/ci.yml/badge.svg)](https://github.com/barun-saha/drive-sonar/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/barun-saha/drive-sonar/graph/badge.svg)](https://codecov.io/gh/barun-saha/drive-sonar)
+[![Snyk](https://snyk.io/test/github/barun-saha/drive-sonar/badge.svg)](https://snyk.io/test/github/barun-saha/drive-sonar)
+[![License](https://img.shields.io/github/license/barun-saha/drive-sonar)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/barun-saha/drive-sonar)](https://github.com/barun-saha/drive-sonar/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/barun-saha/drive-sonar/total)](https://github.com/barun-saha/drive-sonar/releases)
+[![Chocolatey](https://img.shields.io/chocolatey/dt/drivesonar?label=Chocolatey)](https://community.chocolatey.org/packages/drivesonar)
+[![Tauri](https://img.shields.io/badge/Tauri-v2-24C8DB?logo=tauri&logoColor=white)](https://tauri.app)
+[![Rust](https://img.shields.io/badge/Rust-stable-orange?logo=rust)](https://www.rust-lang.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)](https://github.com/barun-saha/drive-sonar/releases)
+[![Code style: Prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg)](https://prettier.io)
+[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/barun-saha/badge.svg)](https://hub.xerj.org/contributors/barun-saha)
+
 <p align="center">
   <img src="public/drive_sonar_base.png" width="256" alt="Drive Sonar Logo" />
 </p>
@@ -160,7 +175,3 @@ Find out more about Drive Sonar:
 ## 📜 License
 
 Drive Sonar is open-source software, released under the Apache 2.0 license.
-
----
-
-[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/barun-saha/badge.svg)](https://hub.xerj.org/contributors/barun-saha)
