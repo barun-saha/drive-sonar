@@ -1,4 +1,5 @@
 import { Group, Text, Switch } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 
 interface ChartHeaderProps {
   title: string;
@@ -7,6 +8,7 @@ interface ChartHeaderProps {
 }
 
 export function ChartHeader({ title, checked, onChange }: ChartHeaderProps) {
+  const { t } = useTranslation();
   return (
     <Group justify="space-between" align="center" mb="sm">
       <Text size="xs" c="dimmed" fw={600}>{title}</Text>
@@ -14,7 +16,7 @@ export function ChartHeader({ title, checked, onChange }: ChartHeaderProps) {
         size="xs"
         checked={checked}
         onChange={(e) => onChange(e.currentTarget.checked)}
-        label="Use semi-log scale"
+        label={t('charts.semiLog')}
         c="dimmed"
       />
     </Group>

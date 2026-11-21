@@ -1,0 +1,152 @@
+{
+  "common": {
+    "bytes": "Bytes"
+  },
+  "toolbar": {
+    "pathPlaceholder": "Verzeichnis zum Scannen auswählen...",
+    "browse": "Ordner durchsuchen",
+    "runScan": "Scan starten",
+    "scanning": "Scan läuft...",
+    "cancelScan": "Scan abbrechen",
+    "disk": "Datenträger",
+    "drive": "Laufwerk ({{letter}})",
+    "free": "{{size}} frei",
+    "ssdTip": "Viele SSDs arbeiten am besten, wenn etwa 10–20 % des Speichers frei sind.",
+    "diskSummary": "{{total}} gesamt · {{percent}} % frei",
+    "currentFolder": "Aktueller Ordner",
+    "folderCount_one": "{{n}} Ordner",
+    "folderCount_other": "{{n}} Ordner",
+    "fileCount_one": "{{n}} Datei",
+    "fileCount_other": "{{n}} Dateien",
+    "thisSession": "Diese Sitzung",
+    "movedToTrash_one": "{{n}} Element in den Papierkorb verschoben",
+    "movedToTrash_other": "{{n}} Elemente in den Papierkorb verschoben",
+    "trashSpaceNote": "{{size}} · Der Speicher wird frei, sobald der Papierkorb geleert wird",
+    "lifetimeSummary_one": "Insgesamt: {{n}} Element · {{size}} in den Papierkorb verschoben",
+    "lifetimeSummary_other": "Insgesamt: {{n}} Elemente · {{size}} in den Papierkorb verschoben"
+  },
+  "status": {
+    "scanned_one": "<b>{{n}}</b> Element in <b>{{time}}</b> gescannt",
+    "scanned_other": "<b>{{n}}</b> Elemente in <b>{{time}}</b> gescannt",
+    "seconds": "{{value}} s",
+    "unaccounted": "~<b>{{size}}</b> nicht zugeordnet (Dateisystem-Metadaten / nicht zugängliche Bereiche)",
+    "warnings_one": "{{n}} Warnung",
+    "warnings_other": "{{n}} Warnungen"
+  },
+  "menu": {
+    "label": "Menü",
+    "application": "Anwendung",
+    "switchToLight": "Zum hellen Modus wechseln",
+    "switchToDark": "Zum dunklen Modus wechseln",
+    "language": "Sprache",
+    "systemDefault": "Systemstandard",
+    "saveReport": "Bericht speichern",
+    "help": "Hilfe",
+    "about": "Über Drive Sonar"
+  },
+  "help": {
+    "title": "Anleitung",
+    "scan": "Um die Speicherbelegung eines Verzeichnisses zu ermitteln, wähle es aus und klicke auf die Schaltfläche „{{run}}“.",
+    "cancel": "Um einen laufenden Scan abzubrechen, klicke auf die Schaltfläche „{{cancel}}“.",
+    "keyboard": "In der Dateiliste wählst du mit den Pfeiltasten ein Element aus, öffnest mit der Eingabetaste einen Ordner und verschiebst es mit Entf in den Papierkorb. Mit Tab gelangst du zu den Schaltflächen des ausgewählten Elements, mit Umschalt+Tab zurück; mit Esc kehrst du zur Liste zurück."
+  },
+  "about": {
+    "title": "Über Drive Sonar",
+    "description": "Ein schneller, schlanker Speicherplatz-Explorer auf Basis von Rust und Tauri. Lizenziert unter Apache-2.0.",
+    "license": "Lizenziert unter Apache-2.0",
+    "copyright": "© 2026 Barun Saha.",
+    "website": "Website:",
+    "starPrompt": "Wenn dir Drive Sonar gefällt, gib dem Projekt gern einen Stern auf GitHub!",
+    "starButton": "Auf GitHub mit Stern markieren",
+    "lifetime": "Insgesamt: {{size}} in den Papierkorb verschoben (nur auf diesem Gerät gespeichert)",
+    "reset": "Zurücksetzen",
+    "fonts": "Enthaltene Schriften: Inter, JetBrains Mono und Noto Sans (Bengalisch, Devanagari), lizenziert unter der SIL Open Font License 1.1.",
+    "notices": "Hinweise zu Drittanbieter-Software",
+    "showLicense": "Lizenztext anzeigen",
+    "hideLicense": "Lizenztext ausblenden"
+  },
+  "notify": {
+    "scanWarning": "Scan-Warnung",
+    "error": "Fehler",
+    "pickerFailed": "Die Verzeichnisauswahl konnte nicht geöffnet werden: {{error}}",
+    "scanFailed": "Scan fehlgeschlagen",
+    "navigationFailed": "Navigation fehlgeschlagen",
+    "noDataTitle": "Keine Daten zum Exportieren",
+    "noDataMessage": "Bitte führe einen Scan durch, bevor du einen Bericht speicherst.",
+    "reportSavedTitle": "Bericht gespeichert",
+    "reportSavedMessage": "Der Scan-Bericht wurde erfolgreich gespeichert.",
+    "executionFailed": "Ausführung fehlgeschlagen",
+    "openLocationFailed": "Der Speicherort der Datei konnte nicht geöffnet werden: {{error}}",
+    "languageFailed": "Sprache nicht geändert",
+    "languageFailedMessage": "Die gewählte Sprache konnte nicht geladen werden. Die bisherige Sprache bleibt aktiv.",
+    "success": "Erfolg",
+    "trashed": "„{{name}}“ ({{size}}) wurde erfolgreich in den Papierkorb verschoben.",
+    "deletionFailed": "Löschen fehlgeschlagen",
+    "trashFailed": "Das Element konnte nicht in den Papierkorb verschoben werden: {{error}}"
+  },
+  "list": {
+    "ariaLabel": "Dateien und Ordner",
+    "clickToOpen": "Zum Öffnen klicken",
+    "openInExplorer": "Im Datei-Explorer öffnen",
+    "moveToTrash": "In den Papierkorb verschieben",
+    "percentOfFolder": "% des aktuellen Ordners",
+    "empty": "Dieses Verzeichnis ist leer.",
+    "openFolder": "Ordner öffnen",
+    "confirmTitle": "In den Papierkorb verschieben",
+    "confirmFolder": "Möchtest du das Verzeichnis {{name}} und seinen gesamten Inhalt wirklich in den Papierkorb verschieben?",
+    "confirmFile": "Möchtest du die Datei {{name}} wirklich in den Papierkorb verschieben?",
+    "confirmNote": "Du kannst Elemente jederzeit aus dem Papierkorb deines Systems wiederherstellen oder endgültig löschen.",
+    "cancel": "Abbrechen"
+  },
+  "nav": {
+    "scanPath": "{{path}} scannen"
+  },
+  "tabs": {
+    "spaceMap": "Speicherkarte",
+    "fileTypes": "Dateitypen",
+    "ageAnalysis": "Altersanalyse"
+  },
+  "charts": {
+    "semiLog": "Halblogarithmische Skala verwenden",
+    "logScaleSuffix": "{{label}} (logarithmische Skala)",
+    "sizeMb": "Größe (MB)",
+    "size": "Größe: {{size}}",
+    "folder": "Ordner",
+    "noFiles": "Keine Dateien zur Analyse in diesem Bereich."
+  },
+  "spaceMap": {
+    "title": "Speicherverteilung (Top 12)",
+    "clickToOpen": "Block anklicken, um den Ordner zu öffnen",
+    "empty": "Keine nicht leeren Elemente für die Karte in diesem Bereich."
+  },
+  "extensions": {
+    "title": "Top 15 Dateiendungen nach Speicherbelegung",
+    "axis": "Dateiendung",
+    "files": "Dateien: {{n}}"
+  },
+  "age": {
+    "title": "Die 30 größten Dateien: Größe und Alter",
+    "axis": "Alter (Monate seit der letzten Änderung)",
+    "series": "Dateien",
+    "months": "{{n}} Mon.",
+    "modified_one": "Geändert: vor {{n}} Monat",
+    "modified_other": "Geändert: vor {{n}} Monaten",
+    "category": "Kategorie: {{category}}",
+    "clickToOpen": "Punkt anklicken, um im Datei-Explorer zu öffnen",
+    "groupsLabel": "Altersgruppen",
+    "openFile": "{{name}} im Datei-Explorer öffnen",
+    "recent": "Neu (≤ {{recent}} Mon.)",
+    "aging": "Mittel ({{recent}}–{{aging}} Mon.)",
+    "old": "Alt (> {{aging}} Mon.)"
+  },
+  "category": {
+    "legend": "Farblegende",
+    "folder": "Ordner",
+    "media": "Medien",
+    "documents": "Dokumente",
+    "archives": "Archive",
+    "code": "Code",
+    "installers": "Installationsprogramme",
+    "other": "Sonstige"
+  }
+}

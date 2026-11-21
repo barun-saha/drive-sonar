@@ -1,11 +1,12 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import { ItemList } from './ItemList';
 import { DirectoryPayload } from '../types';
 import { invoke } from '@tauri-apps/api/core';
 import { notifications } from '@mantine/notifications';
+import { applyLanguage } from '../i18n';
 
 const sizeMock = vi.hoisted(() => ({ height: 0 }));
 vi.mock('@mantine/hooks', async (importOriginal) => ({
@@ -192,6 +193,62 @@ describe('ItemList', () => {
         })
       );
       expect(onNavigate).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe('notifications for a request that finishes after the language changed', () => {
+    afterEach(async () => {
+      await applyLanguage('en');
+    });
+
+    async function trashFolderAWhilePending() {
+      let finish: (result: { ok?: boolean; error?: Error }) => void = () => {};
+      vi.mocked(invoke).mockImplementation(
+        () => new Promise((resolve, reject) => (finish = ({ ok, error }) => (error ? reject(error) : resolve(ok)))),
+      );
+      renderWithMantine(<ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} onItemTrashed={vi.fn()} />);
+
+      fireEvent.click(screen.getAllByTitle('Move to Trash')[0]); // Folder A
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Move to Trash' }));
+      await waitFor(() => expect(invoke).toHaveBeenCalledWith('move_to_trash', { nodeId: 10 }));
+
+      await applyLanguage('de'); // the user switches language while the item is still being moved
+      return finish;
+    }
+
+    it('words the success message in the current language', async () => {
+      const show = vi.spyOn(notifications, 'show').mockReturnValue('id');
+      const finish = await trashFolderAWhilePending();
+
+      finish({ ok: false });
+
+      await waitFor(() =>
+        expect(show).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: 'Erfolg',
+            message: expect.stringMatching(/^„Folder A“ \(.*KB\) wurde erfolgreich in den Papierkorb verschoben\.$/),
+          }),
+        ),
+      );
+      show.mockRestore();
+    });
+
+    it('words the failure message in the current language', async () => {
+      const show = vi.spyOn(notifications, 'show').mockReturnValue('id');
+      const finish = await trashFolderAWhilePending();
+
+      finish({ error: new Error('Permission denied') });
+
+      await waitFor(() =>
+        expect(show).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: 'Löschen fehlgeschlagen',
+            message: 'Das Element konnte nicht in den Papierkorb verschoben werden: Error: Permission denied',
+          }),
+        ),
+      );
+      show.mockRestore();
     });
   });
 

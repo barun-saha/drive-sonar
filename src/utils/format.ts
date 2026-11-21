@@ -1,14 +1,16 @@
+import i18n, { formatDecimal } from '../i18n';
+
 /**
  * Formats a byte number into a human-readable string (e.g., 1024 -> "1.00 KB").
  */
 export function formatBytes(bytes: number, useShortUnits: boolean = false): string {
   if (!Number.isFinite(bytes) || bytes <= 0) {
-    return useShortUnits ? '0 B' : '0 Bytes';
+    return useShortUnits ? '0 B' : `0 ${i18n.t('common.bytes')}`;
   }
 
   const sizes = useShortUnits
     ? ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB']
-    : ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];
+    : [i18n.t('common.bytes'), 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];
 
   // Base-2 log divided by 10 determines exponent index (1024 = 2^10)
   const i = Math.max(
@@ -18,7 +20,7 @@ export function formatBytes(bytes: number, useShortUnits: boolean = false): stri
 
   const formattedValue = i === 0
     ? bytes.toString()
-    : (bytes / Math.pow(1024, i)).toFixed(2);
+    : formatDecimal(bytes / Math.pow(1024, i), 2);
 
   return `${formattedValue} ${sizes[i]}`;
 }
@@ -27,6 +29,6 @@ export function formatBytes(bytes: number, useShortUnits: boolean = false): stri
  * Formats a percentage with one decimal place, showing "<0.1%" for tiny non-zero values.
  */
 export function formatPercent(value: number): string {
-  if (value > 0 && value < 0.1) return '<0.1%';
-  return `${value.toFixed(1)}%`;
+  if (value > 0 && value < 0.1) return `<${formatDecimal(0.1, 1)}%`;
+  return `${formatDecimal(value, 1)}%`;
 }

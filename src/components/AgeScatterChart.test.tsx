@@ -1,9 +1,10 @@
 import { cloneElement } from 'react';
 import { render, screen, fireEvent, createEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MantineProvider } from '@mantine/core';
 import { AgeScatterChart } from './AgeScatterChart';
+import { applyLanguage } from '../i18n';
 import { TopFileNode } from '../types';
 import { invoke } from '@tauri-apps/api/core'; // Issue #24
 import { notifications } from '@mantine/notifications'; // Issue #24
@@ -156,6 +157,22 @@ describe('AgeScatterChart', () => {
     expect(invoke).toHaveBeenCalledWith('open_in_explorer', { nodeId: 99 });
   });
 
+  it('labels each point with its file name and path for assistive tech and hover', () => {
+    renderWithMantine(<AgeScatterChart files={[{ id: 7, name: 'movie.mkv', size: 1048576 * 700, modified_secs: 1, path: '/media/movie.mkv' }]} />);
+    const shape = capturedScatterProps.scatterProps.shape;
+    const point = (payload?: object) =>
+      render(<svg>{cloneElement(shape, { cx: 10, cy: 10, payload })}</svg>).container.querySelector('circle')!;
+
+    const labelled = point({ fileName: 'movie.mkv', filePath: '/media/movie.mkv', sizeMB: 700 });
+    expect(labelled).toHaveAttribute('aria-label', 'Open movie.mkv in Files Explorer');
+    expect(labelled.querySelector('title')!.textContent).toBe('movie.mkv\n/media/movie.mkv\nOpen in Files Explorer');
+
+    // A point without data must still render rather than throw
+    const bare = point(undefined);
+    expect(bare).toHaveAttribute('aria-label', 'Open  in Files Explorer');
+    expect(bare.querySelector('title')!.textContent).toBe('\n\nOpen in Files Explorer');
+  });
+
   // Issue #24: Test error notification when open_in_explorer fails on point click
   it('shows error notification when open_in_explorer fails on point click', async () => {
     vi.mocked(invoke).mockRejectedValue(new Error('Failed to open'));
@@ -196,7 +213,7 @@ describe('AgeScatterChart', () => {
     expect(points[0].rawBytes).toEqual(points[1].rawBytes);
 
     renderWithMantine(capturedScatterProps.tooltipProps.content({ payload: [{ payload: points[0] }] }));
-    expect(screen.getByText('Modified: 1 months ago')).toBeInTheDocument();
+    expect(screen.getByText('Modified: 1 month ago')).toBeInTheDocument();
   });
 
   it.each([
@@ -216,6 +233,44 @@ describe('AgeScatterChart', () => {
 
     renderWithMantine(capturedScatterProps.tooltipProps.content({ payload: [{ payload: points[count - 1] }] }));
     expect(screen.getByText(`Modified: ${ageMonths} months ago`)).toBeInTheDocument();
+  });
+
+  describe('modified age in the active language', () => {
+    const tooltipFor = (monthsAgo: number) => {
+      const modifiedSecs = Math.floor(Date.now() / 1000) - monthsAgo * 86400 * 30.4375;
+      renderWithMantine(<AgeScatterChart files={[{ id: 1, name: 'a.zip', size: 1048576 * 100, modified_secs: modifiedSecs, path: '/a.zip' }]} />);
+      const point = capturedScatterProps.data[0].data[0];
+      renderWithMantine(capturedScatterProps.tooltipProps.content({ payload: [{ payload: point }] }));
+    };
+
+    afterEach(async () => {
+      await applyLanguage('en');
+    });
+
+    it.each([
+      ['en', 1, 'Modified: 1 month ago'],
+      ['en', 3, 'Modified: 3 months ago'],
+      ['es', 1, 'Modificado: hace 1 mes'],
+      ['es', 4, 'Modificado: hace 4 meses'],
+      ['de', 1, 'Geändert: vor 1 Monat'],
+      ['de', 4, 'Geändert: vor 4 Monaten'],
+    ] as const)('%s, %s month(s): singular and plural are chosen by the count', async (language, months, expected) => {
+      await applyLanguage(language);
+      tooltipFor(months);
+      expect(screen.getByText(expected)).toBeInTheDocument();
+    });
+
+    it('shows fractional months with the language\'s decimal separator', async () => {
+      await applyLanguage('de');
+      tooltipFor(1.5);
+      expect(screen.getByText('Geändert: vor 1,5 Monaten')).toBeInTheDocument();
+    });
+
+    it('keeps Latin digits in Bengali and Hindi', async () => {
+      await applyLanguage('bn');
+      tooltipFor(2);
+      expect(screen.getByText('পরিবর্তিত: 2 মাস আগে')).toBeInTheDocument();
+    });
   });
 
   describe('age group assignment', () => {

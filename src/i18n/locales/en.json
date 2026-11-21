@@ -1,0 +1,152 @@
+{
+  "common": {
+    "bytes": "Bytes"
+  },
+  "toolbar": {
+    "pathPlaceholder": "Select a target directory to scan...",
+    "browse": "Browse folder",
+    "runScan": "Run Scan",
+    "scanning": "Scanning...",
+    "cancelScan": "Cancel Scan",
+    "disk": "Disk",
+    "drive": "Drive ({{letter}})",
+    "free": "{{size}} free",
+    "ssdTip": "Many SSDs perform best with roughly 10–20% free space.",
+    "diskSummary": "{{total}} total · {{percent}}% free",
+    "currentFolder": "Current folder",
+    "folderCount_one": "{{n}} folder",
+    "folderCount_other": "{{n}} folders",
+    "fileCount_one": "{{n}} file",
+    "fileCount_other": "{{n}} files",
+    "thisSession": "This session",
+    "movedToTrash_one": "{{n}} item moved to Trash",
+    "movedToTrash_other": "{{n}} items moved to Trash",
+    "trashSpaceNote": "{{size}} · Space is released once the Trash is emptied",
+    "lifetimeSummary_one": "Lifetime: {{n}} item · {{size}} moved to Trash",
+    "lifetimeSummary_other": "Lifetime: {{n}} items · {{size}} moved to Trash"
+  },
+  "status": {
+    "scanned_one": "<b>{{n}}</b> item scanned in <b>{{time}}</b>",
+    "scanned_other": "<b>{{n}}</b> items scanned in <b>{{time}}</b>",
+    "seconds": "{{value}} s",
+    "unaccounted": "~<b>{{size}}</b> unaccounted (filesystem metadata / inaccessible regions)",
+    "warnings_one": "{{n}} warning",
+    "warnings_other": "{{n}} warnings"
+  },
+  "menu": {
+    "label": "Menu",
+    "application": "Application",
+    "switchToLight": "Switch to Light Mode",
+    "switchToDark": "Switch to Dark Mode",
+    "language": "Language",
+    "systemDefault": "System default",
+    "saveReport": "Save Report",
+    "help": "Help",
+    "about": "About Drive Sonar"
+  },
+  "help": {
+    "title": "Usage Guide",
+    "scan": "To find the disk usage of a given directory, select the directory and click on the \"{{run}}\" button.",
+    "cancel": "To cancel an ongoing scan, click on the \"{{cancel}}\" button.",
+    "keyboard": "In the file list, use the arrow keys to select an item, Enter to open a folder, and Delete to move it to the Trash. Tab moves to the selected item's buttons and Shift+Tab back; press Escape to return to the list."
+  },
+  "about": {
+    "title": "About Drive Sonar",
+    "description": "A fast, lightweight disk space explorer powered by Rust and Tauri. Apache-2.0 licensed.",
+    "license": "Licensed under Apache-2.0",
+    "copyright": "© 2026 Barun Saha.",
+    "website": "Website:",
+    "starPrompt": "If you like Drive Sonar, please consider starring the project on GitHub!",
+    "starButton": "Star on GitHub",
+    "lifetime": "Lifetime: {{size}} moved to Trash (stored on this device only)",
+    "reset": "Reset",
+    "fonts": "Bundled fonts: Inter, JetBrains Mono and Noto Sans (Bengali, Devanagari), licensed under the SIL Open Font License 1.1.",
+    "notices": "Third-party notices",
+    "showLicense": "Show license text",
+    "hideLicense": "Hide license text"
+  },
+  "notify": {
+    "scanWarning": "Scan Warning",
+    "error": "Error",
+    "pickerFailed": "Could not open directory picker: {{error}}",
+    "scanFailed": "Scan Failed",
+    "navigationFailed": "Navigation Failed",
+    "noDataTitle": "No Data to Export",
+    "noDataMessage": "Please run a scan before saving a report.",
+    "reportSavedTitle": "Report Saved",
+    "reportSavedMessage": "Scan report has been saved successfully.",
+    "executionFailed": "Execution Failed",
+    "openLocationFailed": "Could not open file location: {{error}}",
+    "languageFailed": "Language Not Changed",
+    "languageFailedMessage": "Could not load the selected language. The previous language is still in use.",
+    "success": "Success",
+    "trashed": "\"{{name}}\" ({{size}}) was successfully moved to Trash.",
+    "deletionFailed": "Deletion Failed",
+    "trashFailed": "Could not move item to Trash: {{error}}"
+  },
+  "list": {
+    "ariaLabel": "Files and folders",
+    "clickToOpen": "Click to open",
+    "openInExplorer": "Open in Files Explorer",
+    "moveToTrash": "Move to Trash",
+    "percentOfFolder": "% of current folder",
+    "empty": "This directory is empty.",
+    "openFolder": "Open folder",
+    "confirmTitle": "Move to Trash",
+    "confirmFolder": "Are you sure you want to move the directory {{name}} and all its contents to the Trash?",
+    "confirmFile": "Are you sure you want to move the file {{name}} to the Trash?",
+    "confirmNote": "You can restore items or delete them permanently anytime from your system's Trash.",
+    "cancel": "Cancel"
+  },
+  "nav": {
+    "scanPath": "Scan {{path}}"
+  },
+  "tabs": {
+    "spaceMap": "Space Map",
+    "fileTypes": "File Types",
+    "ageAnalysis": "Age Analysis"
+  },
+  "charts": {
+    "semiLog": "Use semi-log scale",
+    "logScaleSuffix": "{{label}} (Log Scale)",
+    "sizeMb": "Size (MB)",
+    "size": "Size: {{size}}",
+    "folder": "Folder",
+    "noFiles": "No files to analyze in this scope."
+  },
+  "spaceMap": {
+    "title": "Top 12 Space Distribution Map",
+    "clickToOpen": "Click block to open folder",
+    "empty": "No non-empty items to map in this scope."
+  },
+  "extensions": {
+    "title": "TOP 15 FILE EXTENSIONS BY STORAGE",
+    "axis": "Extension",
+    "files": "Files: {{n}}"
+  },
+  "age": {
+    "title": "TOP 30 LARGEST FILES: SIZE vs AGE",
+    "axis": "Age (Months Since Modified)",
+    "series": "Files",
+    "months": "{{n}} mo",
+    "modified_one": "Modified: {{n}} month ago",
+    "modified_other": "Modified: {{n}} months ago",
+    "category": "Category: {{category}}",
+    "clickToOpen": "Click point to open in Files Explorer",
+    "groupsLabel": "Age groups",
+    "openFile": "Open {{name}} in Files Explorer",
+    "recent": "Recent (≤ {{recent}} mo)",
+    "aging": "Aging ({{recent}}–{{aging}} mo)",
+    "old": "Old (> {{aging}} mo)"
+  },
+  "category": {
+    "legend": "Color legend",
+    "folder": "Folders",
+    "media": "Media",
+    "documents": "Documents",
+    "archives": "Archives",
+    "code": "Code",
+    "installers": "Installers",
+    "other": "Other"
+  }
+}

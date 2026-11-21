@@ -1,0 +1,159 @@
+{
+  "common": {
+    "bytes": "Bytes"
+  },
+  "toolbar": {
+    "pathPlaceholder": "Selecciona un directorio para escanear...",
+    "browse": "Examinar carpeta",
+    "runScan": "Iniciar escaneo",
+    "scanning": "Escaneando...",
+    "cancelScan": "Cancelar escaneo",
+    "disk": "Disco",
+    "drive": "Unidad ({{letter}})",
+    "free": "{{size}} libres",
+    "ssdTip": "Muchos SSD rinden mejor con aproximadamente un 10–20 % de espacio libre.",
+    "diskSummary": "{{total}} en total · {{percent}} % libre",
+    "currentFolder": "Carpeta actual",
+    "folderCount_one": "{{n}} carpeta",
+    "folderCount_many": "{{n}} carpetas",
+    "folderCount_other": "{{n}} carpetas",
+    "fileCount_one": "{{n}} archivo",
+    "fileCount_many": "{{n}} archivos",
+    "fileCount_other": "{{n}} archivos",
+    "thisSession": "Esta sesión",
+    "movedToTrash_one": "{{n}} elemento movido a la Papelera",
+    "movedToTrash_many": "{{n}} elementos movidos a la Papelera",
+    "movedToTrash_other": "{{n}} elementos movidos a la Papelera",
+    "trashSpaceNote": "{{size}} · El espacio se libera al vaciar la Papelera",
+    "lifetimeSummary_one": "Total acumulado: {{n}} elemento · {{size}} movidos a la Papelera",
+    "lifetimeSummary_many": "Total acumulado: {{n}} elementos · {{size}} movidos a la Papelera",
+    "lifetimeSummary_other": "Total acumulado: {{n}} elementos · {{size}} movidos a la Papelera"
+  },
+  "status": {
+    "scanned_one": "<b>{{n}}</b> elemento escaneado en <b>{{time}}</b>",
+    "scanned_many": "<b>{{n}}</b> elementos escaneados en <b>{{time}}</b>",
+    "scanned_other": "<b>{{n}}</b> elementos escaneados en <b>{{time}}</b>",
+    "seconds": "{{value}} s",
+    "unaccounted": "~<b>{{size}}</b> sin contabilizar (metadatos del sistema de archivos / zonas inaccesibles)",
+    "warnings_one": "{{n}} advertencia",
+    "warnings_many": "{{n}} advertencias",
+    "warnings_other": "{{n}} advertencias"
+  },
+  "menu": {
+    "label": "Menú",
+    "application": "Aplicación",
+    "switchToLight": "Cambiar a modo claro",
+    "switchToDark": "Cambiar a modo oscuro",
+    "language": "Idioma",
+    "systemDefault": "Predeterminado del sistema",
+    "saveReport": "Guardar informe",
+    "help": "Ayuda",
+    "about": "Acerca de Drive Sonar"
+  },
+  "help": {
+    "title": "Guía de uso",
+    "scan": "Para conocer el uso de disco de un directorio, selecciónalo y haz clic en el botón \"{{run}}\".",
+    "cancel": "Para cancelar un escaneo en curso, haz clic en el botón \"{{cancel}}\".",
+    "keyboard": "En la lista de archivos, usa las teclas de flecha para seleccionar un elemento, Intro para abrir una carpeta y Supr para moverlo a la Papelera. Tab pasa a los botones del elemento seleccionado y Mayús+Tab vuelve atrás; pulsa Esc para volver a la lista."
+  },
+  "about": {
+    "title": "Acerca de Drive Sonar",
+    "description": "Un explorador de espacio en disco rápido y ligero, creado con Rust y Tauri. Licencia Apache-2.0.",
+    "license": "Con licencia Apache-2.0",
+    "copyright": "© 2026 Barun Saha.",
+    "website": "Sitio web:",
+    "starPrompt": "Si te gusta Drive Sonar, ¡considera darle una estrella al proyecto en GitHub!",
+    "starButton": "Dar una estrella en GitHub",
+    "lifetime": "Total acumulado: {{size}} movidos a la Papelera (guardado solo en este dispositivo)",
+    "reset": "Restablecer",
+    "fonts": "Fuentes incluidas: Inter, JetBrains Mono y Noto Sans (bengalí, devanagari), con licencia SIL Open Font License 1.1.",
+    "notices": "Avisos de terceros",
+    "showLicense": "Mostrar texto de la licencia",
+    "hideLicense": "Ocultar texto de la licencia"
+  },
+  "notify": {
+    "scanWarning": "Advertencia de escaneo",
+    "error": "Error",
+    "pickerFailed": "No se pudo abrir el selector de directorios: {{error}}",
+    "scanFailed": "Error en el escaneo",
+    "navigationFailed": "Error de navegación",
+    "noDataTitle": "No hay datos para exportar",
+    "noDataMessage": "Ejecuta un escaneo antes de guardar un informe.",
+    "reportSavedTitle": "Informe guardado",
+    "reportSavedMessage": "El informe del escaneo se guardó correctamente.",
+    "executionFailed": "Error al ejecutar",
+    "openLocationFailed": "No se pudo abrir la ubicación del archivo: {{error}}",
+    "languageFailed": "No se cambió el idioma",
+    "languageFailedMessage": "No se pudo cargar el idioma seleccionado. Se sigue usando el idioma anterior.",
+    "success": "Correcto",
+    "trashed": "\"{{name}}\" ({{size}}) se movió correctamente a la Papelera.",
+    "deletionFailed": "Error al eliminar",
+    "trashFailed": "No se pudo mover el elemento a la Papelera: {{error}}"
+  },
+  "list": {
+    "ariaLabel": "Archivos y carpetas",
+    "clickToOpen": "Haz clic para abrir",
+    "openInExplorer": "Abrir en el explorador de archivos",
+    "moveToTrash": "Mover a la Papelera",
+    "percentOfFolder": "% de la carpeta actual",
+    "empty": "Este directorio está vacío.",
+    "openFolder": "Abrir carpeta",
+    "confirmTitle": "Mover a la Papelera",
+    "confirmFolder": "¿Seguro que quieres mover el directorio {{name}} y todo su contenido a la Papelera?",
+    "confirmFile": "¿Seguro que quieres mover el archivo {{name}} a la Papelera?",
+    "confirmNote": "Puedes restaurar los elementos o eliminarlos de forma permanente en cualquier momento desde la Papelera del sistema.",
+    "cancel": "Cancelar"
+  },
+  "nav": {
+    "scanPath": "Escanear {{path}}"
+  },
+  "tabs": {
+    "spaceMap": "Mapa de espacio",
+    "fileTypes": "Tipos de archivo",
+    "ageAnalysis": "Análisis de antigüedad"
+  },
+  "charts": {
+    "semiLog": "Usar escala semilogarítmica",
+    "logScaleSuffix": "{{label}} (escala logarítmica)",
+    "sizeMb": "Tamaño (MB)",
+    "size": "Tamaño: {{size}}",
+    "folder": "Carpeta",
+    "noFiles": "No hay archivos que analizar en este ámbito."
+  },
+  "spaceMap": {
+    "title": "Mapa de distribución del espacio (12 principales)",
+    "clickToOpen": "Haz clic en el bloque para abrir la carpeta",
+    "empty": "No hay elementos no vacíos que mostrar en este ámbito."
+  },
+  "extensions": {
+    "title": "15 extensiones de archivo con más espacio",
+    "axis": "Extensión",
+    "files": "Archivos: {{n}}"
+  },
+  "age": {
+    "title": "Los 30 archivos más grandes: tamaño frente a antigüedad",
+    "axis": "Antigüedad (meses desde la última modificación)",
+    "series": "Archivos",
+    "months": "{{n}} meses",
+    "modified_one": "Modificado: hace {{n}} mes",
+    "modified_many": "Modificado: hace {{n}} meses",
+    "modified_other": "Modificado: hace {{n}} meses",
+    "category": "Categoría: {{category}}",
+    "clickToOpen": "Haz clic en el punto para abrirlo en el explorador de archivos",
+    "groupsLabel": "Grupos de antigüedad",
+    "openFile": "Abrir {{name}} en el explorador de archivos",
+    "recent": "Reciente (≤ {{recent}} meses)",
+    "aging": "Intermedio ({{recent}}–{{aging}} meses)",
+    "old": "Antiguo (> {{aging}} meses)"
+  },
+  "category": {
+    "legend": "Leyenda de colores",
+    "folder": "Carpetas",
+    "media": "Multimedia",
+    "documents": "Documentos",
+    "archives": "Archivos comprimidos",
+    "code": "Código",
+    "installers": "Instaladores",
+    "other": "Otros"
+  }
+}

@@ -8,8 +8,11 @@ const brand: MantineColorsTuple = [
   '#3b82f6', '#2563eb', '#1d4ed8', '#1e40af', '#1e3a8a',
 ];
 
-const FONT_SANS = "'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
-const FONT_MONO = "'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+// The Noto families come from src/i18n/fonts and only exist once Bengali or Hindi is selected; their unicode-range keeps
+// them off Latin text, so they sit right after the Latin font.
+const INDIC_FONTS = "'Noto Sans Bengali Adjusted', 'Noto Sans Devanagari Adjusted'";
+const FONT_SANS = `'Inter Variable', ${INDIC_FONTS}, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`;
+const FONT_MONO = `'JetBrains Mono Variable', ${INDIC_FONTS}, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
 
 export const theme = createTheme({
   primaryColor: 'brand',
