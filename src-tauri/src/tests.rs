@@ -709,11 +709,18 @@ fn test_scan_dir_parallel_edge_cases() {
 
     #[cfg(unix)]
     {
+        // Node names are stored as UTF-8 strings (the scanner uses
+        // `to_string_lossy`), so a non-UTF-8 file name is recorded with
+        // U+FFFD in place of the invalid bytes. The raw path cannot be
+        // reconstructed from the tree; assert the lossy form instead.
+        let lossy_name = non_utf_path.file_name().unwrap().to_string_lossy();
+        assert!(lossy_name.contains('\u{FFFD}'));
+        let expected_path = root_path.join(lossy_name.as_ref());
         let arena = shared_arena.lock().unwrap();
         assert!(arena
             .iter()
             .enumerate()
-            .any(|(id, _)| get_node_path(id as u32, &arena) == non_utf_path));
+            .any(|(id, _)| get_node_path(id as u32, &arena) == expected_path));
     }
 
     // 3. Non-existent path causes skipped_count increment
