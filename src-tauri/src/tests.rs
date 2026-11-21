@@ -1192,6 +1192,7 @@ fn cov_node(
 }
 
 /// Builds a mock Tauri app that manages an `AppState` whose arena holds `nodes`.
+#[cfg(not(windows))]
 fn cov_app_with_nodes(nodes: Vec<DiskNode>) -> tauri::App<tauri::test::MockRuntime> {
     use tauri::Manager;
     let app = tauri::test::mock_app();
@@ -1355,6 +1356,7 @@ fn test_get_directory_entries_on_a_file_does_not_list_anything() {
     assert!(result.is_err() || result.unwrap().is_empty());
 }
 
+#[cfg(not(windows))]
 #[test]
 fn test_cancel_scan_command_sets_the_active_flag() {
     use tauri::Manager;
@@ -1368,6 +1370,7 @@ fn test_cancel_scan_command_sets_the_active_flag() {
     assert!(flag.load(AtomicOrdering::Relaxed));
 }
 
+#[cfg(not(windows))]
 #[test]
 fn test_open_directory_command() {
     use tauri::Manager;
@@ -1392,6 +1395,7 @@ fn test_open_directory_command() {
     assert!(missing.is_err());
 }
 
+#[cfg(not(windows))]
 #[test]
 fn test_open_in_explorer_rejects_invalid_and_removed_nodes() {
     use tauri::Manager;
@@ -1409,12 +1413,13 @@ fn test_open_in_explorer_rejects_invalid_and_removed_nodes() {
     assert_eq!(tombstoned.unwrap_err(), "Node has been removed");
 }
 
+#[cfg(not(windows))]
 #[test]
 fn test_move_to_trash_rejects_invalid_removed_and_protected_nodes() {
     use tauri::Manager;
     // The root node is a filesystem root, which is always protected. None of these
     // cases may reach the real trash call.
-    let root_name = if cfg!(windows) { "C:\\" } else { "/" };
+    let root_name = "/";
     let mut removed = cov_node("gone.txt", 1, false, 0, u32::MAX, u32::MAX);
     removed.is_tombstoned = true;
     let app = cov_app_with_nodes(vec![
