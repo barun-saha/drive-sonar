@@ -142,7 +142,7 @@ describe('StatusBar', () => {
       ['en', '1.25 s'],
       ['de', '1,25 s'],
       ['es', '1,25 s'],
-      ['bn', '1.25 সেকেন্ড'],
+      ['bn', '1.25 সেকেন্ডে'],
       ['hi', '1.25 सेकंड'],
     ] as const)('%s uses its own decimal separator and keeps Latin digits', async (language, expected) => {
       await applyLanguage(language);

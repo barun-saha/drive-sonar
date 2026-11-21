@@ -26,9 +26,9 @@
     "lifetimeSummary_other": "সর্বমোট: {{n}}টি আইটেম · {{size}} ট্র্যাশে সরানো হয়েছে"
   },
   "status": {
-    "scanned_one": "<b>{{time}}</b>-এ <b>{{n}}</b>টি আইটেম স্ক্যান হয়েছে",
-    "scanned_other": "<b>{{time}}</b>-এ <b>{{n}}</b>টি আইটেম স্ক্যান হয়েছে",
-    "seconds": "{{value}} সেকেন্ড",
+    "scanned_one": "<b>{{time}}</b> <b>{{n}}</b>টি আইটেম স্ক্যান করা হয়েছে",
+    "scanned_other": "<b>{{time}}</b> <b>{{n}}</b>টি আইটেম স্ক্যান করা হয়েছে",
+    "seconds": "{{value}} সেকেন্ডে",
     "unaccounted": "প্রায় <b>{{size}}</b> হিসাবের বাইরে (ফাইলসিস্টেম মেটাডেটা / অগম্য অংশ)",
     "warnings_one": "{{n}}টি সতর্কবার্তা",
     "warnings_other": "{{n}}টি সতর্কবার্তা"
