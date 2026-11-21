@@ -10,9 +10,7 @@ function renderWithMantine(ui: React.ReactNode) {
 describe('ChartHeader', () => {
   it('renders title and toggle switch correctly', () => {
     const handleChange = vi.fn();
-    renderWithMantine(
-      <ChartHeader title="TEST TITLE" checked={false} onChange={handleChange} />
-    );
+    renderWithMantine(<ChartHeader title="TEST TITLE" checked={false} onChange={handleChange} />);
 
     expect(screen.getByText('TEST TITLE')).toBeInTheDocument();
     expect(screen.getByLabelText('Use semi-log scale')).not.toBeChecked();
@@ -20,9 +18,7 @@ describe('ChartHeader', () => {
 
   it('reflects checked state and triggers onChange when clicked', () => {
     const handleChange = vi.fn();
-    renderWithMantine(
-      <ChartHeader title="TEST TITLE" checked={true} onChange={handleChange} />
-    );
+    renderWithMantine(<ChartHeader title="TEST TITLE" checked={true} onChange={handleChange} />);
 
     const switchInput = screen.getByLabelText('Use semi-log scale');
     expect(switchInput).toBeChecked();

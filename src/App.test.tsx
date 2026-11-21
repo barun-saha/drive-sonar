@@ -47,7 +47,7 @@ function renderApp() {
       <ModalsProvider>
         <App />
       </ModalsProvider>
-    </MantineProvider>
+    </MantineProvider>,
   );
 }
 
@@ -167,9 +167,7 @@ describe('App', () => {
       current_path: '/Users/testuser',
       parent_id: null,
       ancestors: [{ id: 0, name: '/Users/testuser/projects' }],
-      items: [
-        { id: 1, name: 'Downloads', is_dir: true, size: 200000, modified_secs: 100, percentage_of_parent: 100 },
-      ],
+      items: [{ id: 1, name: 'Downloads', is_dir: true, size: 200000, modified_secs: 100, percentage_of_parent: 100 }],
       extension_stats: [{ extension: '.zip', total_bytes: 200000, file_count: 1 }],
       top_files: [],
       total_scanned_items: 1,
@@ -253,9 +251,7 @@ describe('App', () => {
       current_path: '/Users/testuser',
       parent_id: null,
       ancestors: [{ id: 0, name: '/Users/testuser' }],
-      items: [
-        { id: 5, name: 'Documents', is_dir: true, size: 100000, modified_secs: 100, percentage_of_parent: 100 },
-      ],
+      items: [{ id: 5, name: 'Documents', is_dir: true, size: 100000, modified_secs: 100, percentage_of_parent: 100 }],
       extension_stats: [],
       top_files: [],
       total_scanned_items: 1,
@@ -321,9 +317,7 @@ describe('App', () => {
         { id: 0, name: '/canonical/testuser' },
         { id: 5, name: 'Documents' },
       ],
-      items: [
-        { id: 7, name: 'notes.txt', is_dir: false, size: 7, modified_secs: 100, percentage_of_parent: 100 },
-      ],
+      items: [{ id: 7, name: 'notes.txt', is_dir: false, size: 7, modified_secs: 100, percentage_of_parent: 100 }],
       extension_stats: [],
       top_files: [],
       total_scanned_items: 3,
@@ -356,7 +350,7 @@ describe('App', () => {
           totalDirectories: 1,
         }),
         expect.any(Array),
-        expect.any(Array)
+        expect.any(Array),
       );
     });
 
@@ -376,7 +370,7 @@ describe('App', () => {
           totalDirectories: 1,
         }),
         expect.any(Array),
-        expect.any(Array)
+        expect.any(Array),
       );
     });
   });
@@ -417,7 +411,7 @@ describe('App', () => {
           totalDriveFree: undefined,
         }),
         expect.any(Array),
-        expect.any(Array)
+        expect.any(Array),
       );
     });
 
@@ -472,8 +466,12 @@ describe('App', () => {
     const aboutMenuItem = await screen.findByText('About Drive Sonar');
     fireEvent.click(aboutMenuItem);
 
-    expect(await screen.findByText(/A fast, lightweight disk space explorer powered by Rust and Tauri/)).toBeInTheDocument();
-    expect(screen.getByText(/If you like Drive Sonar, please consider starring the project on GitHub!/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/A fast, lightweight disk space explorer powered by Rust and Tauri/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/If you like Drive Sonar, please consider starring the project on GitHub!/),
+    ).toBeInTheDocument();
     const starBtn = screen.getByRole('link', { name: /Star on GitHub/i });
     expect(starBtn).toBeInTheDocument();
     expect(starBtn).toHaveAttribute('href', 'https://github.com/barun-saha/drive-sonar');
@@ -487,7 +485,7 @@ describe('App', () => {
     expect(await screen.findByText(/Bundled fonts: Inter, JetBrains Mono and Noto Sans/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Third-party notices' })).toHaveAttribute(
       'href',
-      'https://github.com/barun-saha/drive-sonar/blob/main/THIRD_PARTY_NOTICES.md'
+      'https://github.com/barun-saha/drive-sonar/blob/main/THIRD_PARTY_NOTICES.md',
     );
 
     const toggle = screen.getByRole('button', { name: 'Show license text' });
@@ -577,8 +575,12 @@ describe('App', () => {
   it('does not apply a scan response after a newer breadcrumb rescan starts', async () => {
     let resolveOlderScan: ((value: any) => void) | null = null;
     let resolveNewerScan: ((value: any) => void) | null = null;
-    const olderScan = new Promise((resolve) => { resolveOlderScan = resolve; });
-    const newerScan = new Promise((resolve) => { resolveNewerScan = resolve; });
+    const olderScan = new Promise((resolve) => {
+      resolveOlderScan = resolve;
+    });
+    const newerScan = new Promise((resolve) => {
+      resolveNewerScan = resolve;
+    });
     let scanCount = 0;
 
     const payload = (currentPath: string, itemName: string) => ({
@@ -586,14 +588,16 @@ describe('App', () => {
       current_path: currentPath,
       parent_id: null,
       ancestors: [{ id: 0, name: '/Users/testuser/projects' }],
-      items: [{
-        id: 1,
-        name: itemName,
-        is_dir: false,
-        size: 1,
-        modified_secs: 0,
-        percentage_of_parent: 100,
-      }],
+      items: [
+        {
+          id: 1,
+          name: itemName,
+          is_dir: false,
+          size: 1,
+          modified_secs: 0,
+          percentage_of_parent: 100,
+        },
+      ],
       extension_stats: [],
       top_files: [],
       total_scanned_items: 1,
@@ -637,9 +641,7 @@ describe('App', () => {
       current_path: '/Users/testuser',
       parent_id: null,
       ancestors: [{ id: 0, name: '/Users/testuser' }],
-      items: [
-        { id: 1, name: 'temp.log', is_dir: false, size: 204800, modified_secs: 100, percentage_of_parent: 100 },
-      ],
+      items: [{ id: 1, name: 'temp.log', is_dir: false, size: 204800, modified_secs: 100, percentage_of_parent: 100 }],
       extension_stats: [],
       top_files: [],
       total_scanned_items: 1,
@@ -744,8 +746,12 @@ describe('App', () => {
 
   it('still works when local storage is unavailable', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
-    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
 
     renderApp();
 
@@ -859,7 +865,9 @@ describe('App', () => {
         return null;
       });
       renderApp();
-      await waitFor(() => expect(screen.getByPlaceholderText('Select a target directory to scan...')).toHaveValue('/Users/testuser'));
+      await waitFor(() =>
+        expect(screen.getByPlaceholderText('Select a target directory to scan...')).toHaveValue('/Users/testuser'),
+      );
       fireEvent.click(screen.getByRole('button', { name: 'Run Scan' }));
       await waitFor(() => expect(invoke).toHaveBeenCalledWith('scan_directory', expect.anything()));
 
@@ -868,7 +876,9 @@ describe('App', () => {
       await act(async () => failScan(new Error('disk gone')));
 
       await waitFor(() =>
-        expect(show).toHaveBeenCalledWith(expect.objectContaining({ title: 'Error en el escaneo', message: 'Error: disk gone' })),
+        expect(show).toHaveBeenCalledWith(
+          expect.objectContaining({ title: 'Error en el escaneo', message: 'Error: disk gone' }),
+        ),
       );
       show.mockRestore();
       consoleWarn.mockRestore();

@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  LANGUAGE_STORAGE_KEY, isLanguageCode, parseLanguageSetting, readStoredLanguageSetting, resolveLanguage,
+  LANGUAGE_STORAGE_KEY,
+  isLanguageCode,
+  parseLanguageSetting,
+  readStoredLanguageSetting,
+  resolveLanguage,
   resolveSystemLanguage,
 } from './languages';
 

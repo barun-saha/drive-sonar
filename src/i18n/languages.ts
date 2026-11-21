@@ -20,7 +20,9 @@ export function isLanguageCode(value: unknown): value is LanguageCode {
 }
 
 /** Picks the supported language that matches the OS/webview locale (e.g. "bn-IN" -> "bn"), else English. */
-export function resolveSystemLanguage(locales: readonly string[] = navigator.languages ?? [navigator.language]): LanguageCode {
+export function resolveSystemLanguage(
+  locales: readonly string[] = navigator.languages ?? [navigator.language],
+): LanguageCode {
   for (const locale of locales) {
     const base = locale.toLowerCase().split('-')[0];
     if (isLanguageCode(base)) return base;

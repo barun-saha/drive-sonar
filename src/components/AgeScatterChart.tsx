@@ -13,23 +13,27 @@ import { useLogScale } from '../hooks/useLogScale';
 import { formatBytes } from '../utils/format';
 import i18n, { formatNumber } from '../i18n';
 import {
-  AGE_GROUPS, AGING_MAX_MONTHS, RECENT_MAX_MONTHS, ageGroupLabel, getAgeGroup, type AgeGroup,
+  AGE_GROUPS,
+  AGING_MAX_MONTHS,
+  RECENT_MAX_MONTHS,
+  ageGroupLabel,
+  getAgeGroup,
+  type AgeGroup,
 } from '../utils/ageGroup';
-import {
-  categoryColor, categoryOfItem, type FileCategory,
-} from '../utils/fileCategory';
+import { categoryColor, categoryOfItem, type FileCategory } from '../utils/fileCategory';
 
 interface AgeScatterChartProps {
   files?: TopFileNode[];
 }
 
 // Faint vertical lines at the age thresholds. `extendDomain` keeps them visible even when no file is that old.
-const ageReferenceLines = () => [RECENT_MAX_MONTHS, AGING_MAX_MONTHS].map((months) => ({
-  x: months,
-  label: i18n.t('age.months', { n: months }),
-  strokeDasharray: '4 4',
-  ifOverflow: 'extendDomain' as const,
-}));
+const ageReferenceLines = () =>
+  [RECENT_MAX_MONTHS, AGING_MAX_MONTHS].map((months) => ({
+    x: months,
+    label: i18n.t('age.months', { n: months }),
+    strokeDasharray: '4 4',
+    ifOverflow: 'extendDomain' as const,
+  }));
 
 // Issue #24: Custom Dot Component with click handler, pointer cursor, and native title hint
 const DynamicScatterPoint = (props: any) => {
@@ -180,22 +184,15 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
 
   const displayPoints = useMemo(
     () => plottablePoints.filter((p) => !hiddenGroups.has(p.ageGroup)),
-    [plottablePoints, hiddenGroups]
+    [plottablePoints, hiddenGroups],
   );
 
   // Issue #112: collect the file categories present in the current view for the legend
-  const displayedCategories = useMemo(
-    () => displayPoints.map((p) => p.fileCategory as FileCategory),
-    [displayPoints]
-  );
+  const displayedCategories = useMemo(() => displayPoints.map((p) => p.fileCategory as FileCategory), [displayPoints]);
 
   return (
     <Box p="xs" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <ChartHeader
-        title={t('age.title')}
-        checked={isLog}
-        onChange={setUseLogScale}
-      />
+      <ChartHeader title={t('age.title')} checked={isLog} onChange={setUseLogScale} />
 
       {points.length > 0 && (
         <Group gap="xs" mb="xs" role="group" aria-label={t('age.groupsLabel')}>
@@ -273,7 +270,10 @@ export function AgeScatterChart({ files = [] }: AgeScatterChartProps) {
                       {t('charts.size', { size: formatBytes(data.rawBytes) })}
                     </Text>
                     <Text size="sm" fw={500} c="dimmed">
-                      {t('age.modified', { count: data.ageMonths, n: formatNumber(data.ageMonths, { maximumFractionDigits: 1, useGrouping: false }) })}
+                      {t('age.modified', {
+                        count: data.ageMonths,
+                        n: formatNumber(data.ageMonths, { maximumFractionDigits: 1, useGrouping: false }),
+                      })}
                     </Text>
                     {/* Issue #112: Show the file category in the tooltip */}
                     <Text size="sm" fw={500} c="dimmed">

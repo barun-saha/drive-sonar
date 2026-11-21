@@ -29,10 +29,7 @@ export function VisualizationPanel({ payload, onNavigate }: VisualizationPanelPr
         boxSizing: 'border-box',
       }}
     >
-      <Tabs
-        defaultValue="treemap"
-        style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
-      >
+      <Tabs defaultValue="treemap" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
         <Tabs.List>
           <Tabs.Tab value="treemap">{t('tabs.spaceMap')}</Tabs.Tab>
           <Tabs.Tab value="extensions">{t('tabs.fileTypes')}</Tabs.Tab>
@@ -40,11 +37,7 @@ export function VisualizationPanel({ payload, onNavigate }: VisualizationPanelPr
         </Tabs.List>
 
         <Tabs.Panel value="treemap" style={{ flex: 1, minHeight: 0, paddingTop: '12px' }}>
-          <SizeChart
-            key={`treemap-${currentId}`}
-            items={items}
-            onNavigate={onNavigate}
-          />
+          <SizeChart key={`treemap-${currentId}`} items={items} onNavigate={onNavigate} />
         </Tabs.Panel>
 
         <Tabs.Panel value="extensions" style={{ flex: 1, minHeight: 0, paddingTop: '12px' }}>

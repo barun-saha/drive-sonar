@@ -18,7 +18,14 @@ interface StatusBarProps {
 }
 
 export function StatusBar({
-  isScanning, scanTime, totalItems, scanProgress, diskInfo, scanPath, rootScanBytes, warningCount
+  isScanning,
+  scanTime,
+  totalItems,
+  scanProgress,
+  diskInfo,
+  scanPath,
+  rootScanBytes,
+  warningCount,
 }: StatusBarProps) {
   const { t } = useTranslation();
 
@@ -26,7 +33,7 @@ export function StatusBar({
   const isVolumeRoot = useMemo(() => {
     if (!scanPath) return false;
     if (/^[A-Za-z]:[/\\]?$/.test(scanPath)) return true; // Windows: C:\, C:/, or C:
-    if (scanPath === '/') return true;                    // Unix root
+    if (scanPath === '/') return true; // Unix root
     return false;
   }, [scanPath]);
 
@@ -45,9 +52,7 @@ export function StatusBar({
 
   const scanDone = scanTime !== null;
   const showScanTotals = scanDone || (isScanning && !!scanProgress);
-  const scannedItems = scanDone
-    ? totalItems
-    : (scanProgress ? scanProgress.file_count + scanProgress.dir_count : 0);
+  const scannedItems = scanDone ? totalItems : scanProgress ? scanProgress.file_count + scanProgress.dir_count : 0;
   const elapsedSecs = scanDone ? scanTime / 1000 : (scanProgress?.elapsed_secs ?? 0);
 
   return (
@@ -66,7 +71,10 @@ export function StatusBar({
               <Trans
                 i18nKey="status.scanned"
                 count={scannedItems}
-                values={{ n: formatNumber(scannedItems), time: t('status.seconds', { value: formatDecimal(elapsedSecs, 2) }) }}
+                values={{
+                  n: formatNumber(scannedItems),
+                  time: t('status.seconds', { value: formatDecimal(elapsedSecs, 2) }),
+                }}
                 components={{ b: <Text span fw={600} inherit /> }}
               />
             </>

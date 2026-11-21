@@ -22,7 +22,7 @@ function renderWithMantine(ui: React.ReactNode) {
   return render(
     <MantineProvider>
       <ModalsProvider>{ui}</ModalsProvider>
-    </MantineProvider>
+    </MantineProvider>,
   );
 }
 
@@ -63,9 +63,7 @@ describe('ItemList', () => {
     const onNavigate = vi.fn();
     const onRefresh = vi.fn();
 
-    renderWithMantine(
-      <ItemList payload={mockPayload} onNavigate={onNavigate} onRefresh={onRefresh} />
-    );
+    renderWithMantine(<ItemList payload={mockPayload} onNavigate={onNavigate} onRefresh={onRefresh} />);
 
     expect(screen.getByText('Folder A')).toBeInTheDocument();
     expect(screen.getByText('File B.txt')).toBeInTheDocument();
@@ -75,9 +73,7 @@ describe('ItemList', () => {
       items: [],
     };
 
-    renderWithMantine(
-      <ItemList payload={emptyPayload} onNavigate={onNavigate} onRefresh={onRefresh} />
-    );
+    renderWithMantine(<ItemList payload={emptyPayload} onNavigate={onNavigate} onRefresh={onRefresh} />);
 
     expect(screen.getByText('This directory is empty.')).toBeInTheDocument();
   });
@@ -105,9 +101,7 @@ describe('ItemList', () => {
         { id: 12, name: 'tiny.zip', is_dir: false, size: 10, modified_secs: 1, percentage_of_parent: 0.04 },
       ],
     };
-    const { container } = renderWithMantine(
-      <ItemList payload={payload} onNavigate={vi.fn()} onRefresh={vi.fn()} />
-    );
+    const { container } = renderWithMantine(<ItemList payload={payload} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
 
     // Rows are sorted by size: Folder A (80%), File B.txt (20%), tiny.zip
     const bars = Array.from(container.querySelectorAll('.mantine-Progress-section'));
@@ -120,9 +114,7 @@ describe('ItemList', () => {
 
   it('navigates when clicking a directory item', () => {
     const onNavigate = vi.fn();
-    renderWithMantine(
-      <ItemList payload={mockPayload} onNavigate={onNavigate} onRefresh={vi.fn()} />
-    );
+    renderWithMantine(<ItemList payload={mockPayload} onNavigate={onNavigate} onRefresh={vi.fn()} />);
 
     fireEvent.click(screen.getByText('Folder A'));
     expect(onNavigate).toHaveBeenCalledWith(10);
@@ -135,9 +127,7 @@ describe('ItemList', () => {
   it('invokes open_in_explorer when action icon is clicked', async () => {
     vi.mocked(invoke).mockResolvedValue(undefined);
 
-    renderWithMantine(
-      <ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />
-    );
+    renderWithMantine(<ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
 
     const openIcons = screen.getAllByTitle('Open in Files Explorer');
     fireEvent.click(openIcons[0]);
@@ -148,9 +138,7 @@ describe('ItemList', () => {
   it('handles open_in_explorer failure gracefully', async () => {
     vi.mocked(invoke).mockRejectedValue(new Error('Explorer failed'));
 
-    renderWithMantine(
-      <ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />
-    );
+    renderWithMantine(<ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
 
     const openIcons = screen.getAllByTitle('Open in Files Explorer');
     fireEvent.click(openIcons[0]);
@@ -167,12 +155,7 @@ describe('ItemList', () => {
     const showSpy = vi.spyOn(notifications, 'show');
 
     renderWithMantine(
-      <ItemList
-        payload={mockPayload}
-        onNavigate={onNavigate}
-        onRefresh={vi.fn()}
-        onItemTrashed={onItemTrashed}
-      />
+      <ItemList payload={mockPayload} onNavigate={onNavigate} onRefresh={vi.fn()} onItemTrashed={onItemTrashed} />,
     );
 
     const trashIcons = screen.getAllByTitle('Move to Trash');
@@ -190,7 +173,7 @@ describe('ItemList', () => {
         expect.objectContaining({
           title: 'Success',
           message: expect.stringMatching(/Folder A.*KB/),
-        })
+        }),
       );
       expect(onNavigate).toHaveBeenCalledWith(1);
     });
@@ -206,7 +189,9 @@ describe('ItemList', () => {
       vi.mocked(invoke).mockImplementation(
         () => new Promise((resolve, reject) => (finish = ({ ok, error }) => (error ? reject(error) : resolve(ok)))),
       );
-      renderWithMantine(<ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} onItemTrashed={vi.fn()} />);
+      renderWithMantine(
+        <ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} onItemTrashed={vi.fn()} />,
+      );
 
       fireEvent.click(screen.getAllByTitle('Move to Trash')[0]); // Folder A
       const dialog = await screen.findByRole('dialog');
@@ -304,8 +289,7 @@ describe('ItemList', () => {
       expect(onNavigate).not.toHaveBeenCalled();
     });
 
-    const menuLabels = () =>
-      Array.from(document.querySelectorAll('[role="menuitem"]')).map((item) => item.textContent);
+    const menuLabels = () => Array.from(document.querySelectorAll('[role="menuitem"]')).map((item) => item.textContent);
 
     it('offers Open folder only for folders in the context menu', async () => {
       renderWithMantine(<ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
@@ -360,9 +344,7 @@ describe('ItemList', () => {
   it('handles move_to_trash error on deletion confirm', async () => {
     vi.mocked(invoke).mockRejectedValue(new Error('Permission denied'));
 
-    renderWithMantine(
-      <ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />
-    );
+    renderWithMantine(<ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
 
     const trashIcons = screen.getAllByTitle('Move to Trash');
     fireEvent.click(trashIcons[1]); // File B.txt
@@ -382,9 +364,7 @@ describe('ItemList', () => {
     const onNavigate = vi.fn();
     const onRefresh = vi.fn();
 
-    renderWithMantine(
-      <ItemList payload={mockPayload} onNavigate={onNavigate} onRefresh={onRefresh} />
-    );
+    renderWithMantine(<ItemList payload={mockPayload} onNavigate={onNavigate} onRefresh={onRefresh} />);
 
     // Trigger modal
     fireEvent.click(screen.getAllByTitle('Move to Trash')[0]);
@@ -402,10 +382,11 @@ describe('ItemList', () => {
 
   it('triggers scroll event on viewport', () => {
     const { container } = renderWithMantine(
-      <ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />
+      <ItemList payload={mockPayload} onNavigate={vi.fn()} onRefresh={vi.fn()} />,
     );
 
-    const scrollContainer = container.querySelector('div[style*="overflow-y: auto"]') || container.querySelector('div[style*="overflowY"]');
+    const scrollContainer =
+      container.querySelector('div[style*="overflow-y: auto"]') || container.querySelector('div[style*="overflowY"]');
     if (scrollContainer) {
       fireEvent.scroll(scrollContainer, { target: { scrollTop: 100 } });
     }
@@ -441,9 +422,7 @@ describe('ItemList', () => {
 
     it('renders more rows after the viewport grows', () => {
       sizeMock.height = 190;
-      const { rerender } = renderWithMantine(
-        <ItemList payload={manyItems} onNavigate={vi.fn()} onRefresh={vi.fn()} />
-      );
+      const { rerender } = renderWithMantine(<ItemList payload={manyItems} onNavigate={vi.fn()} onRefresh={vi.fn()} />);
       expect(renderedCount()).toBe(10);
 
       sizeMock.height = 760;
@@ -452,7 +431,7 @@ describe('ItemList', () => {
           <ModalsProvider>
             <ItemList payload={manyItems} onNavigate={vi.fn()} onRefresh={vi.fn()} />
           </ModalsProvider>
-        </MantineProvider>
+        </MantineProvider>,
       );
       expect(renderedCount()).toBe(25);
     });

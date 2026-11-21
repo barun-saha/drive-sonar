@@ -13,12 +13,7 @@ interface WorkspaceProps {
 export function Workspace({ payload, onNavigate, onRefresh, onItemTrashed }: WorkspaceProps) {
   return (
     <div className="workspace">
-      <ItemList
-        payload={payload}
-        onNavigate={onNavigate}
-        onRefresh={onRefresh}
-        onItemTrashed={onItemTrashed}
-      />
+      <ItemList payload={payload} onNavigate={onNavigate} onRefresh={onRefresh} onItemTrashed={onItemTrashed} />
       <VisualizationPanel payload={payload} onNavigate={onNavigate} />
     </div>
   );

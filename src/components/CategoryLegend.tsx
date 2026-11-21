@@ -15,7 +15,9 @@ export function CategoryLegend({ categories }: CategoryLegendProps) {
       {CATEGORY_ORDER.filter((category) => categories.includes(category)).map((category) => (
         <Group key={category} gap={6} wrap="nowrap">
           <Box w={10} h={10} style={{ borderRadius: 2, background: categoryColor(category) }} />
-          <Text size="xs" c="dimmed">{t(`category.${category}`)}</Text>
+          <Text size="xs" c="dimmed">
+            {t(`category.${category}`)}
+          </Text>
         </Group>
       ))}
     </Group>

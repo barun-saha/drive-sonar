@@ -68,7 +68,7 @@ export function SizeChart({ items, onNavigate }: SizeChartProps) {
                 if (isDir && onNavigate && typeof id === 'number') {
                   onNavigate(id);
                 }
-              }
+              },
             }}
             tooltipProps={{
               content: ({ active, payload }) => {
@@ -77,8 +77,14 @@ export function SizeChart({ items, onNavigate }: SizeChartProps) {
                   return (
                     <ChartTooltip>
                       <Group gap={6} mb={4}>
-                        <Text size="sm" fw={700}>{data.name}</Text>
-                        {data.isDir && <Badge size="xs" variant="light">{t('charts.folder')}</Badge>}
+                        <Text size="sm" fw={700}>
+                          {data.name}
+                        </Text>
+                        {data.isDir && (
+                          <Badge size="xs" variant="light">
+                            {t('charts.folder')}
+                          </Badge>
+                        )}
                       </Group>
                       <Text size="sm" fw={500} c="dimmed">
                         {t('charts.size', { size: formatBytes(data.realSize) })}
@@ -92,12 +98,14 @@ export function SizeChart({ items, onNavigate }: SizeChartProps) {
                   );
                 }
                 return null;
-              }
+              },
             }}
           />
         ) : (
           <Group justify="center" align="center" style={{ height: '100%' }}>
-            <Text size="sm" c="dimmed">{t('spaceMap.empty')}</Text>
+            <Text size="sm" c="dimmed">
+              {t('spaceMap.empty')}
+            </Text>
           </Group>
         )}
       </div>

@@ -16,9 +16,7 @@ import { StatusBar } from './components/StatusBar';
 import { saveReportToTextFile } from './utils/exportReport';
 import { formatBytes } from './utils/format';
 import i18n, { applyLanguage } from './i18n';
-import {
-  LANGUAGES, LANGUAGE_STORAGE_KEY, parseLanguageSetting, type LanguageSetting,
-} from './i18n/languages';
+import { LANGUAGES, LANGUAGE_STORAGE_KEY, parseLanguageSetting, type LanguageSetting } from './i18n/languages';
 import thirdPartyNotices from '../THIRD_PARTY_NOTICES.md?raw';
 
 import '@mantine/notifications/styles.css';
@@ -32,8 +30,10 @@ function parseTrashedTotals(stored?: string): TrashedTotals {
   try {
     const parsed = JSON.parse(stored ?? '');
     if (
-      Number.isInteger(parsed?.count) && parsed.count >= 0 &&
-      Number.isFinite(parsed?.bytes) && parsed.bytes >= 0 &&
+      Number.isInteger(parsed?.count) &&
+      parsed.count >= 0 &&
+      Number.isFinite(parsed?.bytes) &&
+      parsed.bytes >= 0 &&
       (parsed.count > 0 || parsed.bytes === 0)
     ) {
       return { count: parsed.count, bytes: parsed.bytes };
@@ -344,17 +344,11 @@ export default function App() {
       totalDirectories: rootStats.totalDirectories,
       scanDurationMs: scanTime ?? undefined,
       totalDriveBytes: diskInfo?.total_bytes,
-      totalDriveUsed: diskInfo
-        ? diskInfo.total_bytes - diskInfo.free_bytes
-        : undefined,
+      totalDriveUsed: diskInfo ? diskInfo.total_bytes - diskInfo.free_bytes : undefined,
       totalDriveFree: diskInfo?.free_bytes,
     };
 
-    const saved = await saveReportToTextFile(
-      stats,
-      rootStats.topLevelDirs,
-      rootStats.topFiles
-    );
+    const saved = await saveReportToTextFile(stats, rootStats.topLevelDirs, rootStats.topFiles);
 
     if (saved) {
       notifications.show({
@@ -374,23 +368,19 @@ export default function App() {
             <Modal.Title>
               <Group gap="xs">
                 <HelpCircle size={20} color="var(--mantine-color-dimmed)" />
-                <Text fw={600} size="lg" c="dimmed">{t('help.title')}</Text>
+                <Text fw={600} size="lg" c="dimmed">
+                  {t('help.title')}
+                </Text>
               </Group>
             </Modal.Title>
             <Modal.CloseButton />
           </Modal.Header>
           <Modal.Body pt="md">
-            <Text size="lg">
-              {t('help.scan', { run: t('toolbar.runScan') })}
-            </Text>
+            <Text size="lg">{t('help.scan', { run: t('toolbar.runScan') })}</Text>
             <br />
-            <Text size="lg">
-              {t('help.cancel', { cancel: t('toolbar.cancelScan') })}
-            </Text>
+            <Text size="lg">{t('help.cancel', { cancel: t('toolbar.cancelScan') })}</Text>
             <br />
-            <Text size="lg">
-              {t('help.keyboard')}
-            </Text>
+            <Text size="lg">{t('help.keyboard')}</Text>
           </Modal.Body>
         </Modal.Content>
       </Modal.Root>
@@ -402,7 +392,9 @@ export default function App() {
             <Modal.Title>
               <Group gap="xs">
                 <Info size={20} color="var(--mantine-color-dimmed)" />
-                <Text fw={600} size="lg" c="dimmed">{t('about.title')}</Text>
+                <Text fw={600} size="lg" c="dimmed">
+                  {t('about.title')}
+                </Text>
               </Group>
             </Modal.Title>
             <Modal.CloseButton />
@@ -410,27 +402,19 @@ export default function App() {
           <Modal.Body pt="md">
             <Stack gap="xs">
               <Text fw={500}>Drive Sonar {appVersion ? `v${appVersion}` : ''}</Text>
-              <Text size="lg">
-                {t('about.description')}
-              </Text>
+              <Text size="lg">{t('about.description')}</Text>
               <br />
               <Text size="lg">{t('about.license')}</Text>
               <Text size="lg">{t('about.copyright')}</Text>
               <br />
               <Text size="md">
                 {t('about.website')}{' '}
-                <Anchor
-                  href="https://drivesonar.download/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+                <Anchor href="https://drivesonar.download/" target="_blank" rel="noopener noreferrer">
                   https://drivesonar.download/
                 </Anchor>
               </Text>
 
-              <Text size="md">
-                {t('about.starPrompt')}
-              </Text>
+              <Text size="md">{t('about.starPrompt')}</Text>
 
               <Button
                 component="a"
@@ -451,7 +435,12 @@ export default function App() {
                   <Text size="sm" c="dimmed">
                     {t('about.lifetime', { size: formatBytes(lifetimeTrashed.bytes) })}
                   </Text>
-                  <Button variant="subtle" color="gray" size="compact-xs" onClick={() => setLifetimeTrashed(NO_TRASHED)}>
+                  <Button
+                    variant="subtle"
+                    color="gray"
+                    size="compact-xs"
+                    onClick={() => setLifetimeTrashed(NO_TRASHED)}
+                  >
                     {t('about.reset')}
                   </Button>
                 </Group>
@@ -478,7 +467,9 @@ export default function App() {
                 {noticesOpened ? t('about.hideLicense') : t('about.showLicense')}
               </Button>
               <Collapse expanded={noticesOpened}>
-                <Code block mah={240} style={{ overflow: 'auto' }}>{thirdPartyNotices}</Code>
+                <Code block mah={240} style={{ overflow: 'auto' }}>
+                  {thirdPartyNotices}
+                </Code>
               </Collapse>
             </Stack>
           </Modal.Body>
@@ -514,10 +505,7 @@ export default function App() {
 
             <Menu.Dropdown>
               <Menu.Label>{t('menu.application')}</Menu.Label>
-              <Menu.Item
-                leftSection={computedColorScheme === 'dark' ? <Sun /> : <Moon />}
-                onClick={toggleColorScheme}
-              >
+              <Menu.Item leftSection={computedColorScheme === 'dark' ? <Sun /> : <Moon />} onClick={toggleColorScheme}>
                 {computedColorScheme === 'dark' ? t('menu.switchToLight') : t('menu.switchToDark')}
               </Menu.Item>
 
@@ -546,11 +534,7 @@ export default function App() {
               </Menu.Sub>
               <Menu.Divider />
 
-              <Menu.Item
-                leftSection={<Save />}
-                onClick={handleExportReport}
-                disabled={!payload || isScanning}
-              >
+              <Menu.Item leftSection={<Save />} onClick={handleExportReport} disabled={!payload || isScanning}>
                 {t('menu.saveReport')}
               </Menu.Item>
               <Menu.Divider />

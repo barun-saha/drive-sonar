@@ -50,7 +50,13 @@ describe('AgeScatterChart', () => {
 
   it('renders chart and handles semi-log scale toggle and tooltip content when files exist', () => {
     const mockFiles: TopFileNode[] = [
-      { id: 1, name: 'large_file.iso', size: 1048576 * 500, modified_secs: Math.floor(Date.now() / 1000) - 86400 * 60, path: '/downloads/large_file.iso' },
+      {
+        id: 1,
+        name: 'large_file.iso',
+        size: 1048576 * 500,
+        modified_secs: Math.floor(Date.now() / 1000) - 86400 * 60,
+        path: '/downloads/large_file.iso',
+      },
       { id: 2, name: 'zero_file.bin', size: 0, modified_secs: 0, path: '/downloads/zero_file.bin' },
     ];
 
@@ -69,7 +75,19 @@ describe('AgeScatterChart', () => {
     const content = capturedScatterProps?.tooltipProps?.content;
     if (content) {
       const tooltipUI = content({
-        payload: [{ payload: { fileName: 'large_file.iso', filePath: '/downloads/large_file.iso', fileId: 1, rawBytes: 1048576 * 500, sizeMB: 500, ageMonths: 2, fileCategory: 'installers' } }],
+        payload: [
+          {
+            payload: {
+              fileName: 'large_file.iso',
+              filePath: '/downloads/large_file.iso',
+              fileId: 1,
+              rawBytes: 1048576 * 500,
+              sizeMB: 500,
+              ageMonths: 2,
+              fileCategory: 'installers',
+            },
+          },
+        ],
       });
       renderWithMantine(tooltipUI);
       expect(screen.getByText('large_file.iso')).toBeInTheDocument();
@@ -101,10 +119,13 @@ describe('AgeScatterChart', () => {
       <svg>
         <g onClick={parentClick} onKeyDown={parentKeyDown}>
           {cloneElement(capturedScatterProps.scatterProps.shape, {
-            cx: 10, cy: 10, payload, onClick: pointClick,
+            cx: 10,
+            cy: 10,
+            payload,
+            onClick: pointClick,
           })}
         </g>
-      </svg>
+      </svg>,
     );
 
     const point = screen.getByRole('button', { name: 'Open archive.zip in Files Explorer' });
@@ -123,9 +144,7 @@ describe('AgeScatterChart', () => {
     expect(invoke).not.toHaveBeenCalled();
     parentKeyDown.mockClear();
 
-    const event = action === 'click'
-      ? createEvent.click(point)
-      : createEvent.keyDown(point, { key: action });
+    const event = action === 'click' ? createEvent.click(point) : createEvent.keyDown(point, { key: action });
     fireEvent(point, event);
 
     expect(event.defaultPrevented).toBe(action !== 'click');
@@ -142,7 +161,13 @@ describe('AgeScatterChart', () => {
     vi.mocked(invoke).mockResolvedValue(undefined);
 
     const mockFiles: TopFileNode[] = [
-      { id: 99, name: 'archive.zip', size: 1048576 * 600, modified_secs: Math.floor(Date.now() / 1000) - 86400 * 10, path: '/backups/archive.zip' },
+      {
+        id: 99,
+        name: 'archive.zip',
+        size: 1048576 * 600,
+        modified_secs: Math.floor(Date.now() / 1000) - 86400 * 10,
+        path: '/backups/archive.zip',
+      },
     ];
 
     renderWithMantine(<AgeScatterChart files={mockFiles} />);
@@ -158,7 +183,11 @@ describe('AgeScatterChart', () => {
   });
 
   it('labels each point with its file name and path for assistive tech and hover', () => {
-    renderWithMantine(<AgeScatterChart files={[{ id: 7, name: 'movie.mkv', size: 1048576 * 700, modified_secs: 1, path: '/media/movie.mkv' }]} />);
+    renderWithMantine(
+      <AgeScatterChart
+        files={[{ id: 7, name: 'movie.mkv', size: 1048576 * 700, modified_secs: 1, path: '/media/movie.mkv' }]}
+      />,
+    );
     const shape = capturedScatterProps.scatterProps.shape;
     const point = (payload?: object) =>
       render(<svg>{cloneElement(shape, { cx: 10, cy: 10, payload })}</svg>).container.querySelector('circle')!;
@@ -178,7 +207,13 @@ describe('AgeScatterChart', () => {
     vi.mocked(invoke).mockRejectedValue(new Error('Failed to open'));
 
     const mockFiles: TopFileNode[] = [
-      { id: 42, name: 'video.mp4', size: 1048576 * 200, modified_secs: Math.floor(Date.now() / 1000) - 86400 * 30, path: '/movies/video.mp4' },
+      {
+        id: 42,
+        name: 'video.mp4',
+        size: 1048576 * 200,
+        modified_secs: Math.floor(Date.now() / 1000) - 86400 * 30,
+        path: '/movies/video.mp4',
+      },
     ];
 
     renderWithMantine(<AgeScatterChart files={mockFiles} />);
@@ -190,7 +225,7 @@ describe('AgeScatterChart', () => {
         expect.objectContaining({
           title: 'Execution Failed',
           color: 'red',
-        })
+        }),
       );
     });
   });
@@ -223,7 +258,11 @@ describe('AgeScatterChart', () => {
   ])('keeps $count overlapping points at age $ageMonths distinct and nonnegative', ({ ageMonths, count, expected }) => {
     const modifiedSecs = Math.floor(Date.now() / 1000) - ageMonths * 86400 * 30.4375;
     const mockFiles: TopFileNode[] = Array.from({ length: count }, (_, id) => ({
-      id, name: `file${id}.zip`, size: 1048576 * 100, modified_secs: modifiedSecs, path: `/file${id}.zip`,
+      id,
+      name: `file${id}.zip`,
+      size: 1048576 * 100,
+      modified_secs: modifiedSecs,
+      path: `/file${id}.zip`,
     }));
     renderWithMantine(<AgeScatterChart files={mockFiles} />);
 
@@ -238,7 +277,11 @@ describe('AgeScatterChart', () => {
   describe('modified age in the active language', () => {
     const tooltipFor = (monthsAgo: number) => {
       const modifiedSecs = Math.floor(Date.now() / 1000) - monthsAgo * 86400 * 30.4375;
-      renderWithMantine(<AgeScatterChart files={[{ id: 1, name: 'a.zip', size: 1048576 * 100, modified_secs: modifiedSecs, path: '/a.zip' }]} />);
+      renderWithMantine(
+        <AgeScatterChart
+          files={[{ id: 1, name: 'a.zip', size: 1048576 * 100, modified_secs: modifiedSecs, path: '/a.zip' }]}
+        />,
+      );
       const point = capturedScatterProps.data[0].data[0];
       renderWithMantine(capturedScatterProps.tooltipProps.content({ payload: [{ payload: point }] }));
     };
@@ -260,7 +303,7 @@ describe('AgeScatterChart', () => {
       expect(screen.getByText(expected)).toBeInTheDocument();
     });
 
-    it('shows fractional months with the language\'s decimal separator', async () => {
+    it("shows fractional months with the language's decimal separator", async () => {
       await applyLanguage('de');
       tooltipFor(1.5);
       expect(screen.getByText('Geändert: vor 1,5 Monaten')).toBeInTheDocument();
@@ -359,36 +402,36 @@ describe('AgeScatterChart', () => {
 
     it('assigns fileCategory to each point based on the file name extension', () => {
       const files: TopFileNode[] = [
-        { id: 1, name: 'movie.mp4',   size: MB * 500, modified_secs: monthsAgo(1),  path: '/movie.mp4' },
-        { id: 2, name: 'report.pdf',  size: MB * 100, modified_secs: monthsAgo(12), path: '/report.pdf' },
-        { id: 3, name: 'backup.zip',  size: MB * 200, modified_secs: monthsAgo(36), path: '/backup.zip' },
-        { id: 4, name: 'setup.exe',   size: MB * 300, modified_secs: monthsAgo(2),  path: '/setup.exe' },
-        { id: 5, name: 'script.py',   size: MB * 50,  modified_secs: monthsAgo(5),  path: '/script.py' },
-        { id: 6, name: 'unknown.xyz', size: MB * 10,  modified_secs: monthsAgo(3),  path: '/unknown.xyz' },
+        { id: 1, name: 'movie.mp4', size: MB * 500, modified_secs: monthsAgo(1), path: '/movie.mp4' },
+        { id: 2, name: 'report.pdf', size: MB * 100, modified_secs: monthsAgo(12), path: '/report.pdf' },
+        { id: 3, name: 'backup.zip', size: MB * 200, modified_secs: monthsAgo(36), path: '/backup.zip' },
+        { id: 4, name: 'setup.exe', size: MB * 300, modified_secs: monthsAgo(2), path: '/setup.exe' },
+        { id: 5, name: 'script.py', size: MB * 50, modified_secs: monthsAgo(5), path: '/script.py' },
+        { id: 6, name: 'unknown.xyz', size: MB * 10, modified_secs: monthsAgo(3), path: '/unknown.xyz' },
       ];
       renderWithMantine(<AgeScatterChart files={files} />);
 
       const categories = capturedScatterProps.data[0].data.map((p: any) => [p.fileName, p.fileCategory]);
       expect(categories).toEqual([
-        ['movie.mp4',   'media'],
-        ['report.pdf',  'documents'],
-        ['backup.zip',  'archives'],
-        ['setup.exe',   'installers'],
-        ['script.py',   'code'],
+        ['movie.mp4', 'media'],
+        ['report.pdf', 'documents'],
+        ['backup.zip', 'archives'],
+        ['setup.exe', 'installers'],
+        ['script.py', 'code'],
         ['unknown.xyz', 'other'],
       ]);
     });
 
     it('colors each point using the category CSS variable, not an age variable', () => {
       const files: TopFileNode[] = [
-        { id: 1, name: 'movie.mp4',  size: MB * 500, modified_secs: monthsAgo(1),  path: '/movie.mp4' },
+        { id: 1, name: 'movie.mp4', size: MB * 500, modified_secs: monthsAgo(1), path: '/movie.mp4' },
         { id: 2, name: 'backup.zip', size: MB * 200, modified_secs: monthsAgo(60), path: '/backup.zip' },
       ];
       renderWithMantine(<AgeScatterChart files={files} />);
 
       const renderPoint = (payload: any) =>
         render(
-          <svg>{cloneElement(capturedScatterProps.scatterProps.shape, { cx: 1, cy: 1, payload })}</svg>
+          <svg>{cloneElement(capturedScatterProps.scatterProps.shape, { cx: 1, cy: 1, payload })}</svg>,
         ).container.querySelector('circle')!;
 
       const [mediaPoint, archivePoint] = capturedScatterProps.data[0].data;
@@ -408,7 +451,7 @@ describe('AgeScatterChart', () => {
 
     it('renders the CategoryLegend with the categories present in the data', () => {
       const files: TopFileNode[] = [
-        { id: 1, name: 'movie.mp4',  size: MB * 500, modified_secs: monthsAgo(1),  path: '/movie.mp4' },
+        { id: 1, name: 'movie.mp4', size: MB * 500, modified_secs: monthsAgo(1), path: '/movie.mp4' },
         { id: 2, name: 'report.pdf', size: MB * 100, modified_secs: monthsAgo(12), path: '/report.pdf' },
       ];
       renderWithMantine(<AgeScatterChart files={files} />);
@@ -445,7 +488,19 @@ describe('AgeScatterChart', () => {
 
       const content = capturedScatterProps?.tooltipProps?.content;
       const tooltipUI = content({
-        payload: [{ payload: { fileName: 'movie.mp4', filePath: '/movie.mp4', fileId: 1, rawBytes: MB * 500, sizeMB: 500, ageMonths: 1, fileCategory: 'media' } }],
+        payload: [
+          {
+            payload: {
+              fileName: 'movie.mp4',
+              filePath: '/movie.mp4',
+              fileId: 1,
+              rawBytes: MB * 500,
+              sizeMB: 500,
+              ageMonths: 1,
+              fileCategory: 'media',
+            },
+          },
+        ],
       });
       renderWithMantine(tooltipUI);
       expect(screen.getByText('Category: Media')).toBeInTheDocument();
@@ -453,15 +508,15 @@ describe('AgeScatterChart', () => {
 
     it('renders scatter points with slightly larger radii based on file size', () => {
       const files: TopFileNode[] = [
-        { id: 1, name: 'small.txt',  size: MB * 100,  modified_secs: monthsAgo(1), path: '/small.txt' },
-        { id: 2, name: 'medium.zip', size: MB * 800,  modified_secs: monthsAgo(1), path: '/medium.zip' },
-        { id: 3, name: 'large.iso',  size: MB * 2000, modified_secs: monthsAgo(1), path: '/large.iso' },
+        { id: 1, name: 'small.txt', size: MB * 100, modified_secs: monthsAgo(1), path: '/small.txt' },
+        { id: 2, name: 'medium.zip', size: MB * 800, modified_secs: monthsAgo(1), path: '/medium.zip' },
+        { id: 3, name: 'large.iso', size: MB * 2000, modified_secs: monthsAgo(1), path: '/large.iso' },
       ];
       renderWithMantine(<AgeScatterChart files={files} />);
 
       const renderPoint = (payload: any) =>
         render(
-          <svg>{cloneElement(capturedScatterProps.scatterProps.shape, { cx: 1, cy: 1, payload })}</svg>
+          <svg>{cloneElement(capturedScatterProps.scatterProps.shape, { cx: 1, cy: 1, payload })}</svg>,
         ).container.querySelector('circle')!;
 
       const [small, medium, large] = capturedScatterProps.data[0].data;
@@ -479,7 +534,19 @@ describe('AgeScatterChart', () => {
 
       const content = capturedScatterProps?.tooltipProps?.content;
       const tooltipUI = content({
-        payload: [{ payload: { fileName: 'weird.xyz', filePath: '/weird.xyz', fileId: 1, rawBytes: MB * 10, sizeMB: 10, ageMonths: 1, fileCategory: 'other' } }],
+        payload: [
+          {
+            payload: {
+              fileName: 'weird.xyz',
+              filePath: '/weird.xyz',
+              fileId: 1,
+              rawBytes: MB * 10,
+              sizeMB: 10,
+              ageMonths: 1,
+              fileCategory: 'other',
+            },
+          },
+        ],
       });
       renderWithMantine(tooltipUI);
       expect(screen.getByText('Category: Other')).toBeInTheDocument();

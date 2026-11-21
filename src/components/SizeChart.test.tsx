@@ -33,8 +33,22 @@ describe('SizeChart', () => {
       renderWithMantine(<SizeChart items={items} />);
       return Object.fromEntries(capturedTreemapProps.data.map((d: any) => [d.name, d.color]));
     };
-    const video: UiDiskNode = { id: 1, name: 'Video.mp4', is_dir: false, size: 900, modified_secs: 1, percentage_of_parent: 90 };
-    const photos: UiDiskNode = { id: 2, name: 'Photos', is_dir: true, size: 100, modified_secs: 1, percentage_of_parent: 10 };
+    const video: UiDiskNode = {
+      id: 1,
+      name: 'Video.mp4',
+      is_dir: false,
+      size: 900,
+      modified_secs: 1,
+      percentage_of_parent: 90,
+    };
+    const photos: UiDiskNode = {
+      id: 2,
+      name: 'Photos',
+      is_dir: true,
+      size: 100,
+      modified_secs: 1,
+      percentage_of_parent: 10,
+    };
 
     const before = colorsByName([video, photos]);
     const after = colorsByName([{ ...video, size: 50 }, photos]);

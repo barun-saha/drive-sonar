@@ -4,26 +4,17 @@ import { formatBytes } from './format';
 import { KeyStats, TopFileNode, DirNode } from '../types';
 
 const pad = (n: number) => String(n).padStart(2, '0');
-const formatOptionalBytes = (bytes: number | undefined) =>
-  bytes === undefined ? 'Unavailable' : formatBytes(bytes);
+const formatOptionalBytes = (bytes: number | undefined) => (bytes === undefined ? 'Unavailable' : formatBytes(bytes));
 
-export function generateTextReport(
-  stats: KeyStats,
-  topLevelDirs: DirNode[],
-  top30Files: TopFileNode[]
-): string {
+export function generateTextReport(stats: KeyStats, topLevelDirs: DirNode[], top30Files: TopFileNode[]): string {
   const now = new Date();
   // 05-Sep-2026
   const dateStr = [
     String(now.getDate()).padStart(2, '0'),
     now.toLocaleString('en-US', { month: 'short' }),
-    now.getFullYear()
+    now.getFullYear(),
   ].join('-');
-  const timeStr = [
-    pad(now.getHours()),
-    pad(now.getMinutes()),
-    pad(now.getSeconds()),
-  ].join(':');
+  const timeStr = [pad(now.getHours()), pad(now.getMinutes()), pad(now.getSeconds())].join(':');
 
   const divider = '='.repeat(84);
   const subDivider = '-'.repeat(84);
@@ -103,11 +94,7 @@ export function generateTextReport(
 /**
  * Prompts user with save dialog and writes the report file
  */
-export async function saveReportToTextFile(
-  stats: KeyStats,
-  topLevelDirs: DirNode[],
-  top30Files: TopFileNode[]
-) {
+export async function saveReportToTextFile(stats: KeyStats, topLevelDirs: DirNode[], top30Files: TopFileNode[]) {
   const content = generateTextReport(stats, topLevelDirs, top30Files);
 
   try {

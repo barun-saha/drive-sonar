@@ -24,8 +24,12 @@ const localeFiles = import.meta.glob<{ default: Tree }>(['./locales/*.json', '!.
 
 describe('locale files', () => {
   it('has a file for every listed language', () => {
-    const expected = LANGUAGES.map(({ code }) => code).filter((code) => code !== 'en').sort();
-    const found = Object.keys(localeFiles).map((path) => path.match(/\/(\w+)\.json$/)![1]).sort();
+    const expected = LANGUAGES.map(({ code }) => code)
+      .filter((code) => code !== 'en')
+      .sort();
+    const found = Object.keys(localeFiles)
+      .map((path) => path.match(/\/(\w+)\.json$/)![1])
+      .sort();
     expect(found).toEqual(expected);
   });
 
@@ -52,7 +56,11 @@ describe('locale files', () => {
     });
 
     it('provides the "other" plural form for every counted string', () => {
-      const counted = new Set(Object.keys(source).filter((key) => PLURAL_SUFFIX.test(key)).map(baseKey));
+      const counted = new Set(
+        Object.keys(source)
+          .filter((key) => PLURAL_SUFFIX.test(key))
+          .map(baseKey),
+      );
       for (const key of counted) expect(strings[`${key}_other`], `${path}: ${key}_other`).toBeTruthy();
     });
   });

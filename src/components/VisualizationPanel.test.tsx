@@ -22,9 +22,7 @@ describe('VisualizationPanel', () => {
 
   it('renders tabs and allows switching between visualization panels', () => {
     const onNavigate = vi.fn();
-    renderWithMantine(
-      <VisualizationPanel payload={mockPayload} onNavigate={onNavigate} />
-    );
+    renderWithMantine(<VisualizationPanel payload={mockPayload} onNavigate={onNavigate} />);
 
     expect(screen.getByRole('tab', { name: 'Space Map' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'File Types' })).toBeInTheDocument();

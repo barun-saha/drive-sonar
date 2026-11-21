@@ -37,9 +37,7 @@ describe('StatusBar', () => {
   });
 
   it('shows live scan totals while scanning', () => {
-    renderWithMantine(
-      <StatusBar {...defaultProps} isScanning={true} scanProgress={liveProgress} />
-    );
+    renderWithMantine(<StatusBar {...defaultProps} isScanning={true} scanProgress={liveProgress} />);
 
     expect(screen.getByText('168')).toBeInTheDocument(); // 123 files + 45 dirs
     expect(screen.getByText('2.30 s')).toBeInTheDocument();
@@ -73,7 +71,7 @@ describe('StatusBar', () => {
     rerender(
       <MantineProvider>
         <StatusBar {...defaultProps} warningCount={3} />
-      </MantineProvider>
+      </MantineProvider>,
     );
     expect(screen.getByText('3 warnings')).toBeInTheDocument();
   });
@@ -85,9 +83,9 @@ describe('StatusBar', () => {
         scanTime={2000}
         // total=500GB, free_total=100GB → used=400GB, scanned=200GB → delta=200GB ≥ 1GiB
         diskInfo={{ total_bytes: 500_000_000_000, free_bytes: 100_000_000_000, free_total_bytes: 100_000_000_000 }}
-        scanPath={"C:\\"}
+        scanPath={'C:\\'}
         rootScanBytes={200_000_000_000}
-      />
+      />,
     );
     expect(document.body.textContent).toMatch(/unaccounted/);
   });
@@ -100,7 +98,7 @@ describe('StatusBar', () => {
         diskInfo={{ total_bytes: 500_000_000_000, free_bytes: 100_000_000_000, free_total_bytes: 100_000_000_000 }}
         scanPath="C:\\Users\\test"
         rootScanBytes={50_000_000_000}
-      />
+      />,
     );
     expect(document.body.textContent).not.toMatch(/unaccounted/);
   });
@@ -112,9 +110,9 @@ describe('StatusBar', () => {
         scanTime={1000}
         // used = 200 GB, scanned ≈ 200 GB → delta < 1 GiB
         diskInfo={{ total_bytes: 500_000_000_000, free_bytes: 300_000_000_000, free_total_bytes: 300_000_000_000 }}
-        scanPath={"C:\\"}
+        scanPath={'C:\\'}
         rootScanBytes={199_900_000_000}
-      />
+      />,
     );
     expect(document.body.textContent).not.toMatch(/unaccounted/);
   });
@@ -126,9 +124,9 @@ describe('StatusBar', () => {
         isScanning={true}
         scanProgress={liveProgress}
         diskInfo={{ total_bytes: 500_000_000_000, free_bytes: 100_000_000_000, free_total_bytes: 100_000_000_000 }}
-        scanPath={"C:\\"}
+        scanPath={'C:\\'}
         rootScanBytes={200_000_000_000}
-      />
+      />,
     );
     expect(document.body.textContent).not.toMatch(/unaccounted/);
   });

@@ -81,12 +81,24 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
     const page = Math.max(1, Math.floor(viewportHeight / ROW_HEIGHT));
 
     switch (e.key) {
-      case 'ArrowDown': selectIndex(current + 1); break;
-      case 'ArrowUp': selectIndex(current < 0 ? 0 : current - 1); break;
-      case 'PageDown': selectIndex(current + page); break;
-      case 'PageUp': selectIndex(current - page); break;
-      case 'Home': selectIndex(0); break;
-      case 'End': selectIndex(sortedItems.length - 1); break;
+      case 'ArrowDown':
+        selectIndex(current + 1);
+        break;
+      case 'ArrowUp':
+        selectIndex(current < 0 ? 0 : current - 1);
+        break;
+      case 'PageDown':
+        selectIndex(current + page);
+        break;
+      case 'PageUp':
+        selectIndex(current - page);
+        break;
+      case 'Home':
+        selectIndex(0);
+        break;
+      case 'End':
+        selectIndex(sortedItems.length - 1);
+        break;
       case 'Enter':
         if (!selected?.is_dir) return;
         onNavigate(selected.id);
@@ -95,7 +107,8 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
         if (!selected) return;
         handleDelete(selected);
         break;
-      default: return;
+      default:
+        return;
     }
     e.preventDefault();
   };
@@ -113,7 +126,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
       notifications.show({
         title: i18n.t('notify.executionFailed'),
         message: i18n.t('notify.openLocationFailed', { error: String(error) }),
-        color: 'red'
+        color: 'red',
       });
     }
   };
@@ -128,7 +141,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
         notifications.show({
           title: i18n.t('notify.success'),
           message: i18n.t('notify.trashed', { name: item.name, size: formatBytes(item.size) }),
-          color: 'green'
+          color: 'green',
         });
 
         if (rescanRequired) {
@@ -142,7 +155,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
         notifications.show({
           title: i18n.t('notify.deletionFailed'),
           message: i18n.t('notify.trashFailed', { error: String(error) }),
-          color: 'red'
+          color: 'red',
         });
       }
     };
@@ -154,7 +167,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
       title: t('list.confirmTitle'),
       centered: true,
       // 1. Make the destructive nature visually distinct
-      children:
+      children: (
         <Stack gap="xs">
           <Text size="md">
             {beforeName}
@@ -167,16 +180,16 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
             {t('list.confirmNote')}
           </Text>
         </Stack>
-      ,
+      ),
       labels: { confirm: t('list.moveToTrash'), cancel: t('list.cancel') },
       confirmProps: { color: 'red' },
       // 2. CRITICAL UX TWEAK: Default focus on the Cancel button
       // This prevents accidental deletions if the user happens to press 'Enter' or 'Space' double-tapping
       cancelProps: {
         'data-autofocus': true,
-        variant: 'default' // standard neutral styling makes the focus ring clear
+        variant: 'default', // standard neutral styling makes the focus ring clear
       },
-      onConfirm: executeDelete
+      onConfirm: executeDelete,
     });
   };
 
@@ -190,7 +203,7 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
         minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
       }}
     >
       <Group justify="space-between" align="center" mb="md">
@@ -218,16 +231,21 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
           position: 'relative',
           backgroundColor: 'var(--bg-main)',
           borderRadius: '6px',
-          border: '1px solid var(--border-color)'
+          border: '1px solid var(--border-color)',
         }}
       >
         <div
-          style={{ height: `${totalHeight}px`, width: '100%', position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
+          style={{
+            height: `${totalHeight}px`,
+            width: '100%',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            pointerEvents: 'none',
+          }}
         />
 
-        <div
-          style={{ transform: `translateY(${offsetY}px)`, position: 'absolute', left: 0, right: 0, top: 0 }}
-        >
+        <div style={{ transform: `translateY(${offsetY}px)`, position: 'absolute', left: 0, right: 0, top: 0 }}>
           <Stack gap={0}>
             {displayItems.map((item) => {
               const itemPercentage = item.percentage_of_parent;
@@ -254,15 +272,15 @@ export function ItemList({ payload, onNavigate, onRefresh, onItemTrashed }: Item
                     padding: '0 12px',
                     borderBottom: '1px solid var(--border-color)',
                     cursor: item.is_dir ? 'pointer' : 'default',
-                    userSelect: 'none'
+                    userSelect: 'none',
                   }}
                 >
                   <Group gap="sm" wrap="nowrap" style={{ flex: 2, minWidth: 0 }}>
-                    {
-                      item.is_dir
-                        ? <Folder color={itemColor} style={{ flexShrink: 0 }} />
-                        : <File color={itemColor} style={{ flexShrink: 0 }} />
-                    }
+                    {item.is_dir ? (
+                      <Folder color={itemColor} style={{ flexShrink: 0 }} />
+                    ) : (
+                      <File color={itemColor} style={{ flexShrink: 0 }} />
+                    )}
                     <Tooltip label={t('list.clickToOpen')} disabled={!item.is_dir} openDelay={200}>
                       <Text size="sm" style={{ color: 'var(--text-main)' }} truncate>
                         {item.name}
