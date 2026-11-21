@@ -4,7 +4,51 @@ on:
     tags:
       - 'v*'
 jobs:
+  # Gate: nothing is built or published unless the tests pass. These are the
+  # same checks CI runs on pull requests (see ci.yml), so a release commit
+  # that was green in its PR is green here.
+  test:
+    name: Tests (${{ matrix.platform }})
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ['windows-latest', 'ubuntu-24.04']
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Frontend typecheck and tests
+        if: runner.os == 'Linux'
+        run: npm test
+      # The Tauri crate needs the built frontend (frontendDist) at compile time.
+      - name: Build frontend
+        run: npm run build
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
   publish-tauri:
+    needs: test
     permissions:
       contents: write
     strategy:
