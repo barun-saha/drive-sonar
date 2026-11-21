@@ -19,13 +19,14 @@ describe('applyLanguage', () => {
     expect(i18n.t('toolbar.runScan')).toBe('স্ক্যান শুরু করুন');
   });
 
-  it.each([['hi', 'स्कैन शुरू करें'], ['es', 'Iniciar escaneo'], ['de', 'Scan starten']] as const)(
-    'switches to %s',
-    async (code, runScan) => {
-      await applyLanguage(code);
-      expect(i18n.t('toolbar.runScan')).toBe(runScan);
-    },
-  );
+  it.each([
+    ['hi', 'स्कैन शुरू करें'],
+    ['es', 'Iniciar escaneo'],
+    ['de', 'Scan starten'],
+  ] as const)('switches to %s', async (code, runScan) => {
+    await applyLanguage(code);
+    expect(i18n.t('toolbar.runScan')).toBe(runScan);
+  });
 
   it('switches back to English without loading anything', async () => {
     await applyLanguage('de');
@@ -137,7 +138,7 @@ describe('formatNumber', () => {
 });
 
 describe('decimal separators', () => {
-  it('uses the language\'s separator for sizes and percentages, with Latin digits and no grouping', async () => {
+  it("uses the language's separator for sizes and percentages, with Latin digits and no grouping", async () => {
     expect(formatBytes(1.5 * 1024 ** 3)).toBe('1.50 GB');
     expect(formatPercent(39.84)).toBe('39.8%');
     expect(formatPercent(0.04)).toBe('<0.1%');

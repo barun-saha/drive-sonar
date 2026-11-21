@@ -12,7 +12,7 @@ describe('generateTextReport', () => {
         scanDurationMs: 0,
       },
       [],
-      []
+      [],
     );
 
     expect(report).toContain('Total Size : Unavailable');

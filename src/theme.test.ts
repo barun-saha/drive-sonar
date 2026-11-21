@@ -30,7 +30,7 @@ describe.each(['light', 'dark'] as const)('%s theme tokens', (scheme) => {
     (name) => {
       expect(contrast(t[name], t['--bg-main'])).toBeGreaterThanOrEqual(4.5);
       expect(contrast(t[name], t['--bg-panel'])).toBeGreaterThanOrEqual(4.5);
-    }
+    },
   );
 
   it.each(AGE_GROUPS.map(({ group }) => `--age-${group}`))('%s is visible on the panel', (name) => {
@@ -43,7 +43,7 @@ describe.each(['light', 'dark'] as const)('%s theme tokens', (scheme) => {
       const color = tokens.variables[name];
       expect(contrast(color, t['--bg-panel'])).toBeGreaterThanOrEqual(3);
       expect(contrast(color, '#ffffff')).toBeGreaterThanOrEqual(3);
-    }
+    },
   );
 });
 

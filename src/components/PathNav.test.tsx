@@ -9,9 +9,7 @@ function renderWithMantine(ui: React.ReactNode) {
 
 describe('PathNav', () => {
   it('renders nothing when ancestors is empty or undefined', () => {
-    const { container } = renderWithMantine(
-      <PathNav ancestors={[]} onNavigate={vi.fn()} />
-    );
+    const { container } = renderWithMantine(<PathNav ancestors={[]} onNavigate={vi.fn()} />);
     expect(container.querySelector('.mantine-Breadcrumbs-root')).toBeNull();
   });
 
@@ -24,14 +22,7 @@ describe('PathNav', () => {
       { id: 1, name: 'drive-sonar' },
     ];
 
-    renderWithMantine(
-      <PathNav
-        ancestors={ancestors}
-        onNavigate={onNavigate}
-        onRescan={onRescan}
-        isWindows={false}
-      />
-    );
+    renderWithMantine(<PathNav ancestors={ancestors} onNavigate={onNavigate} onRescan={onRescan} isWindows={false} />);
 
     // '/' and 'home' and 'user' should be unscanned anchors
     expect(screen.getByText('/')).toBeInTheDocument();
@@ -61,12 +52,7 @@ describe('PathNav', () => {
     const winAncestors = [{ id: 10, name: 'C:\\Users\\barun\\Desktop' }];
 
     renderWithMantine(
-      <PathNav
-        ancestors={winAncestors}
-        onNavigate={onNavigate}
-        onRescan={onRescan}
-        isWindows={true}
-      />
+      <PathNav ancestors={winAncestors} onNavigate={onNavigate} onRescan={onRescan} isWindows={true} />,
     );
 
     expect(screen.getByText('C:')).toBeInTheDocument();
@@ -81,12 +67,7 @@ describe('PathNav', () => {
     const uncAncestors = [{ id: 20, name: '\\\\server\\share\\folder' }];
 
     renderWithMantine(
-      <PathNav
-        ancestors={uncAncestors}
-        onNavigate={onNavigate}
-        onRescan={onRescan}
-        isWindows={true}
-      />
+      <PathNav ancestors={uncAncestors} onNavigate={onNavigate} onRescan={onRescan} isWindows={true} />,
     );
 
     expect(screen.getByText('server')).toBeInTheDocument();
@@ -95,8 +76,6 @@ describe('PathNav', () => {
 
   it('handles fallback single root path when parts splitting yields empty', () => {
     const ancestors = [{ id: 5, name: '' }];
-    renderWithMantine(
-      <PathNav ancestors={ancestors} onNavigate={vi.fn()} isWindows={false} />
-    );
+    renderWithMantine(<PathNav ancestors={ancestors} onNavigate={vi.fn()} isWindows={false} />);
   });
 });

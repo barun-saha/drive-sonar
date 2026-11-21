@@ -10,14 +10,14 @@ export function useLogScale(minValue: number, maxValue: number) {
     if (!useLogScale) {
       return {
         ticks: undefined,
-        domain: [0, 'auto'] as [number, 'auto']
+        domain: [0, 'auto'] as [number, 'auto'],
       };
     }
 
     if (maxValue <= 0 || minValue <= 0) {
       return {
         ticks: undefined,
-        domain: ['auto', 'auto'] as const
+        domain: ['auto', 'auto'] as const,
       };
     }
 
@@ -41,8 +41,7 @@ export function useLogScale(minValue: number, maxValue: number) {
       ticks: steps.filter((step) => step >= lowerTick && step <= upperTick),
       domain: [lowerTick, upperTick] as [number, number],
     };
-  }, [minValue, maxValue, useLogScale]
-  );
+  }, [minValue, maxValue, useLogScale]);
 
   // Helper to format axis labels dynamically
   const getAxisLabel = (baseLabel: string) =>

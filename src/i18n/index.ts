@@ -5,7 +5,10 @@ import en from './locales/en.json';
 import { DEFAULT_LANGUAGE, resolveLanguage, type LanguageCode, type LanguageSetting } from './languages';
 
 // English ships in the main bundle (source of truth and fallback); every other language and its font load on demand.
-const localeLoaders = import.meta.glob<{ default: Record<string, unknown> }>(['./locales/*.json', '!./locales/en.json']);
+const localeLoaders = import.meta.glob<{ default: Record<string, unknown> }>([
+  './locales/*.json',
+  '!./locales/en.json',
+]);
 const fontLoaders = import.meta.glob<unknown>('./fonts/*.css');
 
 i18n.use(initReactI18next).init({
@@ -59,7 +62,11 @@ export function formatNumber(value: number, options?: Intl.NumberFormatOptions):
 
 /** A fixed number of decimals in the active language's separator (1.5 -> "1,50" in German), never grouped. */
 export function formatDecimal(value: number, fractionDigits: number): string {
-  return formatNumber(value, { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits, useGrouping: false });
+  return formatNumber(value, {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+    useGrouping: false,
+  });
 }
 
 /**
@@ -67,7 +74,10 @@ export function formatDecimal(value: number, fractionDigits: number): string {
  * own element. Translators keep the placeholder wherever the word order needs it.
  */
 const SLOT = '\u0001';
-export function translateAroundSlot(key: string, options: Record<string, unknown> = {}): [before: string, after: string] {
+export function translateAroundSlot(
+  key: string,
+  options: Record<string, unknown> = {},
+): [before: string, after: string] {
   const [before = '', after = ''] = i18n.t(key, { ...options, name: SLOT }).split(SLOT);
   return [before, after];
 }

@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Anchor, Breadcrumbs, Text, Tooltip } from "@mantine/core";
+import { useMemo } from 'react';
+import { Anchor, Breadcrumbs, Text, Tooltip } from '@mantine/core';
 import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -142,7 +142,7 @@ export function PathNav({ ancestors, onNavigate, onRescan, isWindows }: PathNavP
               position="bottom"
               withArrow
               openDelay={300}
-              >
+            >
               <Anchor
                 component="button"
                 type="button"

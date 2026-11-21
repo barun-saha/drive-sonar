@@ -58,11 +58,7 @@ export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
 
   return (
     <Box p="xs" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <ChartHeader
-        title={t('extensions.title')}
-        checked={isLog}
-        onChange={setUseLogScale}
-      />
+      <ChartHeader title={t('extensions.title')} checked={isLog} onChange={setUseLogScale} />
 
       <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative' }}>
         {displayData.length > 0 ? (
@@ -80,9 +76,9 @@ export function ExtensionChart({ stats = [] }: ExtensionChartProps) {
             gridAxis="y"
             barProps={{
               isAnimationActive: !reduceMotion,
-              animationDuration: 1000,        // Growth duration in ms
-              animationEasing: 'ease-out',    // 'ease', 'ease-in', 'ease-out', 'linear'
-              animationBegin: 100,            // Delay before animation starts
+              animationDuration: 1000, // Growth duration in ms
+              animationEasing: 'ease-out', // 'ease', 'ease-in', 'ease-out', 'linear'
+              animationBegin: 100, // Delay before animation starts
             }}
             tooltipProps={{
               content: ({ payload }) => {

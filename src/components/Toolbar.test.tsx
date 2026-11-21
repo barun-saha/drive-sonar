@@ -28,14 +28,7 @@ describe('Toolbar', () => {
     const onBrowse = vi.fn();
     const onScan = vi.fn();
 
-    renderWithMantine(
-      <Toolbar
-        {...defaultProps}
-        setTargetPath={setTargetPath}
-        onBrowse={onBrowse}
-        onScan={onScan}
-      />
-    );
+    renderWithMantine(<Toolbar {...defaultProps} setTargetPath={setTargetPath} onBrowse={onBrowse} onScan={onScan} />);
 
     const input = screen.getByPlaceholderText('Select a target directory to scan...');
     expect(input).toHaveValue('/home/user');
@@ -54,9 +47,7 @@ describe('Toolbar', () => {
   });
 
   it('disables scan button when path is empty or scanning', () => {
-    const { rerender } = renderWithMantine(
-      <Toolbar {...defaultProps} targetPath="" />
-    );
+    const { rerender } = renderWithMantine(<Toolbar {...defaultProps} targetPath="" />);
 
     const scanBtn = screen.getByRole('button', { name: 'Run Scan' });
     expect(scanBtn).toBeDisabled();
@@ -64,7 +55,7 @@ describe('Toolbar', () => {
     rerender(
       <MantineProvider>
         <Toolbar {...defaultProps} isScanning={true} />
-      </MantineProvider>
+      </MantineProvider>,
     );
 
     expect(screen.getByRole('button', { name: 'Scanning...' })).toBeDisabled();
@@ -73,9 +64,7 @@ describe('Toolbar', () => {
 
   it('calls onCancel when Cancel Scan button is clicked during scanning', () => {
     const onCancel = vi.fn();
-    renderWithMantine(
-      <Toolbar {...defaultProps} isScanning={true} onCancel={onCancel} />
-    );
+    renderWithMantine(<Toolbar {...defaultProps} isScanning={true} onCancel={onCancel} />);
 
     const cancelBtn = screen.getByRole('button', { name: 'Cancel Scan' });
     fireEvent.click(cancelBtn);
@@ -88,7 +77,7 @@ describe('Toolbar', () => {
         {...defaultProps}
         diskInfo={{ total_bytes: 1000000000, free_bytes: 400000000, free_total_bytes: 400000000 }}
         scanPath="C:\\Users\\test"
-      />
+      />,
     );
 
     expect(screen.getByText('Drive (C:)')).toBeInTheDocument();
@@ -107,7 +96,7 @@ describe('Toolbar', () => {
         {...defaultProps}
         diskInfo={{ total_bytes: 100, free_bytes: freePercent, free_total_bytes: 80 }}
         scanPath="/home/user"
-      />
+      />,
     );
 
     expect(screen.getByText(`100 Bytes total · ${freePercent.toFixed(1)}% free`)).toBeInTheDocument();
@@ -121,7 +110,7 @@ describe('Toolbar', () => {
         {...defaultProps}
         diskInfo={{ total_bytes: 0, free_bytes: 0, free_total_bytes: 0 }}
         scanPath="/home/user"
-      />
+      />,
     );
 
     expect(screen.getByText('0 Bytes free')).toBeInTheDocument();
@@ -138,7 +127,7 @@ describe('Toolbar', () => {
         dirCount={1}
         fileCount={10}
         currentViewSize={5000000}
-      />
+      />,
     );
 
     expect(screen.getByText('Disk')).toBeInTheDocument();
@@ -164,7 +153,7 @@ describe('Toolbar', () => {
           total_file_bytes: 6789000,
           elapsed_secs: 2.3,
         }}
-      />
+      />,
     );
 
     expect(screen.getByText('Disk')).toBeInTheDocument();
@@ -186,7 +175,7 @@ describe('Toolbar', () => {
           total_file_bytes: 6789000,
           elapsed_secs: 2.3,
         }}
-      />
+      />,
     );
 
     expect(screen.getByText('Current folder')).toBeInTheDocument();
@@ -203,24 +192,12 @@ describe('Toolbar', () => {
   });
 
   it('does not render the session card when trashedCount is 0 or omitted', () => {
-    renderWithMantine(
-      <Toolbar
-        {...defaultProps}
-        trashedCount={0}
-        trashedBytes={0}
-      />
-    );
+    renderWithMantine(<Toolbar {...defaultProps} trashedCount={0} trashedBytes={0} />);
     expect(screen.queryByText('This session')).not.toBeInTheDocument();
   });
 
   it('renders singular item and formatted bytes when trashedCount is 1', () => {
-    renderWithMantine(
-      <Toolbar
-        {...defaultProps}
-        trashedCount={1}
-        trashedBytes={1024 * 500}
-      />
-    );
+    renderWithMantine(<Toolbar {...defaultProps} trashedCount={1} trashedBytes={1024 * 500} />);
     expect(screen.getByText('This session')).toBeInTheDocument();
     expect(screen.getByText(/1 item moved to Trash/)).toBeInTheDocument();
     expect(screen.getByText(/500\.00 KB/)).toBeInTheDocument();
@@ -229,13 +206,7 @@ describe('Toolbar', () => {
   });
 
   it('renders plural items and formatted bytes when trashedCount is greater than 1', () => {
-    renderWithMantine(
-      <Toolbar
-        {...defaultProps}
-        trashedCount={5}
-        trashedBytes={1024 * 1024 * 25}
-      />
-    );
+    renderWithMantine(<Toolbar {...defaultProps} trashedCount={5} trashedBytes={1024 * 1024 * 25} />);
     expect(screen.getByText('This session')).toBeInTheDocument();
     expect(screen.getByText(/5 items moved to Trash/)).toBeInTheDocument();
     expect(screen.getByText(/25\.00 MB/)).toBeInTheDocument();
@@ -249,15 +220,13 @@ describe('Toolbar', () => {
         trashedCount={1}
         trashedBytes={1024 * 500}
         lifetimeTrashed={{ count: 12, bytes: 5 * 1024 * 1024 }}
-      />
+      />,
     );
     expect(screen.getByText(/Lifetime: 12 items · 5\.00 MB moved to Trash/)).toBeInTheDocument();
   });
 
   it('does not render the session card from the lifetime total alone', () => {
-    renderWithMantine(
-      <Toolbar {...defaultProps} lifetimeTrashed={{ count: 1, bytes: 1024 }} />
-    );
+    renderWithMantine(<Toolbar {...defaultProps} lifetimeTrashed={{ count: 1, bytes: 1024 }} />);
     expect(screen.queryByText('This session')).not.toBeInTheDocument();
     expect(screen.queryByText(/Lifetime:/)).not.toBeInTheDocument();
   });
