@@ -50,3 +50,9 @@ libc = "0.2"
 
 [dev-dependencies]
 tempfile = "3"
+
+# Mock runtime (`tauri::test`) to build `State` for command tests; dev builds only.
+# Not enabled on Windows: the test binary has no common-controls v6 manifest, so
+# linking it fails at startup there (STATUS_ENTRYPOINT_NOT_FOUND, 0xc0000139).
+[target.'cfg(not(windows))'.dev-dependencies]
+tauri = { version = "2", features = ["test"] }
