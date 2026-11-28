@@ -54,6 +54,10 @@ describe('theme', () => {
     expect(theme.colors?.brand).toHaveLength(10);
   });
 
+  it('gives brand shade 6 WCAG AA contrast under white text', () => {
+    expect(contrast(theme.colors!.brand![6], '#ffffff')).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('lists the bundled fonts first, with system fonts as fallback', () => {
     expect(theme.fontFamily).toMatch(/^'Inter Variable', .*system-ui/);
     expect(theme.fontFamilyMonospace).toMatch(/^'JetBrains Mono Variable', .*monospace$/);

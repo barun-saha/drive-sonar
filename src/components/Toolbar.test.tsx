@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { MantineProvider } from '@mantine/core';
 import { Toolbar } from './Toolbar';
+import { theme } from '../theme';
 
 function renderWithMantine(ui: React.ReactNode) {
   return render(<MantineProvider>{ui}</MantineProvider>);
@@ -229,5 +230,16 @@ describe('Toolbar', () => {
     renderWithMantine(<Toolbar {...defaultProps} lifetimeTrashed={{ count: 1, bytes: 1024 }} />);
     expect(screen.queryByText('This session')).not.toBeInTheDocument();
     expect(screen.queryByText(/Lifetime:/)).not.toBeInTheDocument();
+  });
+
+  it('uses brand.6 on the Run Scan button in dark mode for white-text contrast', () => {
+    render(
+      <MantineProvider theme={theme} forceColorScheme="dark">
+        <Toolbar {...defaultProps} />
+      </MantineProvider>,
+    );
+
+    const scanBtn = screen.getByRole('button', { name: 'Run Scan' });
+    expect(scanBtn.style.getPropertyValue('--button-bg')).toBe('var(--mantine-color-brand-6)');
   });
 });
