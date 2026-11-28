@@ -109,6 +109,7 @@ export function Toolbar({
               }
             />
             <Button
+              color="brand.6"
               onClick={() => onScan()}
               disabled={isScanning || !targetPath.trim()}
               leftSection={isScanning ? <Loader2 className="spin" /> : <Search />}
